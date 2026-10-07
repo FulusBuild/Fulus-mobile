@@ -22,6 +22,7 @@ class ProductRepositoryImpl implements ProductRepository {
 
   final AppDatabase _db;
   final SyncQueue _syncQueue;
+  final SyncExecutionLease _executionLease;
 
   ProductWithStock _mapRow(TypedResult row) {
     final product = row.readTable(_db.products);
