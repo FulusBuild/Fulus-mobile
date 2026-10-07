@@ -55,11 +55,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _CategoryOverview(count: categories.length),
-                          const SizedBox(height: AppSpacing.xl),
-                          const FulusSectionHeader(
-                            title: 'Product categories',
-                          ),
+                          const FulusSectionHeader(title: 'Product categories'),
                           if (categories.isEmpty)
                             FulusEmptyState(
                               icon: FulusIcons.sell,
