@@ -53,9 +53,10 @@ class _FulusDropdownFieldState<T> extends State<FulusDropdownField<T>> {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return FulusPressable(
       key: _fieldKey,
-      onTap: () => _useAnchoredMenu ? _openAnchoredMenu(context) : _openSheet(context),
+      semanticsLabel: widget.label,
+      onPressed: () => _useAnchoredMenu ? _openAnchoredMenu(context) : _openSheet(context),
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: widget.label,
