@@ -19,7 +19,10 @@ class CloudSyncBootstrapCoordinator {
   final AppDatabase _db;
   final SyncExecutionLease _executionLease;
 
-  Future<int> bootstrap({required Map<String, dynamic> snapshot}) async {
+  Future<int> bootstrap({
+    required Map<String, dynamic> snapshot,
+    required String businessId,
+  }) async {
     final boundary = snapshot['sync_boundary'];
     if (boundary is! num || boundary.toInt() < 0) {
       throw const FormatException('Fulus Cloud bootstrap snapshot has no valid sync boundary.');
