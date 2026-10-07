@@ -378,14 +378,13 @@ class _HomeDashboardHydration extends StatefulWidget {
 
 class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   HomeHeroState? _hero;
-  SecondaryNoticeSelection? _noticeSelection;
   bool _heroError = false;
 
   @override
   void initState() {
     super.initState();
-    // Start all independent local reads together. None waits for another
-    // FutureBuilder to build before its own future is observed.
+    // Start the local hero read immediately; the dashboard renders its
+    // skeleton until the repository result is ready.
     widget.heroFuture.then(_setHero, onError: _setHeroError);  }
 
   @override
