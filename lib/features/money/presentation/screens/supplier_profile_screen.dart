@@ -53,7 +53,6 @@ class _SupplierProfileScreenState extends ConsumerState<SupplierProfileScreen> {
 
     return FulusScreen(
       title: 'Supplier',
-      subtitle: 'Supplier details and payment history',
       body: FutureBuilder<Supplier?>(
         future: _future,
         builder: (context, snapshot) {
