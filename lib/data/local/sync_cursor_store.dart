@@ -19,7 +19,6 @@ abstract interface class SyncCursorStore {
 
   SyncBlockedChange? blockedChangeFor(String businessId);
 
-  @override
   Future<void> recordBlockedChange({
     required String businessId,
     required SyncBlockedChange change,
