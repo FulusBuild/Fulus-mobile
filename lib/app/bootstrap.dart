@@ -373,6 +373,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       ));
     },
     withApplyTransaction: (action) => database.transaction(() async {
+      // This must be the first database operation in the transaction. The
+      // conditional UPDATE acquires SQLite's writer lock before eligibility
+      // checks and canonical reconciliation, fencing lease takeover from the
+      // entire apply transaction.
+      await syncExecutionLease.ensureHeldForTransaction();
       final selectedBusinessId = fulusConnectionState.selectedBusinessId;
       if (selectedBusinessId == null) {
         throw StateError('Fulus Cloud business context is not ready for canonical reconciliation.');
@@ -383,11 +388,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (binding == null || binding.businessId != selectedBusinessId) {
         throw StateError('Local database is bound to a different Fulus Cloud business.');
       }
-      // This must be the first database operation in the transaction. The
-      // conditional UPDATE acquires SQLite's writer lock before eligibility
-      // checks and canonical reconciliation, fencing lease takeover from the
-      // entire apply transaction.
-      await syncExecutionLease.ensureHeldForTransaction();
       await action();
     }),
   );
