@@ -955,3 +955,46 @@ The remaining coordination objects are retained because each protects a distinct
 **P3 result: 🟢 source-verified and fixed.**
 
 A follow-up current-main trace found one residual ownership leak: `SyncTriggers` still accepted separate `isReady` and `onNotReady` callbacks and the composition root wired those directly to `SyncService`. That meant the trigger adapter still participated in the readiness decision despite the earlier gate removal. PR #186 removes those callbacks and routes readiness through a single `SyncReadinessEnsureResult` returned by `SyncService.ensureReady()`. The service remains the sole readiness decision/bootstrap authority, while the runtime retains only reconciliation/execution responsibilities.
+
+
+---
+
+## 2026-10-07 — F-04 poison canonical change hardening
+
+### Finding
+
+A canonical change can be received in order but fail during local application. The existing coordinator correctly refused to advance the durable cursor when application threw, but the failure had no durable, explicit recovery state.
+
+### Decision: STRENGTHEN / P2
+
+The synchronization boundary now treats the failed change as a **durable synchronization barrier**, not as a message to discard.
+
+The implementation:
+
+- keeps the durable cursor before the failed sequence;
+- persists the blocked sequence, entity identity, operation, attempt count, timestamps, and diagnostic error;
+- retries only within a bounded exponential backoff/attempt budget;
+- fails fast once the automatic retry budget is exhausted;
+- never acknowledges later feed entries past the unresolved change;
+- clears the block only after successful cursor acknowledgement or an authoritative restore boundary;
+- exposes an explicit release-for-retry recovery lever;
+- keeps transient/session failures out of poison state;
+- preserves exact failed-change identity inside the existing batched SQLite apply transaction;
+- adds SQLite durability and coordinator recovery regressions.
+
+The retry count is an operational default, not an architectural invariant. The architectural invariant is:
+
+> **No safe local application and no authoritative reconciliation boundary means no cursor acknowledgement past the change.**
+
+This deliberately does **not** introduce a dead-letter skip path for financial or canonical changes.
+
+### F-04 exit criteria
+
+- [x] Failed canonical application does not advance the durable cursor.
+- [x] Later canonical changes cannot be acknowledged past the failed sequence.
+- [x] Blocked state survives process restart.
+- [x] Automatic retries are bounded.
+- [x] Successful retry clears the barrier.
+- [x] Authoritative restore boundary clears the barrier.
+- [x] SQLite cursor/block state is durable.
+- [ ] Physical Android/runtime multi-device evidence remains separate from source hardening.
