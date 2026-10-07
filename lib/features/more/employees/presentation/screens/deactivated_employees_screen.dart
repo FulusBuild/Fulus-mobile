@@ -26,7 +26,6 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
   @override
   Widget build(BuildContext context) => FulusScreen(
         title: 'Deactivated team members',
-        subtitle: 'People no longer active in your workspace',
         body: LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 760;
@@ -64,7 +63,7 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
                       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (context, i) {
                         final employee = employees[i];
-                        return FulusCard(
+                        return FulusListRow(
                           onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
                           child: Row(
                             children: [
