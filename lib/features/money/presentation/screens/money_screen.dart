@@ -370,43 +370,43 @@ class _MoneyQuickActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final customers = ref.watch(moneyCustomersProvider).asData?.value ?? const [];
-    final customerCredit = customers.fold<Money>(zeroMoney, (sum, customer) => sum + customer.outstandingBalance);
+    final customers =
+        ref.watch(moneyCustomersProvider).asData?.value ?? const [];
+    final customerCredit = customers.fold<Money>(
+      zeroMoney,
+      (sum, customer) => sum + customer.outstandingBalance,
+    );
     final supplierPayments = summary.expenseBreakdown
         .where((row) => row.type == MoneyTransactionType.supplierPayment)
         .fold<Money>(zeroMoney, (sum, row) => sum + row.amount);
 
     final actions = <_MoneyAction>[
       _MoneyAction(
-        color: const Color(0xFF1473E6),
+        color: AppColors.primary,
         icon: FulusIcons.moneyIn,
         label: 'Money In',
         value: formatMoney(summary.moneyIn, symbol: currencySymbol),
-        subtitle: 'Today',
         onTap: () => context.pushNamed('moneyAddIncome'),
       ),
       _MoneyAction(
-        color: const Color(0xFFFF8C00),
+        color: AppColors.warning,
         icon: FulusIcons.moneyOut,
         label: 'Money Out',
         value: formatMoney(summary.moneyOut, symbol: currencySymbol),
-        subtitle: 'Today',
         onTap: () => context.pushNamed('moneyAddExpense'),
       ),
       _MoneyAction(
-        color: const Color(0xFF7B3FF2),
+        color: AppColors.customers,
         icon: FulusIcons.customers,
         label: 'Customer Credit',
         value: formatMoney(customerCredit, symbol: currencySymbol),
-        subtitle: 'Owed',
         onTap: () => context.pushNamed('moneyCustomers'),
       ),
       _MoneyAction(
-        color: const Color(0xFF0DA8C4),
+        color: AppColors.info,
         icon: FulusIcons.localShipping,
         label: 'Supplier Payments',
         value: formatMoney(supplierPayments, symbol: currencySymbol),
-        subtitle: 'Today',
         onTap: () => context.pushNamed('moneySuppliers'),
       ),
     ];
@@ -419,56 +419,51 @@ class _MoneyQuickActions extends ConsumerWidget {
         crossAxisCount: 2,
         crossAxisSpacing: AppSpacing.sm,
         mainAxisSpacing: AppSpacing.sm,
-        childAspectRatio: 1.45,
+        childAspectRatio: 1.15,
       ),
       itemBuilder: (context, index) {
         final action = actions[index];
-        final foreground = AppColors.onColor(action.color);
-        final muted = foreground.withValues(alpha: 0.9);
+        final foreground = AppColors.textPrimaryOf(context);
         return Semantics(
           button: true,
-          label: '${action.label}, ${action.value}',
+          label: action.label + ', ' + action.value,
           child: Material(
-            color: action.color,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            color: action.color.withValues(alpha: 0.10),
             child: InkWell(
               onTap: action.onTap,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: FulusMetricCardColumn(
-                  icon: action.icon,
-                  iconColor: foreground,
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: action.color.withValues(alpha: 0.20),
+                    width: 0.8,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Icon(action.icon, size: AppIconSize.emphasis, color: action.color),
+                    const Spacer(),
                     Text(
                       action.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                      style: AppTypography.body.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.xs),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
                       child: Text(
                         action.value,
                         maxLines: 1,
-                        style: TextStyle(
+                        style: AppTypography.heading.copyWith(
                           color: foreground,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
-                      ),
-                    ),
-                    Text(
-                      action.subtitle,
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -488,7 +483,6 @@ class _MoneyAction {
     required this.icon,
     required this.label,
     required this.value,
-    required this.subtitle,
     required this.onTap,
   });
 
@@ -496,7 +490,6 @@ class _MoneyAction {
   final IconData icon;
   final String label;
   final String value;
-  final String subtitle;
   final VoidCallback onTap;
 }
 
