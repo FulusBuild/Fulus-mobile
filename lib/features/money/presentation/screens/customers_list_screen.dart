@@ -210,7 +210,7 @@ class _CustomerRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (outstanding > Money.zero)
+          if (outstanding > zeroMoney)
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
