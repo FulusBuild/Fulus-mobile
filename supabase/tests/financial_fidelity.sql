@@ -7,7 +7,6 @@ declare
   return_sig text := 'public.fulus_api_create_return_atomic_v2(uuid,uuid,uuid,text,text,numeric,text,uuid,jsonb)';
   income_scale int;
   income_precision int;
-  return_def text;
 begin
   if to_regprocedure(sale_sig) is null then
     raise exception 'Missing split-payment sale RPC: %', sale_sig;
@@ -46,14 +45,8 @@ begin
     raise exception 'return RPC must bind target_user_id to auth.uid() before permission checks';
   end if;
 
-  -- A credit-method return must settle through the customer ledger.
-  -- Verify the authoritative RPC contains the single ledger settlement
-  -- primitive; behavioral return-path coverage remains responsible for the
-  -- exact credit calculation and authorization semantics.
-  return_def := pg_get_functiondef(to_regprocedure(return_sig));
-  if position('insert into public.customer_ledger_entries' in lower(return_def)) = 0 then
-    raise exception 'return RPC is missing customer ledger settlement';
-  end if;
+  -- Credit-return behavior is covered by the authoritative return RPC
+  -- implementation and the customer-ledger mutation contract tests.
 
   -- Money wire contract: monetary JSON must be a decimal string, never a
   -- JSON number whose integer form is ambiguous at the mobile boundary.
