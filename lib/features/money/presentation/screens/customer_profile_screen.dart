@@ -101,8 +101,7 @@ class _ProfileBody extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    FulusCard(
-                      child: Column(
+                    Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
@@ -152,8 +151,8 @@ class _ProfileBody extends ConsumerWidget {
                               ),
                           ],
                           const SizedBox(height: AppSpacing.lg),
-                          FulusCard(
-                            padding: const EdgeInsets.all(AppSpacing.md),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                             child: LayoutBuilder(
                               builder: (context, metricConstraints) {
                                 final compact = metricConstraints.maxWidth < 430;
@@ -190,9 +189,9 @@ class _ProfileBody extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          FulusActionTile(
-                            icon: Icons.payments_outlined,
-                            label: 'Record repayment',
+                          FulusListRow(
+                            leading: const Icon(Icons.payments_outlined),
+                            title: const Text('Record repayment'),
                             onTap: () async {
                               final result = await context.pushNamed<bool>(
                                 openedFromMore ? 'moreRecordRepayment' : 'moneyRecordRepayment',
@@ -208,10 +207,10 @@ class _ProfileBody extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.lg),
                     _ArchiveSection(customer: customer, onChanged: onChanged),
                     const SizedBox(height: AppSpacing.lg),
-                    const FulusSectionHeader(title: 'Purchase history', subtitle: 'Sales made to this customer'),
+                    const FulusSectionHeader(title: 'Purchase history'),
                     _buildPurchaseHistorySection(context, ref),
                     const SizedBox(height: AppSpacing.lg),
-                    const FulusSectionHeader(title: 'Credit history', subtitle: 'Credit sales and repayments'),
+                    const FulusSectionHeader(title: 'Credit history'),
                     _buildLedgerSection(ref),
                   ],
                 ),
@@ -235,9 +234,7 @@ class _ProfileBody extends ConsumerWidget {
         if (transactions.isEmpty) {
           return const FulusEmptyState(icon: Icons.point_of_sale_outlined, headline: 'No purchases yet.', body: 'Sales made to this customer will show up here.');
         }
-        return FulusCard(
-          padding: EdgeInsets.zero,
-          child: Column(
+        return Column(
             children: [
               for (var i = 0; i < transactions.length; i++) ...[
                 if (i > 0) const FulusListDivider(indented: false),
