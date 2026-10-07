@@ -203,29 +203,26 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             );
                           }
 
-                          return FulusCard(
-                            padding: EdgeInsets.zero,
-                            child: Column(
-                              children: [
-                                for (var i = 0;
-                                    i < transactions.length;
-                                    i++) ...[
-                                  if (i > 0) const FulusListDivider(),
-                                  MoneyTransactionTile(
-                                    transaction: transactions[i],
-                                    currencySymbol: currencySymbol,
-                                    showDate: false,
-                                    onTap: () => context.pushNamed(
-                                      'moneyTransactionDetail',
-                                      pathParameters: {
-                                        'id': transactions[i].id,
-                                      },
-                                      extra: transactions[i],
-                                    ),
+                          return Column(
+                            children: [
+                              for (var i = 0;
+                                  i < transactions.length;
+                                  i++) ...[
+                                if (i > 0) const FulusListDivider(),
+                                MoneyTransactionTile(
+                                  transaction: transactions[i],
+                                  currencySymbol: currencySymbol,
+                                  showDate: false,
+                                  onTap: () => context.pushNamed(
+                                    'moneyTransactionDetail',
+                                    pathParameters: {
+                                      'id': transactions[i].id,
+                                    },
+                                    extra: transactions[i],
                                   ),
-                                ],
+                                ),
                               ],
-                            ),
+                            ],
                           );
                         },
                       ),
