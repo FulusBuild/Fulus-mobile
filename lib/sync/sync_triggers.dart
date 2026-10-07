@@ -43,7 +43,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
 })  : _isEnabled = isEnabled,
         _syncStatusNotifier = syncStatusNotifier,
         _ensureReadyCallback = ensureReady ??
-            () async => SyncReadinessEnsureResult.alreadyReady,
+            (() async => SyncReadinessEnsureResult.alreadyReady),
         _onSyncSuccess = onSyncSuccess,
         _onSyncFailure = onSyncFailure,
         _onContextChangeReconciled = onContextChangeReconciled,
