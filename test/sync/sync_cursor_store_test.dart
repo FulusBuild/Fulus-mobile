@@ -118,8 +118,8 @@ void main() {
     final persisted = reloaded.blockedChangeFor('business-1')!;
     expect(persisted.attemptCount, 3);
     expect(persisted.errorMessage, 'canonical payload is invalid');
-    expect(persisted.firstSeenAt, now);
-    expect(persisted.lastAttemptedAt, now);
+    expect(persisted.firstSeenAt.millisecondsSinceEpoch, now.millisecondsSinceEpoch);
+    expect(persisted.lastAttemptedAt.millisecondsSinceEpoch, now.millisecondsSinceEpoch);
   });
 
   test('repairs blocked timestamps written as milliseconds by older builds', () async {
