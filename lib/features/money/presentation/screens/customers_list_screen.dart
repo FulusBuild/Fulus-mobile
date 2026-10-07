@@ -72,12 +72,6 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
                 children: [
-                  _CustomerOverviewHeader(
-                    customers: customers,
-                    outstanding: outstanding,
-                    currencySymbol: currencySymbol,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
                   FulusSearchField(
                     hintText: 'Search by name or phone',
                     onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
@@ -216,20 +210,19 @@ class _CustomerRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerRight,
-            child: Text(
-              formatMoney(outstanding, symbol: currencySymbol),
-              style: AppTypography.body.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
-                fontWeight: FontWeight.w700,
-                color: outstanding > 0 ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
+          if (outstanding > Money.zero)
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                formatMoney(outstanding, symbol: currencySymbol),
+                style: AppTypography.body.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimaryOf(context),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(outstanding > 0 ? 'Outstanding' : 'Settled', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
         ],
       ),
       onTap: () => context.pushNamed(openedFromMore ? 'moreCustomerProfile' : 'moneyCustomerProfile', pathParameters: {'id': customer.localId}, extra: customer),
