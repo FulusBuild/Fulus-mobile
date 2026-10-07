@@ -56,6 +56,25 @@ begin
     raise exception 'return RPC does not cap cumulative refunds against prior returns';
   end if;
 
+  -- Idempotent replay must be resolved before the refundable-balance guard.
+  -- After a successful full return, the sale has no refundable balance left,
+  -- but an exact replay must still return the stored idempotency response.
+  if position(
+    'if idem.completed_at is not null and idem.response_body is not null then'
+    in pg_get_functiondef(to_regprocedure(return_impl_sig))
+  ) = 0 then
+    raise exception 'return RPC is missing completed idempotency replay handling';
+  end if;
+  if position(
+    'if previously_refunded >= greatest(round(coalesce(sale.total,0),2),0) then'
+    in pg_get_functiondef(to_regprocedure(return_impl_sig))
+  ) <= position(
+    'if idem.completed_at is not null and idem.response_body is not null then'
+    in pg_get_functiondef(to_regprocedure(return_impl_sig))
+  ) then
+    raise exception 'return RPC checks refund exhaustion before idempotent replay';
+  end if;
+
   -- Credit-return behavior is covered by the authoritative return RPC
   -- implementation and the customer-ledger mutation contract tests.
 
