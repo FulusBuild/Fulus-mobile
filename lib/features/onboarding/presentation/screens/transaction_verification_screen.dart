@@ -115,7 +115,7 @@ class _VerificationErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-              const OnboardingStepHeader(step: 6, total: 7, title: 'Verify your first transaction', subtitle: 'See how the sale updates your business records.'),
+              const OnboardingStepHeader(step: 6, total: 7, title: 'Verify your first transaction'),
           Text(
             "We couldn't load what changed from your sale. It's already saved — this is just "
             "this screen having trouble reading it back.",
