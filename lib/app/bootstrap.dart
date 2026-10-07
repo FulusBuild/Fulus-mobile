@@ -188,7 +188,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseCategoriesApi = ExpenseCategoriesApi(apiClient);
   final incomeApi = IncomeApi(apiClient);
   final stockMovementsApi = StockMovementsApi(apiClient);
-  final productsApi = ProductsApi(apiClient);
   final productImageApi = ProductImageApi(apiClient);
   final categoriesApi = CategoriesApi(apiClient);
   final suppliersApi = SuppliersApi(apiClient);
@@ -224,7 +223,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
   final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
-  final productRepository = ProductRepositoryImpl(db: database, syncQueue: syncQueue);
+  final productRepository = ProductRepositoryImpl(db: database, syncQueue: syncQueue, executionLease: syncExecutionLease);
   final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, syncQueue: syncQueue, diagnosticLogger: diagnosticLogger);
 
   fulusConnectionState.setBusinessSwitchGuard(
