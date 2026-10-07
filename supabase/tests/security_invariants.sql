@@ -89,7 +89,7 @@ begin
 end
 $$;
 
-do $
+do $security$
 declare
   v_count integer;
   v_check text;
@@ -119,6 +119,6 @@ begin
     raise exception 'FAIL: product image insert policy is not bound to catalog.manage';
   end if;
 end
-$;
+$security$;
 
 select 'PASS: SECURITY DEFINER, function grants, RLS, and V2 location-authorization invariants hold' as result;
