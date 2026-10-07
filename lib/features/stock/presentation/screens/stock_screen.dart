@@ -168,14 +168,14 @@ class _StockBody extends ConsumerWidget {
                           icon: FulusIcons.stock,
                           label: 'Products',
                           value: '${products.length}',
-                          subtitle: 'Total items',
+                          subtitle: '',
                         ),
                         _StockSummaryTile(
                           color: const Color(0xFF0BBE6E),
                           icon: FulusIcons.category,
                           label: 'Categories',
                           value: '${categories.length}',
-                          subtitle: 'Categories',
+                          subtitle: '',
                           onTap: () => context.pushNamed('stockCategories'),
                         ),
                         _StockSummaryTile(
@@ -183,7 +183,7 @@ class _StockBody extends ConsumerWidget {
                           icon: FulusIcons.stockIn,
                           label: 'Stock In',
                           value: movementsAsync.asData?.value.where((m) => m.movementType == StockMovementType.stockIn).length.toString() ?? '—',
-                          subtitle: 'Recent',
+                          subtitle: '',
                           onTap: () => context.pushNamed('stockRecordMovement'),
                         ),
                         _StockSummaryTile(
@@ -191,7 +191,7 @@ class _StockBody extends ConsumerWidget {
                           icon: FulusIcons.stockMovement,
                           label: 'Stock Movement',
                           value: movementsAsync.asData?.value.length.toString() ?? '—',
-                          subtitle: 'Recent activity',
+                          subtitle: '',
                           onTap: () => context.pushNamed('stockHistory'),
                         ),
                       ],
@@ -202,30 +202,33 @@ class _StockBody extends ConsumerWidget {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
                       child: Material(
-                        color: const Color(0xFFFF3B30),
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.warning.withValues(alpha: 0.10),
                         child: InkWell(
-                          onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
-                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => ref.read(stockFilterProvider.notifier).state =
+                              filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
                           child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            child: Builder(builder: (context) {
-                              const alertColor = Color(0xFFFF3B30);
-                              final foreground = AppColors.onColor(alertColor);
-                              final muted = foreground.withValues(alpha: 0.9);
-                              return Row(children: [
-                          Icon(FulusIcons.warning, color: foreground, size: 28),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(
-  lowStockCount == 1 ? '1 item low in stock' : '$lowStockCount items low in stock',
-  style: TextStyle(color: foreground, fontSize: 14, fontWeight: FontWeight.w800),
-),
-                            Text('View details →', style: TextStyle(color: muted, fontSize: 14)),
-                          ])),
-                              Icon(FulusIcons.chevronRight, color: foreground),
-                            ]);
-                            }),
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  FulusIcons.warning,
+                                  color: AppColors.warning,
+                                  size: AppIconSize.emphasis,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Text(
+                                    lowStockCount == 1
+                                        ? '1 item low in stock'
+                                        : '$lowStockCount items low in stock',
+                                    style: AppTypography.body.copyWith(
+                                      color: AppColors.textPrimaryOf(context),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -251,7 +254,7 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: inset, vertical: AppSpacing.xs),
-                    child: Text('${filtered.length} products', style: AppTypography.caption.copyWith(color: Colors.white70)),
+                    child: Text('${filtered.length} products', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                   ),
                 ),
                 if (filtered.isEmpty)
@@ -334,36 +337,37 @@ class _StockSummaryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = AppColors.onColor(color);
-    final muted = foreground.withValues(alpha: 0.9);
+    final foreground = AppColors.textPrimaryOf(context);
     final child = SizedBox(
       height: 146,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: FulusMetricCardColumn(
-          icon: icon,
-          iconColor: foreground,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Icon(icon, size: AppIconSize.emphasis, color: color),
+            const Spacer(),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: muted, fontSize: 17, fontWeight: FontWeight.w700),
+              style: AppTypography.body.copyWith(
+                color: foreground,
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            const SizedBox(height: AppSpacing.xs),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
                 value,
                 maxLines: 1,
-                style: TextStyle(color: foreground, fontSize: 30, fontWeight: FontWeight.w900),
+                style: AppTypography.heading.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -373,11 +377,10 @@ class _StockSummaryTile extends StatelessWidget {
       button: onTap != null,
       label: '$label, $value',
       child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: color.withValues(alpha: 0.10),
         child: onTap == null
             ? child
-            : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(AppRadius.md), child: child),
+            : InkWell(onTap: onTap, child: child),
       ),
     );
   }
