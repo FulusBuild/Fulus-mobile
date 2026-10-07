@@ -469,16 +469,37 @@ class _HomeMockupDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <Widget>[
-      const _HomeActionCell(color: AppColors.primary, icon: FulusIcons.sell, label: 'Sell', route: 'sell'),
+      const _HomeActionCell(
+        color: AppColors.primary,
+        icon: FulusIcons.sell,
+        label: 'Sell',
+        route: 'sell',
+      ),
       if (canViewDashboardStats)
-        const _HomeActionCell(color: AppColors.sales, icon: FulusIcons.receipt, label: 'Receipts', route: 'receiptHistory'),
+        const _HomeActionCell(
+          color: AppColors.sales,
+          icon: FulusIcons.receipt,
+          label: 'Receipts',
+          route: 'receiptHistory',
+        ),
       if (canViewMoney)
-        const _HomeActionCell(color: AppColors.customers, icon: FulusIcons.customers, label: 'Customers', route: 'moneyCustomers'),
+        const _HomeActionCell(
+          color: AppColors.customers,
+          icon: FulusIcons.customers,
+          label: 'Customers',
+          route: 'moneyCustomers',
+        ),
       if (canViewReports)
-        const _HomeActionCell(color: AppColors.reports, icon: FulusIcons.reports, label: 'Reports', route: 'moreReports'),
+        const _HomeActionCell(
+          color: AppColors.reports,
+          icon: FulusIcons.reports,
+          label: 'Reports',
+          route: 'moreReports',
+        ),
     ];
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _HomeSalesHeroCard(
           salesTotal: _salesTotal,
@@ -486,20 +507,26 @@ class _HomeMockupDashboard extends StatelessWidget {
           error: heroError,
           currencySymbol: currencySymbol,
         ),
+        const SizedBox(height: AppSpacing.lg),
+        Text(
+          'Transactions',
+          style: AppTypography.subheading.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: AppSpacing.sm),
         LayoutBuilder(
           builder: (context, constraints) {
             final gap = AppSpacing.sm;
             final width = (constraints.maxWidth - gap) / 2;
             final textScale = MediaQuery.textScalerOf(context).scale(1);
-            // Give action tiles more vertical room as accessibility text grows.
-            // This keeps the 2x text setting usable without clipping while
-            // preserving the compact 112dp design at normal scale.
             final tileHeight = textScale > 1.6
-                ? 144.0
+                ? 176.0
                 : textScale > 1.15
-                    ? 128.0
-                    : 112.0;
+                    ? 160.0
+                    : 148.0;
+
             return Wrap(
               spacing: gap,
               runSpacing: gap,
@@ -544,7 +571,7 @@ class _HomeActionCell extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 32, color: color),
+              Icon(icon, size: 38, color: color),
               const Spacer(),
               Text(
                 label,
@@ -552,7 +579,7 @@ class _HomeActionCell extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textPrimaryOf(context),
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
