@@ -64,8 +64,8 @@ class ReportsScreen extends ConsumerStatefulWidget {
   ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 5, vsync: this);
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  int _selectedReportIndex = 0;
   ReportPeriodKind _periodKind = ReportPeriodKind.today;
   DateTimeRange? _customRange;
   static const _engine = ReportsEngine();
@@ -204,7 +204,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   }
 
   Future<_ExportPayload> _buildExportPayload(String currencySymbol) async {
-    switch (_tabs.index) {
+    switch (_selectedReportIndex) {
       case 0:
         final r = await _salesFuture;
         return _ExportPayload(
@@ -276,9 +276,27 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     }
   }
 
+  Widget _selectedReportContent({
+    required String currencySymbol,
+    required bool canViewMoney,
+    required bool canManageEmployees,
+  }) {
+    final period = _period;
+    switch (_selectedReportIndex) {
+      case 0:
+        return KeyedSubtree(key: ValueKey('sales-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _SalesTab(future: _salesFuture, currencySymbol: currencySymbol, onRetry: _retry, period: period));
+      case 1:
+        return KeyedSubtree(key: ValueKey('inventory-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _InventoryTab(future: _inventoryFuture, currencySymbol: currencySymbol, onRetry: _retry));
+      case 2:
+        return KeyedSubtree(key: ValueKey('customers-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _CustomersTab(future: _customersFuture, currencySymbol: currencySymbol, onRetry: _retry, canViewMoney: canViewMoney));
+      case 3:
+        return KeyedSubtree(key: ValueKey('finance-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _FinanceTab(future: _financeFuture, cashFlowFuture: _cashFlowFuture, currencySymbol: currencySymbol, onRetry: _retry, onOpenMoneyHistory: canViewMoney ? _openMoneyHistory : null));
+      default:
+        return KeyedSubtree(key: ValueKey('employees-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _EmployeesTab(future: _employeesFuture, onRetry: _retry, canManageEmployees: canManageEmployees));
+    }
+  }
   @override
   void dispose() {
-    _tabs.dispose();
     super.dispose();
   }
 
@@ -300,37 +318,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
         FulusIconButton(icon: Icons.ios_share, tooltip: 'Export report', onPressed: _export),
       ],
       applyPadding: false,
-      body: Column(
+      body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(fulusHorizontalInset(context), AppSpacing.sm, fulusHorizontalInset(context), AppSpacing.xs),
-            child: Column(
+            child: GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 0,
+              mainAxisSpacing: 0,
+              childAspectRatio: 1.55,
               children: [
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 0,
-                  mainAxisSpacing: 0,
-                  childAspectRatio: 1.55,
-                  children: [
-                    FulusFlatGridCell(icon: FulusIcons.salesReport, label: 'Sales', iconColor: AppColors.sales, onTap: () => setState(() => _tabs.animateTo(0))),
-                    FulusFlatGridCell(icon: FulusIcons.stockReport, label: 'Stock', iconColor: AppColors.stock, onTap: () => setState(() => _tabs.animateTo(1))),
-                    FulusFlatGridCell(icon: FulusIcons.expenseReport, label: 'Expense', iconColor: AppColors.warning, onTap: () => setState(() => _tabs.animateTo(3))),
-                    FulusFlatGridCell(icon: FulusIcons.customerReport, label: 'Customer', iconColor: AppColors.customers, onTap: () => setState(() => _tabs.animateTo(2))),
-                    FulusFlatGridCell(icon: FulusIcons.staff, label: 'Team', iconColor: AppColors.reports, onTap: () => _tabs.animateTo(4)),
-                  ],
-                ),
+                FulusFlatGridCell(icon: FulusIcons.salesReport, label: 'Sales', iconColor: AppColors.sales, onTap: () => setState(() => _selectedReportIndex = 0)),
+                FulusFlatGridCell(icon: FulusIcons.stockReport, label: 'Stock', iconColor: AppColors.stock, onTap: () => setState(() => _selectedReportIndex = 1)),
+                FulusFlatGridCell(icon: FulusIcons.expenseReport, label: 'Expense', iconColor: AppColors.warning, onTap: () => setState(() => _selectedReportIndex = 3)),
+                FulusFlatGridCell(icon: FulusIcons.customerReport, label: 'Customer', iconColor: AppColors.customers, onTap: () => setState(() => _selectedReportIndex = 2)),
+                FulusFlatGridCell(icon: FulusIcons.staff, label: 'Team', iconColor: AppColors.reports, onTap: () => setState(() => _selectedReportIndex = 4)),
               ],
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              fulusHorizontalInset(context),
-              AppSpacing.xs,
-              fulusHorizontalInset(context),
-              AppSpacing.sm,
-            ),
+            padding: EdgeInsets.fromLTRB(fulusHorizontalInset(context), AppSpacing.xs, fulusHorizontalInset(context), AppSpacing.sm),
             child: FulusChipRow(
               children: [
                 FulusChip(label: 'Today', selected: _periodKind == ReportPeriodKind.today, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.today})),
@@ -340,51 +351,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
               ],
             ),
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabs,
-              children: [
-                KeyedSubtree(
-                  key: ValueKey('sales-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
-                  child: _SalesTab(
-                    future: _salesFuture,
-                    currencySymbol: currencySymbol,
-                    onRetry: _retry,
-                    period: _period,
-                  ),
-                ),
-                KeyedSubtree(
-                  key: ValueKey('inventory-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
-                  child: _InventoryTab(future: _inventoryFuture, currencySymbol: currencySymbol, onRetry: _retry),
-                ),
-                KeyedSubtree(
-                  key: ValueKey('customers-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
-                  child: _CustomersTab(
-                    future: _customersFuture,
-                    currencySymbol: currencySymbol,
-                    onRetry: _retry,
-                    canViewMoney: canViewMoney,
-                  ),
-                ),
-                KeyedSubtree(
-                  key: ValueKey('finance-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
-                  child: _FinanceTab(
-                    future: _financeFuture,
-                    cashFlowFuture: _cashFlowFuture,
-                    currencySymbol: currencySymbol,
-                    onRetry: _retry,
-                    onOpenMoneyHistory: canViewMoney ? _openMoneyHistory : null,
-                  ),
-                ),
-                KeyedSubtree(
-                  key: ValueKey('employees-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
-                  child: _EmployeesTab(future: _employeesFuture, onRetry: _retry, canManageEmployees: canManageEmployees),
-                ),
-              ],
-            ),
-          ),
+          _selectedReportContent(currencySymbol: currencySymbol, canViewMoney: canViewMoney, canManageEmployees: canManageEmployees),
         ],
-      ),
+      )
     );
   }
 }
@@ -405,8 +374,7 @@ class _ReportScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+    return Column(
       children: [
         ...children,
         if (insights.isNotEmpty) ...[
@@ -488,7 +456,7 @@ class _ReportTabBuilderState<T> extends State<_ReportTabBuilder<T>> {
             return Column(
               children: [
                 const _ReportRefreshNotice(error: true),
-                Expanded(child: widget.builder(context, _visibleData as T)),
+                widget.builder(context, _visibleData as T),
               ],
             );
           }
