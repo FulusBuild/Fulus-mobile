@@ -32,14 +32,9 @@ class FulusFlatGridCell extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Container(
-            constraints: const BoxConstraints(minHeight: 112),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: AppColors.borderOf(context).withValues(alpha: 0.7),
-                width: 0.8,
-              ),
-            ),
+            constraints: const BoxConstraints(minHeight: 96),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+            
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
