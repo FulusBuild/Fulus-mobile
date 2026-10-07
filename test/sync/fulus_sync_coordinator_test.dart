@@ -10,6 +10,7 @@ import 'package:fulus_mobile/data/remote/fulus_sync_coordinator.dart';
 import 'package:fulus_mobile/data/local/sync_cursor_store.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/sync/sync_error.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 
