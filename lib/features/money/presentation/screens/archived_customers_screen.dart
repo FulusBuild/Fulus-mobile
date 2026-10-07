@@ -53,44 +53,7 @@ class ArchivedCustomersScreen extends ConsumerWidget {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
                 children: [
-                  FulusCard(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 46,
-                          height: 46,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceAltOf(context),
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          child: Icon(Icons.archive_outlined, color: AppColors.primaryOf(context)),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${customers.length} archived ${customers.length == 1 ? 'customer' : 'customers'}',
-                                style: AppTypography.subheading.copyWith(
-                                  color: AppColors.textPrimaryOf(context),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                outstanding > 0
-                                    ? '${formatMoney(outstanding, symbol: currencySymbol)} outstanding across this list.'
-                                    : 'No outstanding customer balance in this list.',
-                                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  FulusSectionHeader(title: '${customers.length} archived ${customers.length == 1 ? 'customer' : 'customers'}'),
                   const SizedBox(height: AppSpacing.lg),
                   if (customers.isEmpty)
                     const FulusEmptyState(
@@ -99,9 +62,7 @@ class ArchivedCustomersScreen extends ConsumerWidget {
                       body: 'Anyone you archive shows up here, and can be restored any time.',
                     )
                   else
-                    FulusCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
+                    Column(
                         children: [
                           for (var index = 0; index < customers.length; index++) ...[
                             if (index > 0) const FulusListDivider(),
@@ -149,11 +110,6 @@ class _ArchivedCustomerRow extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: outstanding > 0 ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            outstanding > 0 ? 'Outstanding' : 'Settled',
-            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
           ),
         ],
       ),
