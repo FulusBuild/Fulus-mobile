@@ -47,14 +47,8 @@ class ProductListTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         trailing: product.tracksStock
-            ? Container(
-                constraints: const BoxConstraints(minWidth: 64),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.14)),
-                ),
+            ? SizedBox(
+                width: 64,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisSize: MainAxisSize.min,
