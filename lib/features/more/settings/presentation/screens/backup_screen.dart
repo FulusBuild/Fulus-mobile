@@ -181,7 +181,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                       FulusListRow(
                         leading: const Icon(FulusIcons.sync),
                         title: const Text('Sync status'),
-                        trailing: const Icon(Icons.chevron_right),
                         onTap: canManageSettings ? () => context.pushNamed('moreSyncDetail') : null,
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -354,7 +353,6 @@ class _ActionRow extends StatelessWidget {
       leading: Icon(icon),
       title: Text(title),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
     );
   }
