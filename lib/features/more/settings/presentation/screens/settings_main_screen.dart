@@ -55,9 +55,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
 
     return FulusScreen(
       title: 'Settings',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
-      subtitle: 'Keep your business safe and up to date',
+      backgroundColor: AppColors.backgroundOf(context),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
@@ -68,8 +66,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               if (canManageSettings) ...[
                 const FulusSectionHeader(
                   title: 'Business',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                   subtitle: 'Business details and workspace configuration',
                 ),
                 FutureBuilder<BusinessProfile?>(
@@ -95,8 +93,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               if (canManageSettings || canManageBackup) ...[
                 const FulusSectionHeader(
                   title: 'Data & Backup',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                   subtitle: 'Devices, data, and automatic protection',
                 ),
                 _tileGrid([
