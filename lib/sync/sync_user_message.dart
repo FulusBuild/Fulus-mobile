@@ -16,6 +16,8 @@ String syncUserMessage(Object error) {
         return 'One change needs your review before cloud backup can continue.';
       case 'SYNC_RECOVERY_BLOCKED_PENDING':
         return 'Fulus is finishing an earlier backup before restoring cloud history.';
+      case 'SYNC_CANONICAL_BLOCKED':
+        return 'Cloud backup is paused on one change. Your work is safe on this device while Fulus recovers it.';
       case 'IDEMPOTENCY_CONFLICT':
         return 'A backup change could not be applied safely. Your work is still safe on this device.';
       case 'BUSINESS_ALREADY_LINKED':
