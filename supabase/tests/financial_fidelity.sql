@@ -7,6 +7,7 @@ declare
   return_sig text := 'public.fulus_api_create_return_atomic_v2(uuid,uuid,uuid,text,text,numeric,text,uuid,jsonb)';
   income_scale int;
   income_precision int;
+  return_def text;
 begin
   if to_regprocedure(sale_sig) is null then
     raise exception 'Missing split-payment sale RPC: %', sale_sig;
@@ -50,16 +51,13 @@ begin
   -- contain the credit-method branch and the ledger settlement statement.
   -- Avoid parsing function text with substring arithmetic in CI, because the
   -- PostgreSQL parser treats that syntax differently across supported versions.
-  declare
-    return_def text := pg_get_functiondef(to_regprocedure(return_sig));
-  begin
+  return_def := pg_get_functiondef(to_regprocedure(return_sig));
     if position('if method=''credit'' then' in return_def) = 0 then
       raise exception 'return RPC is missing the credit-method branch';
     end if;
     if position('insert into public.customer_ledger_entries' in return_def) = 0 then
       raise exception 'return RPC is missing customer ledger settlement';
     end if;
-  end;
 
   -- Money wire contract: monetary JSON must be a decimal string, never a
   -- JSON number whose integer form is ambiguous at the mobile boundary.
