@@ -51,8 +51,6 @@ class NotificationsScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _NotificationSummary(notifications: notifications),
-                          const SizedBox(height: AppSpacing.lg),
                           for (final notification in notifications)
                             Padding(
                               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
