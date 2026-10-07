@@ -356,7 +356,7 @@ class _BalanceHeroSkeleton extends StatelessWidget {
   }
 }
 
-class _MoneyQuickActions extends ConsumerWidget {
+class _MoneyQuickActions extends StatelessWidget {
   const _MoneyQuickActions({
     required this.summary,
     required this.currencySymbol,
@@ -366,17 +366,7 @@ class _MoneyQuickActions extends ConsumerWidget {
   final String currencySymbol;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final customers =
-        ref.watch(moneyCustomersProvider).asData?.value ?? const [];
-    final customerCredit = customers.fold<Money>(
-      zeroMoney,
-      (sum, customer) => sum + customer.outstandingBalance,
-    );
-    final supplierPayments = summary.expenseBreakdown
-        .where((row) => row.type == MoneyTransactionType.supplierPayment)
-        .fold<Money>(zeroMoney, (sum, row) => sum + row.amount);
-
+  Widget build(BuildContext context) {
     final actions = <_MoneyAction>[
       _MoneyAction(
         color: AppColors.primary,
@@ -392,84 +382,57 @@ class _MoneyQuickActions extends ConsumerWidget {
         value: formatMoney(summary.moneyOut, symbol: currencySymbol),
         onTap: () => context.pushNamed('moneyAddExpense'),
       ),
-      _MoneyAction(
-        color: AppColors.customers,
-        icon: FulusIcons.customers,
-        label: 'Customer Credit',
-        value: formatMoney(customerCredit, symbol: currencySymbol),
-        onTap: () => context.pushNamed('moneyCustomers'),
-      ),
-      _MoneyAction(
-        color: AppColors.info,
-        icon: FulusIcons.localShipping,
-        label: 'Supplier Payments',
-        value: formatMoney(supplierPayments, symbol: currencySymbol),
-        onTap: () => context.pushNamed('moneySuppliers'),
-      ),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: actions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.sm,
-        mainAxisSpacing: AppSpacing.sm,
-        childAspectRatio: 1.15,
-      ),
-      itemBuilder: (context, index) {
-        final action = actions[index];
-        final foreground = AppColors.textPrimaryOf(context);
-        return Semantics(
-          button: true,
-          label: action.label + ', ' + action.value,
-          child: Material(
-            color: action.color.withValues(alpha: 0.10),
-            child: InkWell(
-              onTap: action.onTap,
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: action.color.withValues(alpha: 0.20),
-                    width: 0.8,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(action.icon, size: AppIconSize.emphasis, color: action.color),
-                    const Spacer(),
-                    Text(
-                      action.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.body.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        action.value,
-                        maxLines: 1,
-                        style: AppTypography.heading.copyWith(
-                          color: foreground,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return Row(
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _MoneyActionCell(action: actions[i])),
+        ],
+      ],
+    );
+  }
+}
+
+class _MoneyActionCell extends StatelessWidget {
+  const _MoneyActionCell({required this.action});
+  final _MoneyAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: action.color.withValues(alpha: 0.10),
+      child: InkWell(
+        onTap: action.onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 112),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            border: Border.all(color: action.color.withValues(alpha: 0.20), width: 0.8),
           ),
-        );
-      },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(action.icon, size: AppIconSize.emphasis, color: action.color),
+              const Spacer(),
+              Text(action.label, style: AppTypography.body.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w600,
+              )),
+              const SizedBox(height: AppSpacing.xs),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(action.value, style: AppTypography.heading.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w700,
+                )),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
