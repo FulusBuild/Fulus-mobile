@@ -151,6 +151,37 @@ void main() {
           'stdout=${releasedProbe.stdout} stderr=${releasedProbe.stderr}',
     );
   });
+  test('maintenance marker blocks a second isolate connection to the same database file', () async {
+    final dir = await Directory.systemTemp.createTemp('fulus-lease-');
+    addTearDown(() async {
+      await dir.delete(recursive: true);
+    });
+    final path = File('${dir.path}/fulus.db');
+
+    final firstDb = AppDatabase.forTesting(NativeDatabase(path));
+    final secondDb = AppDatabase.forTesting(NativeDatabase(path));
+    addTearDown(() async {
+      await firstDb.close();
+      await secondDb.close();
+    });
+
+    final maintenance = SyncExecutionLease(
+      firstDb,
+      acquisitionTimeout: const Duration(milliseconds: 200),
+    );
+    final blocked = SyncExecutionLease(
+      secondDb,
+      acquisitionTimeout: const Duration(milliseconds: 200),
+    );
+
+    expect(await maintenance.acquireMaintenance(), isTrue);
+    expect(await blocked.acquire(), isFalse);
+
+    await maintenance.releaseMaintenance();
+    expect(await blocked.acquire(), isTrue);
+    await blocked.release();
+  });
+
   test('detects a newer queued mutation for the same entity', () async {
     final lease = SyncExecutionLease(db);
     addTearDown(lease.release);
