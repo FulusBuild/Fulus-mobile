@@ -66,28 +66,52 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 760;
               final inset = wide ? AppSpacing.lg : AppSpacing.sm;
-              return ListView(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                    child: Text(
-                      '${customers.length} customers',
-                      style: AppTypography.title.copyWith(
-                        color: AppColors.textPrimaryOf(context),
+              return CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Text(
+                        '${customers.length} customers',
+                        style: AppTypography.title.copyWith(
+                          color: AppColors.textPrimaryOf(context),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FulusSearchField(
-                    hintText: 'Search by name or phone',
-                    onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _CustomerSearchHeader(
+                      inset: inset,
+                      onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  _CustomerListCard(
-                    filtered: filtered,
-                    currencySymbol: currencySymbol,
-                    openedFromMore: widget.openedFromMore,
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (filtered.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.all(AppSpacing.lg),
+                              child: Text('No customers match this view.'),
+                            );
+                          }
+                          final customer = filtered[index];
+                          return Column(
+                            children: [
+                              _CustomerRow(
+                                customer: customer,
+                                currencySymbol: currencySymbol,
+                                openedFromMore: widget.openedFromMore,
+                              ),
+                              if (index < filtered.length - 1) const FulusListDivider(),
+                            ],
+                          );
+                        },
+                        childCount: filtered.isEmpty ? 1 : filtered.length,
+                      ),
+                    ),
                   ),
                 ],
               );
@@ -105,42 +129,6 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
       final phone = (customer.phone ?? '').toLowerCase();
       return name.contains(_query) || phone.contains(_query);
     }).toList();
-  }
-}
-
-class _CustomerListCard extends StatelessWidget {
-  const _CustomerListCard({
-    required this.filtered,
-    required this.currencySymbol,
-    required this.openedFromMore,
-  });
-
-  final List<Customer> filtered;
-  final String currencySymbol;
-  final bool openedFromMore;
-
-  @override
-  Widget build(BuildContext context) {
-    return FulusCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          for (var i = 0; i < filtered.length; i++) ...[
-            _CustomerRow(
-              customer: filtered[i],
-              currencySymbol: currencySymbol,
-              openedFromMore: openedFromMore,
-            ),
-            if (i < filtered.length - 1) const FulusListDivider(),
-          ],
-          if (filtered.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              child: Text('No customers match this view.'),
-            ),
-        ],
-      ),
-    );
   }
 }
 
@@ -180,4 +168,36 @@ class _CustomerRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CustomerSearchHeader extends SliverPersistentHeaderDelegate {
+  const _CustomerSearchHeader({
+    required this.inset,
+    required this.onChanged,
+  });
+
+  final double inset;
+  final ValueChanged<String> onChanged;
+
+  @override
+  double get minExtent => 56;
+
+  @override
+  double get maxExtent => 64;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: AppColors.backgroundOf(context),
+      padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
+      child: FulusSearchField(
+        hintText: 'Search by name or phone',
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _CustomerSearchHeader oldDelegate) =>
+      oldDelegate.inset != inset || oldDelegate.onChanged != onChanged;
 }
