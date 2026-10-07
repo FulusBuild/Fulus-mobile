@@ -90,8 +90,7 @@ class _FulusBottomNavigationBar extends StatelessWidget {
       height: barContentHeight + bottomInset,
       child: Material(
         color: AppColors.surfaceOf(context),
-        elevation: 12,
-        shadowColor: Colors.black.withValues(alpha: .12),
+        elevation: 0,
         child: Container(
           decoration: BoxDecoration(
             border: Border(
@@ -217,31 +216,24 @@ class _OfflineBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(_isOnlineProvider).value ?? true;
-    return AnimatedSize(
-      duration: fulusMotionDuration(context, AppMotion.standard),
+    return AnimatedSwitcher(
+      duration: fulusMotionDuration(context, AppMotion.fast),
       child: isOnline
-          ? const SizedBox(width: double.infinity)
-          : SafeArea(
-              bottom: false,
-              child: Container(
-                width: double.infinity,
-                color: AppColors.textSecondaryOf(context),
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs, horizontal: AppSpacing.md),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(FulusIcons.cloudOff, color: Colors.white, size: AppIconSize.dense),
-                    const SizedBox(width: AppSpacing.xs),
-                    Flexible(
-                      child: Text(
-                        "You're offline — your work is saved and will sync when you're back.",
-                        maxLines: MediaQuery.textScalerOf(context).scale(1) > 1.3 ? 3 : 2,
-                        style: AppTypography.caption.copyWith(color: Colors.white),
-                        textAlign: TextAlign.center,
-                      ),
+          ? const SizedBox.shrink()
+          : Semantics(
+              label: 'Offline. Changes are saved on this device and will sync when connected.',
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6, right: AppSpacing.lg),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppColors.warningOf(context),
+                      shape: BoxShape.circle,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

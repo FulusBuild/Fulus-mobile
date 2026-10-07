@@ -37,23 +37,13 @@ class FulusSectionHeader extends StatelessWidget {
           title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: AppTypography.heading.copyWith(
+          style: AppTypography.title.copyWith(
             color: titleColor ?? AppColors.textPrimaryOf(context),
             fontWeight: FontWeight.w700,
             letterSpacing: -0.35,
           ),
         ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            subtitle!,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.caption.copyWith(
-              color: subtitleColor ?? AppColors.textSecondaryOf(context),
-            ),
-          ),
-        ],
+
       ],
     );
 

@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/ux/consumer_polish.dart';
-import '../../core/theme/fulus_icons.dart';
 
-/// A primary Fulus workspace tile.
-///
-/// This is intentionally more visual than a list row or compact shortcut:
-/// large touch area, strong icon, short label, and a quiet surface. Screens
-/// should use this for high-value actions that belong in the main workspace.
+/// Canonical tile for a high-value workspace action.
+/// Keep the hierarchy identical everywhere: icon top-left, label bottom-left.
 class FulusActionTile extends StatelessWidget {
   const FulusActionTile({
     super.key,
@@ -17,77 +13,80 @@ class FulusActionTile extends StatelessWidget {
     required this.onTap,
     this.subtitle,
     this.trailing,
+    this.accent,
+    this.flat = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  /// Kept for source compatibility. The tile-first system intentionally does
+  /// not render subtitles inside action tiles.
   final String? subtitle;
   final Widget? trailing;
+  final Color? accent;
+  final bool flat;
 
   @override
   Widget build(BuildContext context) {
-    final primary = AppColors.primaryOf(context);
+    final color = accent ?? AppColors.primaryOf(context);
     final foreground = AppColors.textPrimaryOf(context);
-    final muted = AppColors.textSecondaryOf(context);
 
     return FulusPressable(
       onPressed: onTap,
       semanticsLabel: subtitle == null ? label : '$label. $subtitle',
       child: Container(
-          constraints: const BoxConstraints(minHeight: 120, minWidth: 0),
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceOf(context),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.borderOf(context).withValues(alpha: 0.75)),
-            boxShadow: AppElevation.cardOf(context),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.selectedTintOf(context),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                ),
-                alignment: Alignment.center,
-                child: Icon(icon, size: AppIconSize.emphasis, color: primary),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.body.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w700,
+        constraints: const BoxConstraints(minHeight: 112, minWidth: 0),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: flat ? AppColors.surfaceOf(context) : color.withValues(alpha: 0.12),
+          border: flat ? Border.all(color: AppColors.borderOf(context)) : null,
+          borderRadius: BorderRadius.circular(flat ? 0 : AppRadius.lg),
+        ),
+        child: flat
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: AppIconSize.base, color: color),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.body.copyWith(
+                      color: foreground,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              )
+            : Stack(
+                children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Icon(icon, size: AppIconSize.emphasis, color: color),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 32),
+                      child: Text(
+                        label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.body.copyWith(
+                          color: foreground,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption.copyWith(color: muted),
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
+                  if (trailing != null)
+                    Align(alignment: Alignment.topRight, child: trailing!),
+                ],
               ),
-              if (trailing != null) trailing!
-              else if (onTap != null)
-                Icon(FulusIcons.chevronRight, size: AppIconSize.compact, color: muted),
-            ],
-          ),
-        ),
-      );
+      ),
+    );
   }
 }
