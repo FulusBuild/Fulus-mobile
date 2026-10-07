@@ -597,11 +597,11 @@ class _ProductRow extends StatelessWidget {
           ),
         ),
           if (out)
-            const Positioned(
+            Positioned(
               top: 8,
               right: 8,
               child: DecoratedBox(
-                decoration: BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.errorOf(context), shape: BoxShape.circle),
                 child: SizedBox(width: 8, height: 8),
               ),
             ),
