@@ -196,9 +196,15 @@ class _StockBody extends ConsumerWidget {
                       padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: FulusStatusPill(
+                        child: FulusChip(
+                          compact: true,
                           label: '$lowStockCount low',
-                          tone: FulusStatusTone.warning,
+                          selected: filter.lowStockOnly,
+                          onTap: () => ref.read(stockFilterProvider.notifier).state =
+                              filter.copyWith(
+                                lowStockOnly: !filter.lowStockOnly,
+                                outOfStockOnly: false,
+                              ),
                         ),
                       ),
                     ),
