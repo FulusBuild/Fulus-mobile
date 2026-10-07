@@ -82,7 +82,6 @@ class FulusListRow extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
