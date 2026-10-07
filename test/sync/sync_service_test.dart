@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_service.dart';
 import 'package:fulus_mobile/sync/sync_runtime.dart';
@@ -37,6 +39,31 @@ void main() {
     final service = SyncService(runtime, config, bootstrapCloud: () async { calls++; return true; });
     await service.bootstrapCloud();
     expect(calls, 1);
+    service.dispose();
+  });
+
+  test('ensureReady coalesces readiness bootstrap at the service boundary', () async {
+    final config = await SyncConfig.load();
+    final release = Completer<bool>();
+    var calls = 0;
+    final service = SyncService(
+      runtime,
+      config,
+      bootstrapCloud: () async {
+        calls++;
+        return release.future;
+      },
+    );
+
+    final first = service.ensureReady();
+    final second = service.ensureReady();
+
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, 1);
+
+    release.complete(true);
+    expect(await first, isTrue);
+    expect(await second, isTrue);
     service.dispose();
   });
 
