@@ -74,6 +74,15 @@ class SecureStorage {
     await _storage.write(key: _userRefreshTokensKey, value: jsonEncode(decoded));
   }
 
+  Future<void> deleteUserRefreshTokenIfMatches(String userId, String expected) async {
+    final raw = await _storage.read(key: _userRefreshTokensKey);
+    if (raw == null || raw.isEmpty) return;
+    final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    if (decoded[userId] != expected) return;
+    decoded.remove(userId);
+    await _storage.write(key: _userRefreshTokensKey, value: jsonEncode(decoded));
+  }
+
   Future<void> setDeviceClientId(String id) =>
       _storage.write(key: _deviceClientIdKey, value: id);
 
@@ -93,6 +102,12 @@ class SecureStorage {
   Future<String?> getRefreshToken() => _storage.read(key: _refreshTokenKey);
 
   Future<void> deleteRefreshToken() => _storage.delete(key: _refreshTokenKey);
+
+  Future<void> deleteRefreshTokenIfMatches(String expected) async {
+    final current = await getRefreshToken();
+    if (current != expected) return;
+    await _storage.delete(key: _refreshTokenKey);
+  }
 
   // --- Approval PIN verifiers (Architecture Section 6) ---
   //
