@@ -57,8 +57,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               icon: FulusIcons.staff,
               headline: 'No team members yet',
               body: 'Add your first team member to manage attendance and access.',
-              headlineColor: Colors.white,
-              bodyColor: Colors.white70,
               actionLabel: 'Add team member',
               onAction: () => _openEmployeeSheet(context),
             );
