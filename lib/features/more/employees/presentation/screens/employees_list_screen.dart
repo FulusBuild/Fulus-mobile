@@ -367,106 +367,21 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
   }
 }
 
-class _EmployeeTile extends ConsumerWidget {
-  const _EmployeeTile({required this.employee, required this.onEdit});
+class _EmployeeTile extends StatelessWidget {
+  const _EmployeeTile({required this.employee});
   final Employee employee;
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 520;
-        return FulusListRow(
-          onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
-          leading: FulusAvatar(name: employee.fullName),
-          title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: compact
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FulusIconButton(
-                      icon: FulusIcons.calendar,
-                      tooltip: 'Mark attendance',
-                      onPressed: () => _markToday(context, ref),
-                    ),
-                    FulusIconButton(
-                      icon: FulusIcons.edit,
-                      tooltip: 'Edit',
-                      onPressed: onEdit,
-                    ),
-                  ],
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (employee.authUserId == null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: AppSpacing.xs),
-                        child: Icon(
-                          FulusIcons.person,
-                          color: AppColors.warningOf(context),
-                          size: AppIconSize.compact,
-                        ),
-                      ),
-                    Text(
-                      employee.phone ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    FulusIconButton(
-                      icon: FulusIcons.calendar,
-                      tooltip: 'Mark attendance',
-                      onPressed: () => _markToday(context, ref),
-                    ),
-                    FulusIconButton(
-                      icon: FulusIcons.edit,
-                      tooltip: 'Edit',
-                      onPressed: onEdit,
-                    ),
-                    Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context)),
-                  ],
-                ),
-        );
-      },
-    );
-  }
-
-  Future<void> _markToday(BuildContext context, WidgetRef ref) async {
-    final status = await showFulusBottomSheet<AttendanceStatus>(
-      context: context,
-      title: 'Mark attendance',
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final status in AttendanceStatus.values)
-            FulusListRow(
-              onTap: () => Navigator.of(context).pop(status),
-              leading: Icon(FulusIcons.check, color: AppColors.primaryOf(context)),
-              title: Text(status.name),
-            ),
-        ],
-      ),
-    );
-    if (status == null) return;
-    try {
-      await ref.read(employeeRepositoryProvider).markAttendance(
-            employeeId: employee.id,
-            date: DateTime.now(),
-            status: status,
-          );
-      if (context.mounted) {
-        showFulusSnackbar(context, message: 'Attendance marked as ${status.name}.');
-      }
-    } catch (_) {
-      if (context.mounted) {
-        showFulusSnackbar(context, message: "Couldn't mark attendance. Try again.");
-      }
-    }
-  }
+  Widget build(BuildContext context) => FulusListRow(
+    onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
+    leading: FulusAvatar(name: employee.fullName),
+    title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
+    subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
+    trailing: employee.phone == null || employee.phone!.isEmpty
+        ? null
+        : Text(employee.phone!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+  );
 }
+
 class _EmployeesLoadingSkeleton extends StatelessWidget {
   const _EmployeesLoadingSkeleton();
 
