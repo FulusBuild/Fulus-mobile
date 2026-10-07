@@ -42,6 +42,12 @@ class CloudRestoreImporter {
   };
 
   static const _clearOrder = <String>[
+    // Draft carts are device-local but reference products/customers through
+    // real SQLite foreign keys. Clear the deepest children before business
+    // parents so an in-progress Sell cart can never block restore.
+    'draft_cart_payments',
+    'draft_cart_items',
+    'draft_carts',
     'attendance_records',
     'leave_records',
     'user_permissions',
