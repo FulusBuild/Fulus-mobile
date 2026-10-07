@@ -110,9 +110,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               height: 48,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.expenseOf(context).withValues(alpha: 0.10),
+                                color: AppColors.warningOf(context).withValues(alpha: 0.10),
                               ),
-                              child: Icon(Icons.south_east_rounded, color: AppColors.expenseOf(context)),
+                              child: Icon(Icons.south_east_rounded, color: AppColors.warningOf(context)),
                             ),
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
