@@ -74,6 +74,7 @@ void main() {
     final productRepository = ProductRepositoryImpl(
       db: db,
       syncQueue: syncQueue,
+      executionLease: SyncExecutionLease(db),
     );
     saleRepository = SaleRepositoryImpl(
       db: db,
