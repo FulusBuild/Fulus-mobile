@@ -24,6 +24,7 @@ export 'fulus_dialogs.dart';
 export 'fulus_dropdown_field.dart';
 export 'fulus_empty_state.dart';
 export 'fulus_error_state.dart';
+export 'fulus_flat_grid_cell.dart';
 export 'fulus_list_row.dart';
 export 'fulus_quick_action.dart';
 export 'fulus_screen.dart';
