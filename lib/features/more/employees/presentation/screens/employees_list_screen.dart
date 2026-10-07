@@ -404,64 +404,14 @@ class _EmployeeTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 520;
-        return FulusListRow(
-          onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
-          leading: FulusAvatar(name: employee.fullName),
-          title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: compact
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FulusIconButton(
-                      icon: FulusIcons.calendar,
-                      tooltip: 'Mark attendance',
-                      onPressed: () => _markToday(context, ref),
-                    ),
-                    FulusIconButton(
-                      icon: FulusIcons.edit,
-                      tooltip: 'Edit',
-                      onPressed: onEdit,
-                    ),
-                  ],
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (employee.authUserId == null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: AppSpacing.xs),
-                        child: Icon(
-                          FulusIcons.person,
-                          color: AppColors.warningOf(context),
-                          size: AppIconSize.compact,
-                        ),
-                      ),
-                    Text(
-                      employee.phone ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    FulusIconButton(
-                      icon: FulusIcons.calendar,
-                      tooltip: 'Mark attendance',
-                      onPressed: () => _markToday(context, ref),
-                    ),
-                    FulusIconButton(
-                      icon: FulusIcons.edit,
-                      tooltip: 'Edit',
-                      onPressed: onEdit,
-                    ),
-                    Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context)),
-                  ],
-                ),
-        );
-      },
+    return FulusListRow(
+      onTap: () => context.pushNamed(
+        'moreEmployeeDetail',
+        pathParameters: {'employeeId': employee.id},
+      ),
+      leading: FulusAvatar(name: employee.fullName),
+      title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
     );
   }
 
