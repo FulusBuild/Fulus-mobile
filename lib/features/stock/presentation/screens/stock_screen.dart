@@ -168,7 +168,6 @@ class _StockBody extends ConsumerWidget {
                           icon: FulusIcons.stock,
                           label: 'Products',
                           value: '${products.length}',
-                          subtitle: '',
                         ),
                         _StockSummaryTile(
                           color: const Color(0xFF0BBE6E),
@@ -324,7 +323,6 @@ class _StockSummaryTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
-    required this.subtitle,
     this.onTap,
   });
 
@@ -332,7 +330,6 @@ class _StockSummaryTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final String subtitle;
   final VoidCallback? onTap;
 
   @override
