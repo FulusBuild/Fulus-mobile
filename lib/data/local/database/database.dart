@@ -207,10 +207,11 @@ class AppDatabase extends _$AppDatabase {
   /// of sync with this one.
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
-  /// Schema v21 makes the two repository-level cardinality invariants database-enforced.
-  /// The migration preflights duplicates rather than silently discarding business state.
+  /// Schema v22 persists a canonical-change failure barrier alongside the
+  /// business cursor. The cursor and blocked change therefore survive process
+  /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration {
@@ -367,6 +368,19 @@ class AppDatabase extends _$AppDatabase {
             'idx_cash_drawer_shifts_open_location '
             'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
           );
+        }
+
+        if (from < 22) {
+          await m.addColumn(syncCursors, syncCursors.blockedSequence);
+          await m.addColumn(syncCursors, syncCursors.blockedChangeId);
+          await m.addColumn(syncCursors, syncCursors.blockedEntityType);
+          await m.addColumn(syncCursors, syncCursors.blockedEntityId);
+          await m.addColumn(syncCursors, syncCursors.blockedOperation);
+          await m.addColumn(syncCursors, syncCursors.blockedFirstSeenAt);
+          await m.addColumn(syncCursors, syncCursors.blockedLastAttemptedAt);
+          await m.addColumn(syncCursors, syncCursors.blockedAttemptCount);
+          await m.addColumn(syncCursors, syncCursors.blockedErrorCode);
+          await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
         }
 
         if (from < 4) {
