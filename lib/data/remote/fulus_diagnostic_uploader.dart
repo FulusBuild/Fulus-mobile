@@ -67,11 +67,18 @@ class FulusDiagnosticUploader {
   }
 
   Future<bool> _upload(DiagnosticEvent event) async {
+    final businessId = event.technicalContext
+        .where((item) => item.label == 'business_id')
+        .map((item) => item.value)
+        .cast<String?>()
+        .firstWhere((value) => value != null && value.isNotEmpty, orElse: () => null);
+    if (businessId == null) return false;
+
     try {
       final response = await _apiClient.dio.post(
         '${SupabaseConfig.url}/functions/v1/fulus-diagnostics',
         data: {
-          'business_id': _connection.selectedBusinessId,
+          'business_id': businessId,
           'device_client_id': _connection.registeredDevice?.deviceClientId,
           'event': event.toJson(),
         },
