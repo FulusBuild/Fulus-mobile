@@ -98,8 +98,7 @@ class _SupplierProfileBody extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    FulusCard(
-                      child: Column(
+                    Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
@@ -150,8 +149,8 @@ class _SupplierProfileBody extends ConsumerWidget {
                             ),
                           ],
                           const SizedBox(height: AppSpacing.lg),
-                          FulusCard(
-                            padding: const EdgeInsets.all(AppSpacing.md),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                             child: LayoutBuilder(
                               builder: (context, metricConstraints) {
                                 final compact = metricConstraints.maxWidth < 430;
@@ -234,9 +233,7 @@ class _SupplierProfileBody extends ConsumerWidget {
             body: 'Stock bought on credit and payments made will show up here.',
           );
         }
-        return FulusCard(
-          padding: EdgeInsets.zero,
-          child: Column(
+        return Column(
             children: [
               for (var i = 0; i < entries.length; i++) ...[
                 if (i > 0) const FulusListDivider(indented: false),
