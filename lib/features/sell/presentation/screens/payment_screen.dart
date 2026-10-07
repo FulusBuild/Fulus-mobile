@@ -89,8 +89,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
         return FulusScreen(
           title: 'Payment',
-          backgroundColor: const Color(0xFF061B3A),
-          headerBackgroundColor: const Color(0xFF061B3A),
+          backgroundColor: AppColors.backgroundOf(context),
           body: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 720;
@@ -152,7 +151,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             padding: const EdgeInsets.only(top: AppSpacing.xs),
                             child: Text(
                               'Select a customer in Cart to sell on credit.',
-                              style: AppTypography.caption.copyWith(color: Colors.white70),
+                              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                             ),
                           ),
                         if (!canComplete) ...[
@@ -160,9 +159,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           Container(
                             padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0B294F),
+                              color: AppColors.surfaceOf(context),
                               borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                              border: Border.all(color: AppColors.borderOf(context)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -180,7 +179,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                     AppSpacing.md,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: AppColors.surfaceOf(context),
                                     borderRadius: BorderRadius.circular(AppRadius.md),
                                   ),
                                   child: Column(
