@@ -75,7 +75,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           FulusListRow(
             leading: const Icon(FulusIcons.category),
             title: const Text('Categories'),
-            subtitle: const Text('Organize and manage product categories'),
             onTap: () {
               Navigator.of(sheetContext).pop();
               context.pushNamed('stockCategories');
@@ -84,7 +83,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           FulusListRow(
             leading: const Icon(FulusIcons.upload),
             title: const Text('Import products'),
-            subtitle: const Text('Add many products from a file'),
             onTap: () {
               Navigator.of(sheetContext).pop();
               context.pushNamed('stockBulkImport');
