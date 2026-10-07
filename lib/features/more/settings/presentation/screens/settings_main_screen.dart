@@ -63,7 +63,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
             padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
             children: [
               if (canManageSettings) ...[
-                const FulusSectionHeader(
+                FulusSectionHeader(
                   title: 'Business',
                   titleColor: AppColors.textPrimaryOf(context),
                   subtitleColor: AppColors.textSecondaryOf(context),
@@ -89,7 +89,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 const SizedBox(height: AppSpacing.lg),
               ],
               if (canManageSettings || canManageBackup) ...[
-                const FulusSectionHeader(
+                FulusSectionHeader(
                   title: 'Data & Backup',
                   titleColor: AppColors.textPrimaryOf(context),
                   subtitleColor: AppColors.textSecondaryOf(context),
@@ -123,7 +123,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 const SizedBox(height: AppSpacing.lg),
               ],
               if (isOwner) ...[
-                const FulusSectionHeader(
+                FulusSectionHeader(
                   title: 'Automatic backup & sync',
                   titleColor: AppColors.textPrimaryOf(context),
                   subtitleColor: AppColors.textSecondaryOf(context),
@@ -137,7 +137,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 ]),
                 const SizedBox(height: AppSpacing.lg),
               ],
-              const FulusSectionHeader(
+              FulusSectionHeader(
                 title: 'Security',
                 titleColor: AppColors.textPrimaryOf(context),
                 subtitleColor: AppColors.textSecondaryOf(context),
@@ -151,7 +151,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 const _AppLockStatusTile(),
               ]),
               const SizedBox(height: AppSpacing.lg),
-              const FulusSectionHeader(
+              FulusSectionHeader(
                 title: 'Account',
                 titleColor: AppColors.textPrimaryOf(context),
                 subtitleColor: AppColors.textSecondaryOf(context),
