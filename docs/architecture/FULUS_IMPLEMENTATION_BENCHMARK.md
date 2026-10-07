@@ -944,3 +944,12 @@ The remaining Android/runtime evidence is explicitly not converted into a source
 | CI | Final fatal analyzer warning in restore regression | Fixed | Removed redundant `restoredDb!` assertion |
 
 The benchmark now treats P05-002/P05-003 as source-fixed. Physical Android/runtime and production-configuration gates remain separate evidence items.
+
+
+## 2026-10-07 — P3 readiness coordination revalidation
+
+P3 was re-applied to the current `main` baseline after PR #183. The source-level change removes the redundant `SyncReadinessGate` state machine and makes `SyncService.ensureReady()` the explicit readiness-bootstrap boundary.
+
+The remaining coordination objects are retained because each protects a distinct invariant: cycle serialization, connectivity-attempt coalescing, cross-runtime leasing, restore reconciliation fencing, or deferred recovery timing. This is a controlled simplification, not a coordinator-count reduction exercise.
+
+**P3 result: 🟢 source simplification for the readiness cluster, pending CI verification.**
