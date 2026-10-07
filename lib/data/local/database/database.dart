@@ -213,7 +213,7 @@ class AppDatabase extends _$AppDatabase {
   /// business cursor. The cursor and blocked change therefore survive process
   /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   static const int schemaVersionForRestoreValidation = 23;
 
@@ -354,6 +354,24 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 23) {
           await m.createTable(localCloudBindings);
+        }
+        if (from < 24) {
+          // v22-v23 wrote blocked DateTime values through raw SQL using
+          // millisecondsSinceEpoch, while Drift's default dateTime() storage
+          // expects Unix seconds. Repair only values that are unambiguously
+          // in millisecond scale before the typed v24 writer takes over.
+          await customStatement(
+            'UPDATE sync_cursors SET '
+            'blocked_first_seen_at = CAST(blocked_first_seen_at / 1000 AS INTEGER) '
+            'WHERE blocked_first_seen_at IS NOT NULL '
+            'AND ABS(blocked_first_seen_at) > 100000000000',
+          );
+          await customStatement(
+            'UPDATE sync_cursors SET '
+            'blocked_last_attempted_at = CAST(blocked_last_attempted_at / 1000 AS INTEGER) '
+            'WHERE blocked_last_attempted_at IS NOT NULL '
+            'AND ABS(blocked_last_attempted_at) > 100000000000',
+          );
         }
 
         if (from < 21) {
