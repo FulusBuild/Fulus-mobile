@@ -67,7 +67,6 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   title: 'Business',
                   titleColor: AppColors.textPrimaryOf(context),
                   subtitleColor: AppColors.textSecondaryOf(context),
-                  subtitle: 'Business details and workspace configuration',
                 ),
                 FutureBuilder<BusinessProfile?>(
                   future: _future,
@@ -94,35 +93,30 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   title: 'Data & Backup',
                   titleColor: AppColors.textPrimaryOf(context),
                   subtitleColor: AppColors.textSecondaryOf(context),
-                  subtitle: 'Devices, data, and automatic protection',
                 ),
                 _tileGrid([
                   if (canManageBackup)
-                    FulusActionTile(
+                    FulusFlatGridCell(
                       icon: FulusIcons.backup,
-                      label: 'Backup & restore',
-                      subtitle: 'Protect and restore your business data',
+                      label: 'Backup',
                       onTap: () => context.pushNamed('moreSettingsBackup'),
                     ),
                   if (canManageSettings)
-                    FulusActionTile(
+                    FulusFlatGridCell(
                       icon: FulusIcons.print,
                       label: 'Printers',
-                      subtitle: 'Receipt and printing settings',
                       onTap: () => context.pushNamed('moreSettingsPrinters'),
                     ),
                   if (canManageSettings)
-                    FulusActionTile(
+                    FulusFlatGridCell(
                       icon: FulusIcons.sync,
-                      label: 'Backup status',
-                      subtitle: 'See backup status and recovery',
+                      label: 'Sync',
                       onTap: () => context.pushNamed('moreSyncDetail'),
                     ),
                   if (canManageSettings)
-                    FulusActionTile(
+                    FulusFlatGridCell(
                       icon: FulusIcons.locations,
                       label: 'Locations',
-                      subtitle: 'Manage the places where this business operates',
                       onTap: () => context.pushNamed('moreSettingsLocations'),
                     ),
                 ]),
@@ -133,13 +127,11 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   title: 'Automatic backup & sync',
                   titleColor: AppColors.textPrimaryOf(context),
                   subtitleColor: AppColors.textSecondaryOf(context),
-                  subtitle: 'Keep this business backed up and available across devices',
                 ),
                 _tileGrid([
-                  FulusActionTile(
+                  FulusFlatGridCell(
                     icon: FulusIcons.cloud,
-                    label: 'Automatic backup & sync',
-                    subtitle: 'Fulus keeps your business backed up and up to date automatically',
+                    label: 'Cloud',
                     onTap: () => context.pushNamed('moreSettingsCloud'),
                   ),
                 ]),
@@ -152,10 +144,9 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 subtitle: 'Protect approvals and access to Fulus',
               ),
               _tileGrid([
-                FulusActionTile(
+                FulusFlatGridCell(
                   icon: FulusIcons.lock,
-                  label: 'Change approval PIN',
-                  subtitle: 'Needed to approve discounts, refunds, and stock adjustments',
+                  label: 'PIN',
                   onTap: () => _openChangePinSheet(context),
                 ),
                 const _AppLockStatusTile(),
@@ -168,10 +159,9 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 subtitle: 'Your local business account',
               ),
               _tileGrid([
-                FulusActionTile(
+                FulusFlatGridCell(
                   icon: FulusIcons.logout,
-                  label: 'Log out',
-                  subtitle: 'Your data on this device stays put — sign back in any time.',
+                  label: 'Logout',
                   onTap: () => _logout(context, ref),
                 ),
               ]),
