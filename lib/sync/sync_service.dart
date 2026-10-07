@@ -97,6 +97,16 @@ class SyncService {
   /// application root, but lifecycle/readiness triggers may enter it only
   /// through this service boundary. This keeps SyncTriggers as an event
   /// adapter rather than a second application-facing bootstrap authority.
+  /// Ensures the cloud session/device context is ready and returns the
+  /// service-owned readiness result. Sync trigger adapters call this boundary
+  /// rather than maintaining a second readiness initialization state machine.
+  Future<bool> ensureReady() async {
+    _ensureActive();
+    if (isReady) return true;
+    await bootstrapCloud();
+    return isReady;
+  }
+
   Future<void> bootstrapCloud() {
     _ensureActive();
     final active = _cloudBootstrapRun;
