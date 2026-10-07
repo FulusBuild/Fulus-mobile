@@ -1,6 +1,5 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/domain/entities/draft_cart.dart';
-import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/draft_cart_repository_impl.dart';
@@ -18,8 +17,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../helpers/db_seed_helpers.dart';
-
-class MockProductsApi extends Mock implements ProductsApi {}
 
 /// Hand-rolled rather than a Mock — the only member SaleRepositoryImpl
 /// actually reads is [currentUser], and this avoids any dependence on
