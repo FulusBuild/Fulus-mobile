@@ -342,7 +342,18 @@ class SyncExecutionLease {
 
   Future<void> _releaseMaintenanceMarker(File marker) async {
     try {
-      if (await marker.exists()) await marker.delete();
+      if (await marker.exists()) {
+        final contents = await marker.readAsString();
+        final ownerLine = contents
+            .split('\n')
+            .firstWhere(
+              (line) => line.startsWith('owner='),
+              orElse: () => '',
+            );
+        if (ownerLine == 'owner=$_ownerId') {
+          await marker.delete();
+        }
+      }
     } catch (_) {}
     if (identical(_maintenanceMarkerFile, marker)) {
       _maintenanceMarkerFile = null;
