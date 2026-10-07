@@ -743,7 +743,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       employeeRepositoryProvider.overrideWithValue(employeeRepository),
       receiptRepositoryProvider.overrideWithValue(receiptRepository),
       backupRepositoryProvider.overrideWithValue(backupRepository),
-      restoreRestartStateProvider.overrideWith(() => restoreRestartState),
+      restoreRestartStateProvider.overrideWith((_) => restoreRestartState),
       dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
       reportsRepositoryProvider.overrideWithValue(reportsRepository),
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
