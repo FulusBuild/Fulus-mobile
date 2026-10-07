@@ -104,7 +104,8 @@ class _ProductDetailBody extends ConsumerWidget {
 
         return FulusScreen(
           title: product.name,
-              actions: [
+          subtitle: 'Product details and stock activity',
+          actions: [
             if (canManageStock)
               FulusIconButton(
                 icon: FulusIcons.edit,
@@ -151,13 +152,14 @@ class _ProductDetailBody extends ConsumerWidget {
                             ),
                             const SizedBox(height: AppSpacing.lg),
                           ],
-                          _PriceAndStockSection(item: item!, category: category, currencySymbol: currencySymbol),
+                          _PriceAndStockCard(item: item!, category: category, currencySymbol: currencySymbol),
                           const SizedBox(height: AppSpacing.lg),
                           if (canManageStock && product.tracksStock)
-                            FulusListRow(
+                            FulusActionTile(
+                              icon: FulusIcons.swap,
+                              label: 'Record stock',
+                              subtitle: 'Add, remove or adjust this product quantity.',
                               onTap: () => context.pushNamed('stockRecordMovement', extra: product),
-                              leading: Icon(FulusIcons.swap, color: AppColors.primaryOf(context)),
-                              title: const Text('Record stock'),
                             ),
                           const SizedBox(height: AppSpacing.xl),
                           const FulusSectionHeader(
@@ -165,19 +167,27 @@ class _ProductDetailBody extends ConsumerWidget {
                             subtitle: 'Recent stock activity for this product',
                           ),
                           if (movements.isEmpty)
-                            const FulusEmptyState(
-                              headline: 'No activity yet',
-                              body: 'Stock movements for this product will show up here.',
-                              icon: FulusIcons.history,
+                            FulusCard(
+                              child: FulusEmptyState(
+                                headline: 'No activity yet',
+                                body: 'Stock movements for this product will show up here.',
+                                icon: FulusIcons.history,
+                              ),
                             )
                           else
-                            Column(
-                              children: [
-                                for (var i = 0; i < movements.length; i++) ...[
-                                  StockMovementTile(movement: movements[i]),
-                                  if (i < movements.length - 1) const FulusListDivider(),
+                            FulusCard(
+                              padding: EdgeInsets.zero,
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < movements.length; i++) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                                      child: StockMovementTile(movement: movements[i]),
+                                    ),
+                                    if (i < movements.length - 1) const FulusListDivider(),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                         ],
                       ),
@@ -193,8 +203,8 @@ class _ProductDetailBody extends ConsumerWidget {
   }
 }
 
-class _PriceAndStockSection extends StatelessWidget {
-  const _PriceAndStockSection({required this.item, required this.category, required this.currencySymbol});
+class _PriceAndStockCard extends StatelessWidget {
+  const _PriceAndStockCard({required this.item, required this.category, required this.currencySymbol});
 
   final ProductWithStock item;
   final Category? category;
@@ -206,7 +216,8 @@ class _PriceAndStockSection extends StatelessWidget {
     final hasMargin = product.costPrice > 0;
     final margin = product.sellingPrice - product.costPrice;
 
-    return Column(
+    return FulusCard(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
