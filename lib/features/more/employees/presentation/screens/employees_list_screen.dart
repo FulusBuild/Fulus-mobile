@@ -57,7 +57,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               headline: 'No team members yet',
               body: 'Add your first team member to manage attendance and access.',
               
-              bodyColor: Colors.white70,
               actionLabel: 'Add team member',
               onAction: () => _openEmployeeSheet(context),
             );
@@ -67,26 +66,21 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 760;
               final inset = wide ? AppSpacing.lg : AppSpacing.sm;
-              return ListView(
+              return ListView.separated(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 120),
-                children: [
-                  Text('${employees.length} ${employees.length == 1 ? 'employee' : 'employees'}', style: AppTypography.title),
-                  const SizedBox(height: AppSpacing.md),
-                  FulusCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < employees.length; i++) ...[
-                          _EmployeeTile(
-                            employee: employees[i],
-
-                          ),
-                          if (i < employees.length - 1) const FulusListDivider(),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+                itemCount: employees.length + 1,
+                separatorBuilder: (_, index) =>
+                    index == 0 ? const SizedBox(height: AppSpacing.sm) : const FulusListDivider(),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Text(
+                      '${employees.length} ${employees.length == 1 ? 'employee' : 'employees'}',
+                      style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
+                    );
+                  }
+                  return _EmployeeTile(employee: employees[index - 1]);
+                },
+              );
               );
             },
           );
