@@ -44,10 +44,10 @@ class FulusFlatGridCell extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(
                     color: foreground,
                     fontWeight: FontWeight.w600,
-                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
