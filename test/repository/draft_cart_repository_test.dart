@@ -76,9 +76,7 @@ void main() {
     final syncQueue = SyncQueue(db);
     final productRepository = ProductRepositoryImpl(
       db: db,
-      productsApi: MockProductsApi(),
       syncQueue: syncQueue,
-      executionLease: SyncExecutionLease(db),
     );
     saleRepository = SaleRepositoryImpl(
       db: db,
