@@ -89,7 +89,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     return FulusScreen(
       title: 'Add expense',
-      subtitle: 'Record a business expense and keep the cash trail clear',
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
