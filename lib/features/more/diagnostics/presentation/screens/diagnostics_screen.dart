@@ -260,7 +260,6 @@ class _EventRow extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
       ),
-      trailing: const Icon(Icons.chevron_right),
       onTap: () => context.goNamed('moreDiagnosticDetail', pathParameters: {'eventId': event.id}),
     );
   }
