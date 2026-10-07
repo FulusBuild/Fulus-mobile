@@ -106,7 +106,6 @@ class _StockBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsWithStockProvider(locationId));
     final categoriesAsync = ref.watch(categoriesProvider);
-    final movementsAsync = ref.watch(stockMovementsProvider(locationId));
     final filter = ref.watch(stockFilterProvider);
 
     return LayoutBuilder(
