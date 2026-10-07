@@ -15,6 +15,39 @@ enum SyncErrorKind {
   permanentNotFound,
 }
 
+class SyncCanonicalChangeBlocked implements Exception {
+  const SyncCanonicalChangeBlocked({
+    required this.sequence,
+    required this.entityType,
+    required this.entityId,
+    required this.operation,
+    required this.attemptCount,
+    required this.retryAt,
+    required this.exhausted,
+    this.cause,
+  });
+
+  final int sequence;
+  final String entityType;
+  final String entityId;
+  final String operation;
+  final int attemptCount;
+  final DateTime retryAt;
+  final bool exhausted;
+  final Object? cause;
+
+  String get code => 'SYNC_CANONICAL_BLOCKED';
+
+  String get message => exhausted
+      ? 'Cloud backup is blocked on one server change and needs recovery.'
+      : 'Cloud backup is retrying one server change safely.';
+
+  @override
+  String toString() =>
+      'SyncCanonicalChangeBlocked(sequence=$sequence, '
+      'attempts=$attemptCount, exhausted=$exhausted, retryAt=$retryAt)';
+}
+
 class SyncFailure implements Exception {
   const SyncFailure({required this.kind, required this.message, this.cause});
 
