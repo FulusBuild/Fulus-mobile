@@ -89,8 +89,12 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     final currencySymbol =
         ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundOf(context),
+    return FulusScreen(
+      title: 'Money',
+      actions: [
+        FulusIconButton(icon: FulusIcons.history, tooltip: 'Money history', onPressed: () => context.pushNamed('moneyHistory')),
+      ],
+      applyPadding: false,
       body: DefaultTextStyle.merge(
         style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
         child: SafeArea(
@@ -115,12 +119,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       AppSpacing.xxxl,
                     ),
                     children: [
-                      _MoneyHeader(
-                        onHistory: () => context.pushNamed('moneyHistory'),
-                        onReceipts: () => context.pushNamed('receiptHistory'),
-                        onDebug: kDebugMode ? _toggleSimulatedError : null,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
                       FutureBuilder<Money>(
                         future: _balanceFuture,
                         builder: (context, snapshot) {
@@ -323,16 +321,16 @@ class _BalanceHero extends StatelessWidget {
     height: 142,
     child: Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: const Color(0xFF12B866), borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(AppRadius.xl)),
       child: Builder(builder: (context) {
-        final foreground = AppColors.onColor(const Color(0xFF12B866));
+        final foreground = AppColors.onColor(AppColors.success);
         final muted = foreground.withValues(alpha: 0.9);
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Icon(FulusIcons.wallet, color: foreground, size: 40), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
         const SizedBox(height: AppSpacing.sm),
-        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 36, fontWeight: FontWeight.w900))),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 28, fontWeight: FontWeight.w800))),
         const SizedBox(height: AppSpacing.xs),
-        Text('Updated from your business records', style: TextStyle(color: muted, fontSize: 15)),
+  
       ]);
       }),
     ),
