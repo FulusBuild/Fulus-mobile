@@ -32,7 +32,7 @@ class SyncExecutionLease {
     try {
       if (!await marker.exists()) return false;
       final age = DateTime.now().difference(await marker.lastModified());
-      if (age > const Duration(minutes: 5)) {
+      if (age > const Duration(minutes: 10)) {
         await marker.delete();
         return false;
       }
@@ -317,7 +317,7 @@ class SyncExecutionLease {
     } on PathExistsException {
       try {
         final age = DateTime.now().difference(await marker.lastModified());
-        if (age > const Duration(minutes: 5)) {
+        if (age > const Duration(minutes: 10)) {
           await marker.delete();
           return false;
         }
@@ -332,7 +332,7 @@ class SyncExecutionLease {
     try {
       if (!await marker.exists()) return false;
       final age = DateTime.now().difference(await marker.lastModified());
-      if (age > const Duration(minutes: 5)) {
+      if (age > const Duration(minutes: 10)) {
         await marker.delete();
         return false;
       }
@@ -472,6 +472,11 @@ class SyncExecutionLease {
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
       unawaited(_releaseHeldMaintenanceMarker());
+    } else {
+      final marker = _maintenanceMarkerFile;
+      if (marker != null) {
+        unawaited(marker.setLastModified(DateTime.now()));
+      }
     }
   }
 
