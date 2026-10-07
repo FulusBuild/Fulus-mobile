@@ -370,19 +370,6 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
-        if (from < 22) {
-          await m.addColumn(syncCursors, syncCursors.blockedSequence);
-          await m.addColumn(syncCursors, syncCursors.blockedChangeId);
-          await m.addColumn(syncCursors, syncCursors.blockedEntityType);
-          await m.addColumn(syncCursors, syncCursors.blockedEntityId);
-          await m.addColumn(syncCursors, syncCursors.blockedOperation);
-          await m.addColumn(syncCursors, syncCursors.blockedFirstSeenAt);
-          await m.addColumn(syncCursors, syncCursors.blockedLastAttemptedAt);
-          await m.addColumn(syncCursors, syncCursors.blockedAttemptCount);
-          await m.addColumn(syncCursors, syncCursors.blockedErrorCode);
-          await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
-        }
-
         if (from < 4) {
           // Sales.cashierUserId — purely additive and nullable, so a
           // plain addColumn is the right tool (same reasoning as the
@@ -641,6 +628,19 @@ class AppDatabase extends _$AppDatabase {
           // the separate SharedPreferences durability boundary.
           await m.createTable(syncCursors);
         }
+        if (from < 22) {
+          await m.addColumn(syncCursors, syncCursors.blockedSequence);
+          await m.addColumn(syncCursors, syncCursors.blockedChangeId);
+          await m.addColumn(syncCursors, syncCursors.blockedEntityType);
+          await m.addColumn(syncCursors, syncCursors.blockedEntityId);
+          await m.addColumn(syncCursors, syncCursors.blockedOperation);
+          await m.addColumn(syncCursors, syncCursors.blockedFirstSeenAt);
+          await m.addColumn(syncCursors, syncCursors.blockedLastAttemptedAt);
+          await m.addColumn(syncCursors, syncCursors.blockedAttemptCount);
+          await m.addColumn(syncCursors, syncCursors.blockedErrorCode);
+          await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
+        }
+
         if (from < 11) {
           // Perf pass: sale_items has no index on sale_local_id, so
           // every "get the line items for this sale" lookup — receipt
