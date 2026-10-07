@@ -7,6 +7,7 @@ import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/sync/sync_triggers.dart';
+import 'package:fulus_mobile/sync/sync_runtime.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -96,7 +97,7 @@ void main() {
       isEnabled: () => config.isEnabled,
       syncStatusNotifier: statusNotifier,
       connectivity: connectivity,
-      isReady: () async => true,
+      ensureReady: () async => SyncReadinessEnsureResult.alreadyReady,
     );
     await triggers.start();
 

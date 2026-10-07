@@ -33,6 +33,43 @@ void main() {
     service.dispose();
   });
 
+  test('ensureReady reports already-ready without bootstrapping', () async {
+    final config = await SyncConfig.load();
+    var calls = 0;
+    final service = SyncService(
+      runtime,
+      config,
+      bootstrapCloud: () async {
+        calls++;
+        return true;
+      },
+    );
+
+    service.markReady();
+
+    expect(
+      await service.ensureReady(),
+      SyncReadinessEnsureResult.alreadyReady,
+    );
+    expect(calls, 0);
+    service.dispose();
+  });
+
+  test('ensureReady reports notReady when bootstrap does not establish readiness', () async {
+    final config = await SyncConfig.load();
+    final service = SyncService(
+      runtime,
+      config,
+      bootstrapCloud: () async => false,
+    );
+
+    expect(
+      await service.ensureReady(),
+      SyncReadinessEnsureResult.notReady,
+    );
+    service.dispose();
+  });
+
   test('cloud bootstrap delegates through service', () async {
     final config = await SyncConfig.load();
     var calls = 0;
@@ -62,8 +99,8 @@ void main() {
     expect(calls, 1);
 
     release.complete(true);
-    expect(await first, isTrue);
-    expect(await second, isTrue);
+    expect(await first, SyncReadinessEnsureResult.initialized);
+    expect(await second, SyncReadinessEnsureResult.initialized);
     service.dispose();
   });
 

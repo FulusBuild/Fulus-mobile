@@ -6,6 +6,7 @@ import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/sync/sync_triggers.dart';
+import 'package:fulus_mobile/sync/sync_runtime.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -597,7 +598,7 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => false,
+        ensureReady: () async => SyncReadinessEnsureResult.notReady,
         connectivity: connectivity,
       );
 
@@ -625,11 +626,14 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => ready,
-        onNotReady: () async {
+        ensureReady: () async {
+          if (ready) return SyncReadinessEnsureResult.alreadyReady;
           initializationCalls++;
           await triggers.reconcileForReadiness();
           ready = true;
+          return ready
+              ? SyncReadinessEnsureResult.initialized
+              : SyncReadinessEnsureResult.notReady;
         },
         connectivity: connectivity,
       );
@@ -651,7 +655,7 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => false,
+        ensureReady: () async => SyncReadinessEnsureResult.notReady,
         connectivity: connectivity,
       );
 
@@ -674,10 +678,13 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => ready,
-        onNotReady: () async {
+        ensureReady: () async {
+          if (ready) return SyncReadinessEnsureResult.alreadyReady;
           await triggers.reconcileForReadiness();
           ready = true;
+          return ready
+              ? SyncReadinessEnsureResult.initialized
+              : SyncReadinessEnsureResult.notReady;
         },
         connectivity: connectivity,
       );
@@ -703,7 +710,7 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => true,
+        ensureReady: () async => SyncReadinessEnsureResult.alreadyReady,
         pullFromServer: () async {
           pullCalls++;
           if (pullCalls == 1) {
@@ -883,10 +890,10 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => false,
-        onNotReady: () async {
+        ensureReady: () async {
           readinessStarted.complete();
           await releaseReadiness.future;
+          return SyncReadinessEnsureResult.initialized;
         },
         connectivity: connectivity,
       );
@@ -927,14 +934,17 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => ready,
-        onNotReady: () async {
+        ensureReady: () async {
+          if (ready) return SyncReadinessEnsureResult.alreadyReady;
           readinessCalls++;
           ready = true;
           // Bootstrap's real readiness initializer performs the first
           // reconciliation before advertising Sync Ready. Model that
           // contract here so recovery does not require a second trigger.
           await syncEngine.runOnce(manual: false);
+          return ready
+              ? SyncReadinessEnsureResult.initialized
+              : SyncReadinessEnsureResult.notReady;
         },
         connectivity: connectivity,
         retryInterval: const Duration(hours: 1),
@@ -1040,7 +1050,7 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => false,
+        ensureReady: () async => SyncReadinessEnsureResult.notReady,
         pullFromServer: () async => pulls.add(1),
         connectivity: connectivity,
       );
@@ -1111,8 +1121,7 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => false,
-        onNotReady: () async => throw StateError('readiness must not run during restore'),
+        ensureReady: () async => SyncReadinessEnsureResult.notReady,
         connectivity: connectivity,
       );
 
@@ -1189,10 +1198,10 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => false,
-        onNotReady: () async {
+        ensureReady: () async {
           if (!readinessStarted.isCompleted) readinessStarted.complete();
           await releaseReadiness.future;
+          return SyncReadinessEnsureResult.initialized;
         },
         connectivity: connectivity,
       );
@@ -1255,7 +1264,7 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => true,
+        ensureReady: () async => SyncReadinessEnsureResult.alreadyReady,
         pullFromServer: () async {
           pullCalls++;
           if (pullCalls == 1) {
@@ -1299,8 +1308,8 @@ void main() {
         executionLease: executionLease,
         isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
-        isReady: () async => ready,
-        onNotReady: () async {
+        ensureReady: () async {
+          if (ready) return SyncReadinessEnsureResult.alreadyReady;
           initializationCalls++;
           if (initializationCalls == 1) {
             throw StateError('startup initialization failed');
@@ -1310,6 +1319,9 @@ void main() {
           if (!readinessCompleted.isCompleted) {
             readinessCompleted.complete();
           }
+          return ready
+              ? SyncReadinessEnsureResult.initialized
+              : SyncReadinessEnsureResult.notReady;
         },
         connectivity: connectivity,
       );

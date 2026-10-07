@@ -952,4 +952,6 @@ P3 was re-applied to the current `main` baseline after PR #183. The source-level
 
 The remaining coordination objects are retained because each protects a distinct invariant: cycle serialization, connectivity-attempt coalescing, cross-runtime leasing, restore reconciliation fencing, or deferred recovery timing. This is a controlled simplification, not a coordinator-count reduction exercise.
 
-**P3 result: 🟢 source simplification for the readiness cluster, pending CI verification.**
+**P3 result: 🟢 source-verified and fixed.**
+
+A follow-up current-main trace found one residual ownership leak: `SyncTriggers` still accepted separate `isReady` and `onNotReady` callbacks and the composition root wired those directly to `SyncService`. That meant the trigger adapter still participated in the readiness decision despite the earlier gate removal. PR #186 removes those callbacks and routes readiness through a single `SyncReadinessEnsureResult` returned by `SyncService.ensureReady()`. The service remains the sole readiness decision/bootstrap authority, while the runtime retains only reconciliation/execution responsibilities.
