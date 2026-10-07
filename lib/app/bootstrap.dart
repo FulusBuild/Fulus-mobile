@@ -224,7 +224,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
   final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
-  final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue, executionLease: syncExecutionLease);
+  final productRepository = ProductRepositoryImpl(db: database, syncQueue: syncQueue);
   final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, syncQueue: syncQueue, diagnosticLogger: diagnosticLogger);
 
   fulusConnectionState.setBusinessSwitchGuard(
@@ -550,10 +550,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // when that location has not previously been hydrated on this device.
     // Reuse the existing product endpoint/repository path for that targeted
     // hydration instead of inventing a second sync mechanism.
-    onContextChangeReconciled: () async {
-      if (!syncConfig.isEnabled) return;
-      await productRepository.hydrateActiveLocationStockFromServer();
-    },
     onDeviceAuthorizationLost: () async {
       fulusConnectionState.clearRegisteredDevice();
       syncService.markNotReady();
