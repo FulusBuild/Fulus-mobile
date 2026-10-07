@@ -523,17 +523,17 @@ class _HomeActionCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadius.xl);
+
     return Material(
       color: color.withValues(alpha: 0.10),
-      borderRadius: BorderRadius.circular(AppRadius.xl),
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
+        borderRadius: radius,
         onTap: () => context.goNamed(route),
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
