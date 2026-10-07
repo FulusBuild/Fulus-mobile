@@ -4,27 +4,6 @@ import '../../sync/sync_error.dart';
 import '../local/sync_cursor_store.dart';
 import 'fulus_sync_api.dart';
 
-class SyncCanonicalChangeBlocked implements Exception {
-  const SyncCanonicalChangeBlocked({
-    required this.change,
-    required this.attemptCount,
-    required this.retryAt,
-    required this.exhausted,
-    this.cause,
-  });
-
-  final FulusSyncChange change;
-  final int attemptCount;
-  final DateTime retryAt;
-  final bool exhausted;
-  final Object? cause;
-
-  @override
-  String toString() =>
-      'SyncCanonicalChangeBlocked(sequence=${change.sequence}, '
-      'attempts=$attemptCount, exhausted=$exhausted, retryAt=$retryAt)';
-}
-
 /// Lets the production batched apply path report exactly which ordered
 /// canonical change failed without weakening the single local transaction.
 class SyncCanonicalChangeApplyFailure implements Exception {
@@ -107,14 +86,10 @@ class FulusSyncCoordinator {
       if (blocked.attemptCount >= maxAutomaticBlockedAttempts ||
           _now().isBefore(retryAt)) {
         throw SyncCanonicalChangeBlocked(
-          change: FulusSyncChange(
-            sequence: blocked.sequence,
-            entityType: blocked.entityType,
-            entityId: blocked.entityId,
-            operation: blocked.operation,
-            payload: const {},
-            createdAt: blocked.firstSeenAt,
-          ),
+          sequence: blocked.sequence,
+          entityType: blocked.entityType,
+          entityId: blocked.entityId,
+          operation: blocked.operation,
           attemptCount: blocked.attemptCount,
           retryAt: retryAt,
           exhausted: blocked.attemptCount >= maxAutomaticBlockedAttempts,
@@ -264,7 +239,10 @@ class FulusSyncCoordinator {
           );
           final retryAt = now.add(_blockedBackoff(attemptCount));
           throw SyncCanonicalChangeBlocked(
-            change: failedChange,
+            sequence: failedChange.sequence,
+            entityType: failedChange.entityType,
+            entityId: failedChange.entityId,
+            operation: failedChange.operation,
             attemptCount: attemptCount,
             retryAt: retryAt,
             exhausted: attemptCount >= maxAutomaticBlockedAttempts,
