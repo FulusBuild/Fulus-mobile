@@ -210,24 +210,32 @@ class BackupRepositoryImpl implements BackupRepository {
 
       final required = stagedDb.select(
         "SELECT name FROM sqlite_master WHERE type='table' "
-        "AND name IN ('locations','sync_queue_items','local_cloud_bindings')",
+        "AND name IN ('locations','sync_queue_items')",
       );
       final names = required.map((row) => row.values.first.toString()).toSet();
-      if (names.length != 3) {
+      if (names.length != 2) {
         throw const BackupException('That database is not a complete Fulus backup.');
       }
 
-      final bindingRows = stagedDb.select(
-        "SELECT business_id FROM local_cloud_bindings WHERE id = 'singleton' LIMIT 1",
-      );
-      final stagedBusinessId =
-          bindingRows.isEmpty ? null : bindingRows.first.values.first?.toString();
-      if (currentBoundBusinessId != null &&
-          currentBoundBusinessId.isNotEmpty &&
-          stagedBusinessId != currentBoundBusinessId) {
-        throw BackupException(
-          'That backup belongs to a different Fulus business and cannot replace this device data.',
+      if (currentBoundBusinessId != null && currentBoundBusinessId.isNotEmpty) {
+        final bindingTable = stagedDb.select(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name = 'local_cloud_bindings'",
         );
+        if (bindingTable.isEmpty) {
+          throw const BackupException(
+            'That backup has no Fulus Cloud business binding and cannot replace this cloud-bound device.',
+          );
+        }
+        final bindingRows = stagedDb.select(
+          "SELECT business_id FROM local_cloud_bindings WHERE id = 'singleton' LIMIT 1",
+        );
+        final stagedBusinessId =
+            bindingRows.isEmpty ? null : bindingRows.first.values.first?.toString();
+        if (stagedBusinessId != currentBoundBusinessId) {
+          throw BackupException(
+            'That backup belongs to a different Fulus business and cannot replace this device data.',
+          );
+        }
       }
 
       stagedDb.select('SELECT 1 FROM locations LIMIT 1');
