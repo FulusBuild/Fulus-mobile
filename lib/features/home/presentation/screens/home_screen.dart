@@ -299,9 +299,8 @@ class _HomeHeader extends StatelessWidget {
                 businessName.isEmpty ? 'Fulus' : businessName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
+                style: AppTypography.subheading.copyWith(
+                  color: AppColors.textPrimaryOf(context),
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -316,9 +315,8 @@ class _HomeHeader extends StatelessWidget {
                         locationName!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: AppTypography.caption.copyWith(
                           color: AppColors.textSecondaryOf(context),
-                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -331,7 +329,7 @@ class _HomeHeader extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.all(AppSpacing.xs),
                         constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                        icon: const Icon(FulusIcons.swap, size: 20, color: AppColors.textSecondaryOf(context)),
+                        icon: Icon(FulusIcons.swap, size: 20, color: AppColors.textSecondaryOf(context)),
                       ),
                   ],
                 ),
