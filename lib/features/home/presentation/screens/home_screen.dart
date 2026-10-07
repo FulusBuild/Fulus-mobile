@@ -101,8 +101,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
-    final showBusinessWide = widget.isOwner || widget.canViewDashboardStats;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
       body: SafeArea(
