@@ -199,7 +199,7 @@ class _ProfileBody extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.xl),
                           const FulusSectionHeader(
                             title: 'Customer information',
-                            subtitle: 'Contact and notes',
+                            subtitle: 'Address and notes',
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           if (customer.address != null)
