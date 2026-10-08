@@ -406,7 +406,63 @@ class _StatCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => FulusStatCard(label: label, value: value, onTap: onTap);
+  Widget build(BuildContext context) {
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.mutedOf(context),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: AppTypography.mono.copyWith(
+                fontSize: 25,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimaryOf(context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (onTap != null)
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              child: content,
+            ),
+          )
+        else
+          content,
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: AppColors.borderOf(context).withValues(alpha: 0.55),
+        ),
+      ],
+    );
+  }
 }
 
 class _ReportTabBuilder<T> extends StatefulWidget {
