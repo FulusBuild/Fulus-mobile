@@ -240,7 +240,7 @@ class _BalanceHero extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: const BoxDecoration(color: AppColors.primary),
       child: Builder(builder: (context) {
-        final foreground = AppColors.onColor(AppColors.success);
+        final foreground = AppColors.onColor(AppColors.primary);
         return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
         Text('Available Balance', textAlign: TextAlign.center, style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700)),
         const SizedBox(height: AppSpacing.sm),
