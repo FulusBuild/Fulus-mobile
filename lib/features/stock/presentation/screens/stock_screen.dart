@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/stock_movement.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -165,7 +166,7 @@ class _StockBody extends ConsumerWidget {
                         ),
                         _StockSummaryTile(
                           color: const Color(0xFF0BBE6E),
-                          icon: FulusIcons.category,
+                          icon: FulusIcons.category, art: FulusArt.category,
                           label: 'Categories',
                           value: '${categories.length}',
                           subtitle: 'Categories',
