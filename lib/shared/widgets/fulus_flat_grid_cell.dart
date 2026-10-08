@@ -32,6 +32,8 @@ class FulusFlatGridCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = AppColors.textPrimaryOf(context);
+    // Artwork is already fully colored; iconColor only applies to the
+    // fallback glyph used by utility-grid callers.
     final color = iconColor ?? AppColors.primaryOf(context);
 
     return Opacity(
@@ -61,8 +63,13 @@ class FulusFlatGridCell extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // The cell's pressable owns the accessible label. Artwork is
+              // decorative here so screen readers announce each destination
+              // exactly once instead of reading the label twice.
               art != null
-                  ? FulusArtIcon(art!, size: iconSize, semanticLabel: label)
+                  ? ExcludeSemantics(
+                      child: FulusArtIcon(art!, size: iconSize),
+                    )
                   : Icon(icon, size: iconSize, color: color),
               const SizedBox(height: AppSpacing.sm),
               Text(
