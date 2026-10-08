@@ -306,7 +306,7 @@ class _HomeHeader extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(FulusIcons.locations, size: 16, color: AppColors.textSecondaryOf(context)),
+                              FulusIconVisual(icon: FulusIcons.locations, size: 16, color: AppColors.textSecondaryOf(context)),
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
