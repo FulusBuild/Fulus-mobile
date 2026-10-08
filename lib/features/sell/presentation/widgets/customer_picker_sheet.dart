@@ -61,7 +61,7 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
           FulusCard(
             padding: EdgeInsets.zero,
             child: FulusListRow(
-              leading: Icon(FulusIcons.person, color: AppColors.textSecondaryOf(context)),
+              leading: FulusIconVisual(icon: FulusIcons.person, color: AppColors.textSecondaryOf(context)),
               title: const Text('Walk-in customer'),
               subtitle: const Text('No customer details needed'),
               onTap: () {
@@ -111,7 +111,7 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
                   itemBuilder: (context, i) {
                     final customer = filtered[i];
                     return FulusListRow(
-                      leading: Icon(FulusIcons.person, color: AppColors.textSecondaryOf(context)),
+                      leading: FulusIconVisual(icon: FulusIcons.person, color: AppColors.textSecondaryOf(context)),
                       title: Text(customer.name),
                       subtitle: customer.phone == null ? null : Text(customer.phone!),
                       onTap: () {
