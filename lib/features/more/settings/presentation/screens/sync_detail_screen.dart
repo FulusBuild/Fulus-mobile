@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../data/local/database/database.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/theme/fulus_art.dart';
 import '../../../../../core/utils/async_timeout.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../../sync/sync_status.dart';
