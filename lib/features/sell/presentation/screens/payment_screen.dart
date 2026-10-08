@@ -6,6 +6,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/business_engine/customer_credit_engine.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
@@ -28,12 +29,12 @@ bool isPaymentSplitActive({
   required double remaining,
 }) => explicitlySplit || (paymentCount > 0 && remaining > 0.004);
 
-IconData _iconForMethod(String key) => switch (key) {
-      'cash' => FulusIcons.cash,
-      'mobile_money' => FulusIcons.accountBalance,
-      'card' => FulusIcons.creditCard,
-      'credit' => FulusIcons.receipt,
-      _ => FulusIcons.payment,
+FulusArt _artForMethod(String key) => switch (key) {
+      'cash' => FulusArt.cash,
+      'mobile_money' => FulusArt.bank,
+      'card' => FulusArt.creditCard,
+      'credit' => FulusArt.receipt,
+      _ => FulusArt.payment,
     };
 
 class PaymentScreen extends StatefulWidget {
@@ -229,9 +230,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               children: [
                                 for (var i = 0; i < cartState.payments.length; i++) ...[
                                   FulusListRow(
-                                    leading: Icon(
-                                      _iconForMethod(cartState.payments[i].method),
-                                      color: AppColors.primaryOf(context),
+                                    leading: FulusArtIcon(
+                                      _artForMethod(cartState.payments[i].method),
+                                      size: AppIconSize.compact,
+                                      semanticLabel: _labelFor(cartState.payments[i].method),
                                     ),
                                     title: Text(_labelFor(cartState.payments[i].method)),
                                     trailing: Row(
@@ -579,12 +581,45 @@ class _PaymentMethodTile extends StatelessWidget {
           border: Border.all(color: selected ? foreground : Colors.transparent, width: selected ? 2 : 1),
           boxShadow: selected ? [BoxShadow(color: Colors.black.withValues(alpha: .16), blurRadius: 8, offset: const Offset(0, 3))] : null,
         ),
-        child: FulusPaymentMethodCardColumn(
-          icon: icon,
-          iconColor: foreground,
-          label: label,
-          selected: selected,
-          selectedMark: Icon(FulusIcons.check, size: AppIconSize.compact, color: foreground),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Center(
+                child: FulusArtIcon(
+                  _artForMethod(
+                    label == 'Transfer' ? 'mobile_money' : label.toLowerCase(),
+                  ),
+                  size: 64,
+                  semanticLabel: label,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: foreground,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (selected) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(FulusIcons.check, size: AppIconSize.compact, color: foreground),
+                ],
+              ],
+            ),
+          ],
         ),
       ),
     );
