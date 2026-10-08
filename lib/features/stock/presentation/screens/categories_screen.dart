@@ -121,7 +121,7 @@ class _CategoryRow extends StatelessWidget {
               color: AppColors.surfaceAltOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(FulusIcons.sell, color: AppColors.primaryOf(context)),
+            child: FulusIconVisual(icon: FulusIcons.sell, color: AppColors.primaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
