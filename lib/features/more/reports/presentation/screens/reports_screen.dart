@@ -378,6 +378,7 @@ class _ReportScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ...children,
         if (insights.isNotEmpty) ...[
@@ -546,22 +547,39 @@ class _SalesTab extends StatelessWidget {
           value: formatMoney(r.totalRevenue, symbol: currencySymbol),
           onTap: () => _openTransactions(context),
         ),
-        _StatCard(
-          label: 'Sales',
-          value: '${r.totalSalesCount}',
-          onTap: () => _openTransactions(context),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _StatCard(
+                label: 'Sales',
+                value: '${r.totalSalesCount}',
+                onTap: () => _openTransactions(context),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _StatCard(
+                label: 'Discounts given',
+                value: formatMoney(r.totalDiscount, symbol: currencySymbol),
+              ),
+            ),
+          ],
         ),
-        _StatCard(label: 'Discounts given', value: formatMoney(r.totalDiscount, symbol: currencySymbol)),
         const SizedBox(height: AppSpacing.sm),
         _SalesChart(report: r, currencySymbol: currencySymbol, period: period),
         if (r.topProducts.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
           Text('Top products', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+          const SizedBox(height: AppSpacing.xs),
           for (final p in r.topProducts.take(5))
-            _StatCard(
-              label: p.productName,
-              value: formatMoney(p.revenue, symbol: currencySymbol),
-              onTap: () => context.pushNamed('stockProductDetail', pathParameters: {'productId': p.productId}),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _StatCard(
+                label: p.productName,
+                value: formatMoney(p.revenue, symbol: currencySymbol),
+                onTap: () => context.pushNamed('stockProductDetail', pathParameters: {'productId': p.productId}),
+              ),
             ),
         ],
       ]),
@@ -631,7 +649,7 @@ class _SalesChart extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           SizedBox(
-            height: 190,
+            height: 170,
             child: _SalesChartPainterWidget(
               labels: labels,
               values: values,
