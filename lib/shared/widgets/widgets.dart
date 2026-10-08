@@ -11,6 +11,7 @@
 library;
 
 export '../../core/theme/fulus_icons.dart';
+export '../../core/theme/fulus_icon_visual.dart';
 export '../../core/ux/consumer_polish.dart';
 export 'fulus_action_tile.dart';
 export 'fulus_adaptive_card_icon.dart';
