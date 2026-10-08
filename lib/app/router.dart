@@ -808,27 +808,37 @@ class _MoreScreen extends ConsumerWidget {
     final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
 
     Widget tileGrid(List<Widget> tiles) {
+      // Icon-over-label cells with hairline dividers (the handheld POS
+      // reference layout). Cell height leaves room for a 56dp icon and grows
+      // with text scaling.
+      final textScale = MediaQuery.textScalerOf(context).scale(1);
+      final cellHeight = textScale > 1.3 ? 136.0 : 116.0;
       return LayoutBuilder(
         builder: (context, constraints) {
-          const gap = AppSpacing.md;
           final columns = constraints.maxWidth >= 640 ? 3 : 2;
-          final width =
-              ((constraints.maxWidth - (gap * (columns - 1))) / columns).floorToDouble();
-          // Rows are tall enough for a large icon badge; taller still when
-          // text is scaled up.
-          final textScale = MediaQuery.textScalerOf(context).scale(1);
-          final tileHeight = textScale > 1.3 ? 84.0 : 72.0;
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [
-              for (final tile in tiles)
-                SizedBox(
-                  width: width,
-                  height: tileHeight,
-                  child: tile,
+          final rows = <Widget>[
+            for (var i = 0; i < tiles.length; i += columns)
+              SizedBox(
+                height: cellHeight,
+                child: Row(
+                  children: [
+                    for (var c = 0; c < columns; c++)
+                      Expanded(child: i + c < tiles.length ? tiles[i + c] : const SizedBox.shrink()),
+                  ],
                 ),
-            ],
+              ),
+          ];
+          final radius = BorderRadius.circular(AppRadius.xl);
+          return ClipRRect(
+            borderRadius: radius,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceOf(context),
+                borderRadius: radius,
+                border: Border.all(color: AppColors.dividerOf(context), width: 0.5),
+              ),
+              child: Column(children: rows),
+            ),
           );
         },
       );
@@ -842,31 +852,35 @@ class _MoreScreen extends ConsumerWidget {
           _MoreGroup(
             title: 'Manage',
             child: tileGrid([
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.customers,
                 art: FulusArt.customers,
-                color: AppColors.customers,
+                iconColor: AppColors.customers,
                 label: 'Customers',
                 onTap: canCustomers ? () => context.pushNamed('moreCustomers') : null,
               ),
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.staff,
                 art: FulusArt.staff,
-                color: AppColors.primary,
+                iconColor: AppColors.primary,
                 label: 'Employees',
                 onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
               ),
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.locations,
                 art: FulusArt.locations,
-                color: AppColors.info,
+                iconColor: AppColors.info,
                 label: 'Locations',
                 onTap: canManageSettings ? () => context.goNamed('moreSettingsLocations') : null,
               ),
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.settings,
                 art: FulusArt.settings,
-                color: AppColors.primary,
+                iconColor: AppColors.primary,
                 label: 'Settings',
                 onTap: canSettings ? () => context.goNamed('moreSettings') : null,
               ),
@@ -875,17 +889,19 @@ class _MoreScreen extends ConsumerWidget {
           _MoreGroup(
             title: 'Understand',
             child: tileGrid([
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.reports,
                 art: FulusArt.reports,
-                color: AppColors.reports,
+                iconColor: AppColors.reports,
                 label: 'Reports',
                 onTap: canReports ? () => context.goNamed('moreReports') : null,
               ),
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.notifications,
                 art: FulusArt.notifications,
-                color: AppColors.warning,
+                iconColor: AppColors.warning,
                 label: 'Alerts',
                 onTap: () => context.goNamed('moreNotifications'),
               ),
@@ -894,30 +910,34 @@ class _MoreScreen extends ConsumerWidget {
           _MoreGroup(
             title: 'Tools',
             child: tileGrid([
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.backup,
                 art: FulusArt.backup,
-                color: AppColors.success,
+                iconColor: AppColors.success,
                 label: 'Backup',
                 onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
               ),
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.sync,
                 art: FulusArt.sync,
-                color: AppColors.info,
+                iconColor: AppColors.info,
                 label: 'Sync',
                 onTap: canManageSettings ? () => context.goNamed('moreSyncDetail') : null,
               ),
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.print,
                 art: FulusArt.print,
-                color: AppColors.primary,
+                iconColor: AppColors.primary,
                 label: 'Printers',
                 onTap: canManageSettings ? () => context.pushNamed('morePrinters') : null,
               ),
-              FulusIconTile(
+              FulusFlatGridCell(
+                iconSize: 56,
                 icon: FulusIcons.bugReport,
-                color: AppColors.error,
+                iconColor: AppColors.error,
                 label: 'Diagnostics',
                 onTap: () => context.goNamed('moreDiagnostics'),
               ),
