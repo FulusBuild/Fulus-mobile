@@ -322,7 +322,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
               label: 'Barcode',
               controller: _barcodeController,
               suffixIcon: IconButton(
-                icon: const Icon(FulusIcons.scan),
+                icon: const FulusIconVisual(icon: FulusIcons.scan),
                 tooltip: 'Scan barcode',
                 onPressed: () async {
                   final scanned = await BarcodeScanScreen.scan(context, title: 'Scan product barcode');
@@ -350,7 +350,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                       color: AppColors.surfaceOf(context),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(FulusIcons.image, color: AppColors.textSecondaryOf(context)),
+                    child: FulusIconVisual(icon: FulusIcons.image, color: AppColors.textSecondaryOf(context)),
                   ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
