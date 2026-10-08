@@ -657,7 +657,7 @@ class _CartSummaryBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           child: SizedBox(height: 54, child: Row(children: [
             const SizedBox(width: AppSpacing.md),
-            Icon(FulusIcons.shoppingCart, color: AppColors.onColor(AppColors.primary), size: 20),
+            FulusIconVisual(icon: FulusIcons.shoppingCart, color: AppColors.onColor(AppColors.primary), size: 20),
             const SizedBox(width: AppSpacing.sm),
             Text(state.itemCount.toString() + ' items', style: AppTypography.body.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w700)),
             const Spacer(),
