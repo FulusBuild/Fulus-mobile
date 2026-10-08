@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/permission.dart';
@@ -147,19 +148,19 @@ class _StockBody extends ConsumerWidget {
                     child: Row(
                       children: [
                         Expanded(child: FulusActionTile(
-                          icon: FulusIcons.stockIn,
+                          icon: FulusIcons.stock, art: FulusArt.stockIn,
                           label: 'Stock In',
                           onTap: () => context.pushNamed('stockRecordMovement'),
                         )),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(child: FulusActionTile(
-                          icon: FulusIcons.stockMovement,
+                          icon: FulusIcons.stock, art: FulusArt.stockMovement,
                           label: 'Movement',
                           onTap: () => context.pushNamed('stockHistory'),
                         )),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(child: FulusActionTile(
-                          icon: FulusIcons.category,
+                          icon: FulusIcons.category, art: FulusArt.category,
                           label: 'Categories',
                           onTap: () => context.pushNamed('stockCategories'),
                         )),
