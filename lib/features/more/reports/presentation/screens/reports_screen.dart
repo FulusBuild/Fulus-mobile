@@ -8,6 +8,7 @@ import '../../../../../app/providers.dart';
 import '../../../../../core/export/export_metadata.dart';
 import '../../../../../core/export/export_service.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/theme/fulus_art.dart';
 import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/finance_stats.dart';
 import '../../../../../domain/entities/permission.dart';
@@ -165,12 +166,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         children: [
           FulusActionTile(
             icon: FulusIcons.tableChart,
+            art: FulusArt.table,
             label: 'CSV',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.csv),
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusActionTile(
             icon: FulusIcons.pictureAsPdf,
+            art: FulusArt.pdf,
             label: 'PDF',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.pdf),
           ),
@@ -332,11 +335,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               mainAxisSpacing: 0,
               childAspectRatio: 1.55,
               children: [
-                FulusFlatGridCell(icon: FulusIcons.salesReport, label: 'Sales', iconColor: AppColors.sales, onTap: () => setState(() => _selectedReportIndex = 0)),
-                FulusFlatGridCell(icon: FulusIcons.stockReport, label: 'Stock', iconColor: AppColors.stock, onTap: () => setState(() => _selectedReportIndex = 1)),
-                FulusFlatGridCell(icon: FulusIcons.expenseReport, label: 'Expense', iconColor: AppColors.warning, onTap: () => setState(() => _selectedReportIndex = 3)),
-                FulusFlatGridCell(icon: FulusIcons.customerReport, label: 'Customer', iconColor: AppColors.customers, onTap: () => setState(() => _selectedReportIndex = 2)),
-                FulusFlatGridCell(icon: FulusIcons.staff, label: 'Team', iconColor: AppColors.reports, onTap: () => setState(() => _selectedReportIndex = 4)),
+                FulusFlatGridCell(icon: FulusIcons.salesReport, art: FulusArt.sell, label: 'Sales', iconColor: AppColors.sales, onTap: () => setState(() => _selectedReportIndex = 0)),
+                FulusFlatGridCell(icon: FulusIcons.stockReport, art: FulusArt.stock, label: 'Stock', iconColor: AppColors.stock, onTap: () => setState(() => _selectedReportIndex = 1)),
+                FulusFlatGridCell(icon: FulusIcons.expenseReport, art: FulusArt.moneyOut, label: 'Expense', iconColor: AppColors.warning, onTap: () => setState(() => _selectedReportIndex = 3)),
+                FulusFlatGridCell(icon: FulusIcons.customerReport, art: FulusArt.customers, label: 'Customer', iconColor: AppColors.customers, onTap: () => setState(() => _selectedReportIndex = 2)),
+                FulusFlatGridCell(icon: FulusIcons.staff, art: FulusArt.staff, label: 'Team', iconColor: AppColors.reports, onTap: () => setState(() => _selectedReportIndex = 4)),
               ],
             ),
           ),

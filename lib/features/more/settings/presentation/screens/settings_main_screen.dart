@@ -6,6 +6,7 @@ import '../../../../../app/providers.dart';
 import '../../../../../core/errors/failure.dart';
 import '../../../../../core/security/biometric_auth.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/theme/fulus_art.dart';
 import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/business_settings.dart';
 import '../../../../../domain/entities/permission.dart';
@@ -98,24 +99,28 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   if (canManageBackup)
                     FulusFlatGridCell(
                       icon: FulusIcons.backup,
+                      art: FulusArt.backup,
                       label: 'Backup',
                       onTap: () => context.pushNamed('moreSettingsBackup'),
                     ),
                   if (canManageSettings)
                     FulusFlatGridCell(
                       icon: FulusIcons.print,
+                      art: FulusArt.print,
                       label: 'Printers',
                       onTap: () => context.pushNamed('moreSettingsPrinters'),
                     ),
                   if (canManageSettings)
                     FulusFlatGridCell(
                       icon: FulusIcons.sync,
+                      art: FulusArt.sync,
                       label: 'Sync',
                       onTap: () => context.pushNamed('moreSyncDetail'),
                     ),
                   if (canManageSettings)
                     FulusFlatGridCell(
                       icon: FulusIcons.locations,
+                      art: FulusArt.locations,
                       label: 'Locations',
                       onTap: () => context.pushNamed('moreSettingsLocations'),
                     ),
@@ -131,6 +136,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 _tileGrid([
                   FulusFlatGridCell(
                     icon: FulusIcons.cloud,
+                    art: FulusArt.cloud,
                     label: 'Cloud',
                     onTap: () => context.pushNamed('moreSettingsCloud'),
                   ),
