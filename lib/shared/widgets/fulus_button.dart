@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_icon_visual.dart';
 import '../../core/ux/consumer_polish.dart';
 
 enum FulusButtonVariant { primary, secondary, destructive, text }
@@ -130,7 +131,7 @@ class FulusButton extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: AppSpacing.sm,
       children: [
-        Icon(icon, size: AppIconSize.compact),
+        FulusIconVisual(icon: icon, size: AppIconSize.compact),
         Text(label, textAlign: TextAlign.center),
       ],
     );
@@ -176,7 +177,7 @@ class FulusIconButton extends StatelessWidget {
     final foreground = filled ? AppColors.onPrimaryOf(context) : AppColors.textPrimaryOf(context);
     final button = IconButton(
       onPressed: action,
-      icon: Icon(icon),
+      icon: FulusIconVisual(icon: icon, size: AppIconSize.compact),
       style: IconButton.styleFrom(
         backgroundColor: filled ? AppColors.primaryOf(context) : AppColors.surfaceOf(context),
         foregroundColor: foreground,
