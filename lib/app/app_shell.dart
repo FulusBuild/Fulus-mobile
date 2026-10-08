@@ -9,6 +9,7 @@ import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
 import '../core/theme/device_form_factor.dart';
 import '../core/theme/fulus_icons.dart';
+import '../core/theme/fulus_art.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
@@ -73,10 +74,10 @@ class _FulusBottomNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = <(int, IconData, String)>[
-      (FulusNavBranch.home, FulusIcons.home, 'Home'),
-      (FulusNavBranch.sell, FulusIcons.sell, 'Sell'),
-      (FulusNavBranch.stock, FulusIcons.stock, 'Stock'),
+    final items = <(int, FulusArt, String)>[
+      (FulusNavBranch.home, FulusArt.home, 'Home'),
+      (FulusNavBranch.sell, FulusArt.sell, 'Sell'),
+      (FulusNavBranch.stock, FulusArt.stock, 'Stock'),
       if (showMoneyTab) (FulusNavBranch.money, FulusIcons.navMoney, 'Money'),
       (FulusNavBranch.more, FulusIcons.navMore, 'More'),
     ];
