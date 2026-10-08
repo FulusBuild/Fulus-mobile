@@ -417,6 +417,28 @@ void main() {
     expect(payment.amount, 85475);
   });
 
+  test('rejects numeric monetary wire values instead of guessing units', () async {
+    final snapshot = <String, dynamic>{
+      'version': 7,
+      'locations': [],
+      'products': [
+        {
+          'id': 'bad-money-product',
+          'name': 'Bad money product',
+          'sku': 'BAD-MONEY-1',
+          'cost_price': 845,
+          'selling_price': '860.00',
+        },
+      ],
+    };
+
+    await expectLater(
+      CloudRestoreImporter(db).importSnapshot(snapshot),
+      throwsA(isA<FormatException>()),
+    );
+    expect(await db.select(db.products).get(), isEmpty);
+  });
+
   test('translates cloud inventory movement deltas into local movement schema', () async {
     final snapshot = <String, dynamic>{
       'version': 6,
