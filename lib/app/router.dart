@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/diagnostics/capture/current_screen_tracker.dart';
 import '../core/onboarding/onboarding_routing.dart';
 import '../core/theme/design_tokens.dart';
+import '../core/theme/fulus_art.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/customer.dart';
 import '../domain/entities/permission.dart';
