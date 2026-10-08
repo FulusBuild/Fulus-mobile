@@ -453,6 +453,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
               ),
               ),
             ),
+            ),
           ],
         ),
       ),
