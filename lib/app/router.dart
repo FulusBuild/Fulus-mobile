@@ -810,11 +810,17 @@ class _MoreScreen extends ConsumerWidget {
     Widget tileGrid(List<Widget> tiles) {
       // Flat, edge-to-edge icon-over-label grid. Cells touch with only
       // hairline dividers between them; there are no section cards or gaps.
+      // Size cells from the available device height so More uses the screen
+      // well on short phones without becoming excessively tall on large ones.
       final textScale = MediaQuery.textScalerOf(context).scale(1);
-      final cellHeight = textScale > 1.3 ? 144.0 : 132.0;
+      final screenHeight = MediaQuery.sizeOf(context).height;
       return LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 640 ? 3 : 2;
+          final rowCount = (tiles.length + columns - 1) ~/ columns;
+          final minCellHeight = textScale > 1.3 ? 144.0 : 112.0;
+          final cellHeight = ((screenHeight - 120) / rowCount)
+              .clamp(minCellHeight, 148.0);
           final rows = <Widget>[
             for (var i = 0; i < tiles.length; i += columns)
               SizedBox(
