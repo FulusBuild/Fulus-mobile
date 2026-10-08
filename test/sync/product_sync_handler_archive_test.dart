@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -262,6 +263,104 @@ void main() {
       operation['photo_path'],
       'https://example.supabase.co/storage/v1/object/public/product-images/business-1/p-image-create/image.jpg',
     );
+  });
+
+  test('product create proceeds when photo upload fails and retries photo separately', () async {
+    final now = DateTime(2026, 10, 1);
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'location-photo-failure',
+        serverId: const Value('server-location-photo-failure'),
+        name: 'Main',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await db.into(db.products).insert(
+      ProductsCompanion.insert(
+        localId: 'p-image-failure',
+        name: 'Product with local image',
+        sku: 'IMAGE-FAIL-1',
+        costPrice: 10000,
+        sellingPrice: 15000,
+        photoPath: const Value('/tmp/fulus-product-image.jpg'),
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.pending,
+      ),
+    );
+    await db.into(db.productStockLevels).insert(
+      ProductStockLevelsCompanion.insert(
+        productLocalId: 'p-image-failure',
+        locationLocalId: 'location-photo-failure',
+        currentStock: const Value(12),
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'queue-product-image-failure',
+        entityType: 'product',
+        entityLocalId: 'p-image-failure',
+        operation: 'create',
+        priority: 0,
+        enqueuedAt: now,
+      ),
+    );
+
+    final request = RequestOptions(path: '/storage/v1/object/product-images');
+    when(() => productImageApi.upload(
+          file: any(named: 'file'),
+          businessId: any(named: 'businessId'),
+          productLocalId: any(named: 'productLocalId'),
+        )).thenThrow(
+      DioException(
+        requestOptions: request,
+        response: Response(
+          requestOptions: request,
+          statusCode: 400,
+          data: {'message': 'Storage rejected image upload'},
+        ),
+      ),
+    );
+    when(() => api.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {
+      'data': {'entity_id': 'server-image-failure-product', 'sync_sequence': 22},
+    });
+    when(() => productRepository.updateProduct(
+          localId: any(named: 'localId'),
+          photoPath: any(named: 'photoPath'),
+        )).thenAnswer((_) async {});
+
+    await handler.sync(await db.select(db.syncQueueItems).getSingle());
+
+    final payload = verify(() => api.submitOperation(
+      businessId: 'business-1',
+      operationType: 'product.create',
+      operationId: 'queue-product-image-failure',
+      deviceClientId: 'device-client-1',
+      payload: captureAny(named: 'payload'),
+    )).captured.single as Map<String, dynamic>;
+    expect(payload['initial_stock'], 12);
+    expect(payload['location_id'], 'server-location-photo-failure');
+    expect(payload.containsKey('photo_path'), isFalse);
+    verify(() => productRepository.markSynced(
+      localId: 'p-image-failure',
+      serverId: 'server-image-failure-product',
+      operationId: 'queue-product-image-failure',
+    )).called(1);
+    verify(() => productRepository.updateProduct(
+      localId: 'p-image-failure',
+      photoPath: '/tmp/fulus-product-image.jpg',
+    )).called(1);
   });
 
   test('archives an already-synced product through catalog.delete', () async {
