@@ -215,6 +215,11 @@ void main() {
     final localSettings = await (db.select(db.businessSettings)).getSingle();
     expect(localSettings.businessName, 'Amina Store');
     expect(localSettings.currencySymbol, '₦');
+
+    final binding = await (db.select(db.localCloudBindings)
+          ..where((row) => row.id.equals('singleton')))
+        .getSingle();
+    expect(binding.businessId, 'business-id');
   });
 
   test('seeds the owner before restoring sales on a fresh installation', () async {
