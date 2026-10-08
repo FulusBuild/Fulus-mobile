@@ -50,6 +50,7 @@ class CloudRestoreImporter {
   static const _moneyColumnsByTable = <String, Set<String>>{
     'products': {'cost_price', 'selling_price'},
     'customers': {'credit_limit', 'outstanding_balance'},
+    'employees': {'salary'},
     'sales': {
       'subtotal',
       'whole_cart_discount',
