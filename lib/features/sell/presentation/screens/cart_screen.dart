@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/customer.dart';
@@ -38,7 +39,7 @@ class CartScreen extends StatelessWidget {
             body: FulusEmptyState(
               headline: 'Your cart is empty',
               body: 'Add a product from Sell to start a sale.',
-              icon: FulusIcons.shoppingCart,
+              art: FulusArt.sell,
               actionLabel: 'Back to Sell',
               onAction: () => Navigator.of(context).pop(),
             ),
