@@ -101,11 +101,11 @@ class _ProfileBody extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    FulusCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        FulusCard(
+                          child: Row(
                             children: [
                               FulusAvatar(name: customer.name, size: 56),
                               const SizedBox(width: AppSpacing.md),
@@ -139,79 +139,99 @@ class _ProfileBody extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: AppSpacing.lg),
-                          LayoutBuilder(
-                            builder: (context, metricConstraints) {
-                              final compact = metricConstraints.maxWidth < 430;
-                              final balance = _BalanceMetric(
-                                label: 'Outstanding balance',
-                                value: formatMoney(customer.outstandingBalance, symbol: currencySymbol),
-                                prominent: true,
-                              );
-                              final limit = customer.creditLimit == null
-                                  ? const _BalanceMetric(label: 'Credit limit', value: 'Not set')
-                                  : _BalanceMetric(
-                                      label: 'Credit limit',
-                                      value: formatMoney(customer.creditLimit!, symbol: currencySymbol),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        FulusCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              LayoutBuilder(
+                                builder: (context, metricConstraints) {
+                                  final compact = metricConstraints.maxWidth < 430;
+                                  final balance = _BalanceMetric(
+                                    label: 'Outstanding balance',
+                                    value: formatMoney(customer.outstandingBalance, symbol: currencySymbol),
+                                    prominent: true,
+                                  );
+                                  final limit = customer.creditLimit == null
+                                      ? const _BalanceMetric(label: 'Credit limit', value: 'Not set')
+                                      : _BalanceMetric(
+                                          label: 'Credit limit',
+                                          value: formatMoney(customer.creditLimit!, symbol: currencySymbol),
+                                        );
+                                  if (compact) {
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        balance,
+                                        const SizedBox(height: AppSpacing.md),
+                                        const Divider(height: 1),
+                                        const SizedBox(height: AppSpacing.md),
+                                        limit,
+                                      ],
                                     );
-                              if (compact) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    balance,
-                                    const SizedBox(height: AppSpacing.md),
-                                    const Divider(height: 1),
-                                    const SizedBox(height: AppSpacing.md),
-                                    limit,
-                                  ],
-                                );
-                              }
-                              return Row(
-                                children: [
-                                  Expanded(child: balance),
-                                  const SizedBox(width: AppSpacing.lg),
-                                  Container(width: 1, height: 52, color: AppColors.borderOf(context)),
-                                  const SizedBox(width: AppSpacing.lg),
-                                  Expanded(child: limit),
-                                ],
-                              );
-                            },
-                          ),
-                          if (customer.address != null || (customer.notes != null && customer.notes!.isNotEmpty)) ...[
-                            const SizedBox(height: AppSpacing.lg),
-                            const Divider(height: 1),
-                            const SizedBox(height: AppSpacing.md),
-                            if (customer.address != null)
-                              _ProfileInfoRow(
-                                icon: Icons.location_on_outlined,
-                                label: 'Address',
-                                value: customer.address!,
+                                  }
+                                  return Row(
+                                    children: [
+                                      Expanded(child: balance),
+                                      const SizedBox(width: AppSpacing.lg),
+                                      Container(width: 1, height: 52, color: AppColors.borderOf(context)),
+                                      const SizedBox(width: AppSpacing.lg),
+                                      Expanded(child: limit),
+                                    ],
+                                  );
+                                },
                               ),
-                            if (customer.notes != null && customer.notes!.isNotEmpty) ...[
-                              if (customer.address != null) const SizedBox(height: AppSpacing.md),
-                              _ProfileInfoRow(
-                                icon: Icons.notes_outlined,
-                                label: 'Notes',
-                                value: customer.notes!,
+                              const SizedBox(height: AppSpacing.lg),
+                              FulusActionTile(
+                                icon: Icons.payments_outlined,
+                                label: 'Record repayment',
+                                subtitle: 'Record money received from this customer.',
+                                onTap: () async {
+                                  final result = await context.pushNamed<bool>(
+                                    openedFromMore ? 'moreRecordRepayment' : 'moneyRecordRepayment',
+                                    pathParameters: {'id': customer.localId},
+                                    extra: customer,
+                                  );
+                                  if (result == true) onChanged();
+                                },
                               ),
                             ],
-                          ],
-                          const SizedBox(height: AppSpacing.lg),
-                          FulusActionTile(
-                            icon: Icons.payments_outlined,
-                            label: 'Record repayment',
-                            subtitle: 'Record money received from this customer.',
-                            onTap: () async {
-                              final result = await context.pushNamed<bool>(
-                                openedFromMore ? 'moreRecordRepayment' : 'moneyRecordRepayment',
-                                pathParameters: {'id': customer.localId},
-                                extra: customer,
-                              );
-                              if (result == true) onChanged();
-                            },
+                          ),
+                        ),
+                        if (customer.address != null || (customer.notes != null && customer.notes!.isNotEmpty)) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          FulusCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Customer information',
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textPrimaryOf(context),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                if (customer.address != null)
+                                  _ProfileInfoRow(
+                                    icon: Icons.location_on_outlined,
+                                    label: 'Address',
+                                    value: customer.address!,
+                                  ),
+                                if (customer.notes != null && customer.notes!.isNotEmpty) ...[
+                                  if (customer.address != null) const SizedBox(height: AppSpacing.md),
+                                  _ProfileInfoRow(
+                                    icon: Icons.notes_outlined,
+                                    label: 'Notes',
+                                    value: customer.notes!,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     const FulusSectionHeader(title: 'Purchase history', subtitle: 'Sales made to this customer'),
