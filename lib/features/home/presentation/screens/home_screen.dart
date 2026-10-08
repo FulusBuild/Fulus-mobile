@@ -538,8 +538,8 @@ class _HomeQuickActions extends StatelessWidget {
     // The hero always spans at least two shortcut rows so it never collapses
     // when permissions hide some shortcuts.
     final rows = shortcuts.length < 2 ? 2 : shortcuts.length;
-    // ~420dp is the space taken by header, greeting, sales card, labels,
-    // bottom bar and padding.
+    // Reserve space for the header, greeting, sales card, labels, bottom bar,
+    // and a small amount of intentional bottom breathing room.
     // Give the action block enough height to visually fill the viewport while
     // preserving a small amount of intentional breathing room at the bottom.
     final ideal = (screenHeight - 330 - gap * (rows - 1)) / rows;
@@ -751,8 +751,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
                 horizontal: AppSpacing.xl - AppSpacing.xs,
                 vertical: compact ? AppSpacing.md : AppSpacing.lg + AppSpacing.xs,
               ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   'Today’s sales',
