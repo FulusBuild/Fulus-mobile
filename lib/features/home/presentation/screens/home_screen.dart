@@ -452,27 +452,27 @@ class _HomeMockupDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Equal-tile grid: Sell is always available, the rest follow permissions.
     final shortcuts = <_HomeShortcut>[
+      const _HomeShortcut(
+        art: FulusArt.sell,
+        label: 'Sell',
+        route: 'sell',
+      ),
       if (canViewDashboardStats)
         const _HomeShortcut(
-          color: AppColors.warning,
-          icon: FulusIcons.receipt,
           art: FulusArt.receipt,
           label: 'Receipts',
           route: 'receiptHistory',
         ),
       if (canViewMoney)
         const _HomeShortcut(
-          color: AppColors.customers,
-          icon: FulusIcons.customers,
           art: FulusArt.customers,
           label: 'Customers',
           route: 'moneyCustomers',
         ),
       if (canViewReports)
         const _HomeShortcut(
-          color: AppColors.reports,
-          icon: FulusIcons.reports,
           art: FulusArt.reports,
           label: 'Reports',
           route: 'moreReports',
@@ -488,15 +488,15 @@ class _HomeMockupDashboard extends StatelessWidget {
           error: heroError,
           currencySymbol: currencySymbol,
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.xxl + AppSpacing.sm),
         Text(
           'Quick actions',
           style: AppTypography.bodyLarge.copyWith(
             color: AppColors.textPrimaryOf(context),
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.lg),
         _HomeQuickActions(shortcuts: shortcuts),
       ],
     );
@@ -505,209 +505,119 @@ class _HomeMockupDashboard extends StatelessWidget {
 
 class _HomeShortcut {
   const _HomeShortcut({
-    required this.color,
-    required this.icon,
     required this.art,
     required this.label,
     required this.route,
   });
 
-  final Color color;
-  final IconData icon;
   final FulusArt art;
   final String label;
   final String route;
 }
 
-/// Sell hero tile on the left, up to three stacked shortcuts on the right.
+/// Equal-size action tiles in a two-column grid (Sell, Receipts, Customers,
+/// Reports). Every tile shares one size; hidden shortcuts simply leave an empty
+/// cell so the remaining tiles never stretch.
 ///
-/// Row height is derived from the real window height so the block fits above
-/// the bottom bar on short handheld POS screens and grows (up to a cap) on
-/// taller phones. If the screen is shorter than the minimum, the page scrolls.
+/// Tile height is derived from the real window height so the block fills the
+/// space above the bottom bar on tall phones, stays within a sensible cap, and
+/// lets the page scroll on very short handheld POS screens.
 class _HomeQuickActions extends StatelessWidget {
   const _HomeQuickActions({required this.shortcuts});
 
   final List<_HomeShortcut> shortcuts;
+
+  static const _columns = 2;
 
   @override
   Widget build(BuildContext context) {
     const gap = AppSpacing.md;
     final screenHeight = MediaQuery.sizeOf(context).height;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final minTile = textScale > 1.3 ? 80.0 : 68.0;
-    // The hero always spans at least two shortcut rows so it never collapses
-    // when permissions hide some shortcuts.
-    final rows = shortcuts.length < 2 ? 2 : shortcuts.length;
-    // Reserve space for the header, greeting, sales card, labels, bottom bar,
-    // and a small amount of intentional bottom breathing room.
-    // Give the action block enough height to visually fill the viewport while
-    // preserving a small amount of intentional breathing room at the bottom.
-    final ideal = (screenHeight - 330 - gap * (rows - 1)) / rows;
-    final tileHeight = ideal.clamp(minTile, 180.0).toDouble();
-    final blockHeight = tileHeight * rows + gap * (rows - 1);
+    final minTile = textScale > 1.3 ? 144.0 : 120.0;
+    final rowCount = (shortcuts.length / _columns).ceil().clamp(1, 4).toInt();
+    // Reserve space for the system bars, header, greeting, sales card, section
+    // label, bottom bar and a little breathing room.
+    final ideal = (screenHeight - 520 - gap * (rowCount - 1)) / rowCount;
+    final tileHeight = ideal.clamp(minTile, 190.0).toDouble();
 
-    const hero = _HomeSellHero();
-    if (shortcuts.isEmpty) {
-      return SizedBox(height: blockHeight, child: hero);
-    }
-
-    return SizedBox(
-      height: blockHeight,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Expanded(flex: 9, child: hero),
-          const SizedBox(width: gap),
-          Expanded(
-            flex: 11,
-            child: Column(
+    return Column(
+      children: [
+        for (var row = 0; row < rowCount; row++) ...[
+          if (row > 0) const SizedBox(height: gap),
+          SizedBox(
+            height: tileHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (var i = 0; i < shortcuts.length; i++) ...[
-                  if (i > 0) const SizedBox(height: gap),
-                  Expanded(
-                    child: _HomeShortcutTile(
-                      icon: shortcuts[i].icon,
-                      art: shortcuts[i].art,
-                      color: shortcuts[i].color,
-                      label: shortcuts[i].label,
-                      onTap: () => context.goNamed(shortcuts[i].route),
-                    ),
-                  ),
+                for (var col = 0; col < _columns; col++) ...[
+                  if (col > 0) const SizedBox(width: gap),
+                  Expanded(child: _tileAt(context, row * _columns + col)),
                 ],
               ],
             ),
           ),
         ],
-      ),
+      ],
+    );
+  }
+
+  Widget _tileAt(BuildContext context, int index) {
+    if (index >= shortcuts.length) return const SizedBox.shrink();
+    final shortcut = shortcuts[index];
+    return _HomeActionTile(
+      art: shortcut.art,
+      label: shortcut.label,
+      onTap: () => context.goNamed(shortcut.route),
     );
   }
 }
 
-class _HomeShortcutTile extends StatelessWidget {
-  const _HomeShortcutTile({
-    required this.icon,
+/// One rounded action tile: existing Fulus artwork on a plain surface (no
+/// icon background) with the label underneath.
+class _HomeActionTile extends StatelessWidget {
+  const _HomeActionTile({
     required this.art,
-    required this.color,
     required this.label,
     required this.onTap,
   });
 
-  final IconData icon;
   final FulusArt art;
-  final Color color;
   final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final tint = AppColors.isDark(context)
-        ? color.withValues(alpha: 0.18)
-        : Color.alphaBlend(color.withValues(alpha: 0.14), Colors.white);
+    final dark = AppColors.isDark(context);
 
     return FulusPressable(
       onPressed: onTap,
       semanticsLabel: label,
-      child: Material(
-        color: AppColors.surfaceOf(context),
-        shape: Border.all(
-          color: AppColors.borderOf(context).withValues(alpha: 0.7),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: dark ? Border.all(color: AppColors.borderOf(context)) : null,
+          boxShadow: AppElevation.cardOf(context),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final height = constraints.hasBoundedHeight ? constraints.maxHeight : 96.0;
-            final badge = (height - AppSpacing.md * 2).clamp(56.0, 72.0).toDouble();
-            final glyph = badge * 0.68;
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Row(
-                children: [
-                  Container(
-                    width: badge,
-                    height: badge,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: tint,
-                      shape: BoxShape.circle,
-                    ),
-                    child: FulusArtIcon(
-                      art,
-                      size: glyph,
-                      semanticLabel: label,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        style: AppTypography.bodyLarge.copyWith(
-                          color: AppColors.textPrimaryOf(context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeSellHero extends StatelessWidget {
-  const _HomeSellHero();
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = AppColors.isDark(context);
-    return FulusPressable(
-      semanticsLabel: 'Sell, start a sale',
-      onPressed: () => context.goNamed('sell'),
-      child: Material(
-        color: dark ? AppColors.success.withValues(alpha: 0.12) : AppColors.successLight,
-        shape: Border.all(
-          color: AppColors.success.withValues(alpha: 0.22),
-        ),
-        child: Center(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 112,
-                    height: 112,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: dark ? AppColors.success.withValues(alpha: 0.2) : AppColors.salesLight,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const FulusArtIcon(FulusArt.sell, size: 64),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Sell',
-                    style: AppTypography.title.copyWith(
-                      color: AppColors.textPrimaryOf(context),
-                      fontSize: 28,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox.shrink(),
-                ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FulusArtIcon(art, size: 56),
+            const SizedBox(height: AppSpacing.md),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: AppTypography.bodyLarge.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -734,52 +644,70 @@ class _HomeSalesHeroCard extends StatelessWidget {
     final count = error || salesCount == null
         ? 'Sales data unavailable'
         : '${salesCount!} sale${salesCount == 1 ? '' : 's'} today';
-    const onGreen = Colors.white;
-    final onGreenMuted = Colors.white.withValues(alpha: 0.88);
+    const onPrimary = Colors.white;
+    final onPrimaryMuted = Colors.white.withValues(alpha: 0.88);
 
     return Semantics(
       label: 'Today’s sales, $value, $count',
       child: SizedBox(
         width: double.infinity,
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: compact ? 152 : 180),
+          constraints: BoxConstraints(minHeight: compact ? 128 : 148),
           child: Material(
             color: AppColors.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+            ),
             clipBehavior: Clip.antiAlias,
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.xl - AppSpacing.xs,
-                vertical: compact ? AppSpacing.md : AppSpacing.lg + AppSpacing.xs,
+                vertical: compact ? AppSpacing.lg : AppSpacing.xl,
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  'Today’s sales',
-                  style: AppTypography.subheading.copyWith(color: onGreenMuted),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.center,
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    style: AppTypography.display.copyWith(
-                      color: onGreen,
-                      fontSize: compact ? 32 : 40,
-                      fontWeight: FontWeight.w600,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'TODAY’S SALES',
+                    style: AppTypography.label.copyWith(
+                      color: onPrimaryMuted,
+                      letterSpacing: 0.8,
                     ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  count,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: onGreenMuted, fontSize: 15),
-                ),
+                  const SizedBox(height: AppSpacing.xs),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      style: AppTypography.display.copyWith(
+                        color: onPrimary,
+                        fontSize: compact ? 36 : 44,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: 5,
+                      ),
+                      child: Text(
+                        count,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.label.copyWith(color: onPrimary),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
