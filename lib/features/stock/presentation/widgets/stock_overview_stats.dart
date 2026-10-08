@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -30,11 +31,13 @@ class StockOverviewStats extends StatelessWidget {
           label: 'Stock value',
           value: formatMoney(value),
           icon: FulusIcons.cash,
+          art: FulusArt.cash,
         ),
         FulusStatCard(
           label: 'Low stock',
           value: '$lowStockCount',
           icon: FulusIcons.stockIn,
+          art: FulusArt.lowStock,
           valueColor: lowStockCount > 0 ? AppColors.warningOf(context) : null,
           onTap: onTapLowStock,
         ),
@@ -49,6 +52,7 @@ class StockOverviewStats extends StatelessWidget {
           label: 'Products',
           value: '${products.length}',
           icon: FulusIcons.stock,
+          art: FulusArt.stock,
         ),
       ],
     );
