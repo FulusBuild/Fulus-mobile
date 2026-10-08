@@ -155,6 +155,11 @@ class _CustomerRow extends StatelessWidget {
           
         ],
       ),
+      onTap: () => context.pushNamed(
+        openedFromMore ? 'moreCustomerProfile' : 'moneyCustomerProfile',
+        pathParameters: {'id': customer.localId},
+        extra: customer,
+      ),
     );
   }
 }
