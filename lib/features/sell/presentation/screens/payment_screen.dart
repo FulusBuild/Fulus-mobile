@@ -560,15 +560,19 @@ class _PaymentMethodTile extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  Color get _methodColor => switch (label) {
+        'Cash' => const Color(0xFF0BBE6E),
+        'Transfer' => const Color(0xFF7B3FF2),
+        'Card' => const Color(0xFF1473E6),
+        _ => const Color(0xFFFF8A00),
+      };
+
   @override
   Widget build(BuildContext context) {
-    final color = switch (label) {
-      'Cash' => const Color(0xFF0BBE6E),
-      'Transfer' => const Color(0xFF7B3FF2),
-      'Card' => const Color(0xFF1473E6),
-      _ => const Color(0xFFFF8A00),
-    };
-    final foreground = AppColors.onColor(color);
+    final methodColor = _methodColor;
+    final surface = AppColors.surfaceOf(context);
+    final textColor = AppColors.textPrimaryOf(context);
+
     return FulusPressable(
       semanticsLabel: '$label payment method',
       onPressed: onTap,
@@ -577,10 +581,21 @@ class _PaymentMethodTile extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 154),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: color,
+          color: surface,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: selected ? foreground : Colors.transparent, width: selected ? 2 : 1),
-          boxShadow: selected ? [BoxShadow(color: Colors.black.withValues(alpha: .16), blurRadius: 8, offset: const Offset(0, 3))] : null,
+          border: Border.all(
+            color: selected ? methodColor : AppColors.borderOf(context),
+            width: selected ? 2 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: methodColor.withValues(alpha: .14),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -605,16 +620,15 @@ class _PaymentMethodTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: foreground,
-                      fontSize: 17,
+                    style: AppTypography.body.copyWith(
+                      color: textColor,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
                 if (selected) ...[
                   const SizedBox(width: AppSpacing.xs),
-                  Icon(FulusIcons.check, size: AppIconSize.compact, color: foreground),
+                  Icon(FulusIcons.check, size: AppIconSize.compact, color: methodColor),
                 ],
               ],
             ),
@@ -624,7 +638,6 @@ class _PaymentMethodTile extends StatelessWidget {
     );
   }
 }
-
 
 
 class _PaymentLoadingSkeleton extends StatelessWidget {
