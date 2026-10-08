@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../stock/presentation/screens/add_edit_product_screen.dart';
 import '../widgets/onboarding_error_banner.dart';
@@ -130,6 +131,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                 const SizedBox(height: AppSpacing.md),
                 FulusActionTile(
                   icon: FulusIcons.stock,
+                  art: FulusArt.stock,
                   label: "I'll add products later",
                   subtitle: 'You can build your catalog from Stock anytime.',
                   onTap: _checking ? null : _skip,
