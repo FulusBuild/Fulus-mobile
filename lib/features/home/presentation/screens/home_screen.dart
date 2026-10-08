@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_settings.dart';
@@ -250,19 +251,19 @@ class _HomeMockupDashboard extends StatelessWidget {
     return Column(
       children: [
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.money, label: 'Total Cash', value: canViewMoney ? formatMoney(cashTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, art: FulusArt.money, label: 'Total Cash', value: canViewMoney ? formatMoney(cashTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, art: FulusArt.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
         ]),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, art: FulusArt.lowStock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, art: FulusArt.customers, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
         ]),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.arrowUp, label: 'Expenses', value: canViewMoney ? formatMoney(_expensesTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'today', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, art: FulusArt.moneyOut, label: 'Expenses', value: canViewMoney ? formatMoney(_expensesTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'today', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: _HomeSellCard()),
         ]),
@@ -273,8 +274,8 @@ class _HomeMockupDashboard extends StatelessWidget {
 }
 
 class _HomeCompactCard extends StatelessWidget {
-  const _HomeCompactCard({required this.color, required this.icon, required this.label, required this.value, required this.secondary, required this.onTap});
-  final Color color; final IconData icon; final String label; final String value; final String secondary; final VoidCallback? onTap;
+  const _HomeCompactCard({required this.color, required this.art, required this.label, required this.value, required this.secondary, required this.onTap});
+  final Color color; final FulusArt art; final String label; final String value; final String secondary; final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Semantics(
     button: onTap != null,
@@ -288,7 +289,16 @@ class _HomeCompactCard extends StatelessWidget {
       child: SizedBox(height: 118, child: Padding(
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: Colors.white, size: AppIconSize.compact),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .92),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          alignment: Alignment.center,
+          child: FulusArtIcon(art, size: 32, semanticLabel: label),
+        ),
         const Spacer(),
         Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
         FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900))),
@@ -319,7 +329,16 @@ class _HomeSellCard extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.sm),
           child: Row(
             children: [
-              const Icon(FulusIcons.sell, color: Colors.white, size: AppIconSize.base),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .94),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                alignment: Alignment.center,
+                child: const FulusArtIcon(FulusArt.sell, size: 32, semanticLabel: 'Sell'),
+              ),
               const SizedBox(width: AppSpacing.sm),
               const Expanded(
                 child: Text(
