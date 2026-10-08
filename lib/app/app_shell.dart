@@ -9,6 +9,7 @@ import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
 import '../core/theme/device_form_factor.dart';
 import '../core/theme/fulus_icons.dart';
+import '../core/theme/fulus_art.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
@@ -73,12 +74,12 @@ class _FulusBottomNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = <(int, IconData, String)>[
-      (FulusNavBranch.home, FulusIcons.home, 'Home'),
-      (FulusNavBranch.sell, FulusIcons.sell, 'Sell'),
-      (FulusNavBranch.stock, FulusIcons.stock, 'Stock'),
-      if (showMoneyTab) (FulusNavBranch.money, FulusIcons.navMoney, 'Money'),
-      (FulusNavBranch.more, FulusIcons.navMore, 'More'),
+    final items = <(int, FulusArt, String)>[
+      (FulusNavBranch.home, FulusArt.home, 'Home'),
+      (FulusNavBranch.sell, FulusArt.sell, 'Sell'),
+      (FulusNavBranch.stock, FulusArt.stock, 'Stock'),
+      if (showMoneyTab) (FulusNavBranch.money, FulusArt.money, 'Money'),
+      (FulusNavBranch.more, FulusArt.more, 'More'),
     ];
 
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
@@ -135,7 +136,7 @@ class _FulusBottomNavigationItem extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final FulusArt icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -167,16 +168,7 @@ class _FulusBottomNavigationItem extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    IconTheme(
-                      data: IconThemeData(
-                        color: foreground,
-                        fill: selected ? 1 : 0,
-                        weight: 300,
-                        grade: 0,
-                        opticalSize: 24,
-                      ),
-                      child: Icon(icon, size: AppIconSize.compact),
-                    ),
+                    FulusArtIcon(icon, size: AppIconSize.compact, semanticLabel: label),
                     const SizedBox(height: 2),
                     FittedBox(
                       fit: BoxFit.scaleDown,
