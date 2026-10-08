@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/sale.dart';
@@ -114,6 +115,7 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                 if (sales.isEmpty) {
                   return FulusEmptyState(
                     icon: Icons.receipt_long_outlined,
+                    art: FulusArt.receipt,
                     headline: _query.isEmpty ? 'No sales in the last 30 days.' : 'No matching sales found.',
                     body: _query.isEmpty ? null : 'Try a different receipt number.',
                   );
@@ -126,6 +128,7 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                     final sale = sales[i];
                     return FulusActionTile(
                       icon: Icons.receipt_long_outlined,
+                      art: FulusArt.receipt,
                       label: sale.invoiceNumber ?? 'Sale #${sale.localId.substring(0, 8)}',
                       subtitle: '${formatRelativeDay(sale.saleDate)} · ${sale.items.length} item${sale.items.length == 1 ? '' : 's'}'
                           '${sale.customerId != null && customerNameById[sale.customerId] != null ? ' · ${customerNameById[sale.customerId]}' : ''}',

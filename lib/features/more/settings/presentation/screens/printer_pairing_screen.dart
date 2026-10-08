@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/failure.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/theme/fulus_art.dart';
 import '../../../../../core/utils/async_timeout.dart';
 import '../../../../../domain/entities/printer_device.dart';
 import '../../../../../shared/widgets/widgets.dart';
@@ -50,7 +51,7 @@ class _PrinterPairingScreenState extends ConsumerState<PrinterPairingScreen> {
                                 color: AppColors.selectedTintOf(context),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
-                              child: Icon(Icons.print_outlined, color: AppColors.primaryOf(context), size: 28),
+                              child: FulusArtIcon(FulusArt.print, size: 36, semanticLabel: 'Printers'),
                             ),
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
@@ -154,7 +155,7 @@ class _PairedPrinterTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final transportIcon = printer.transport == PrinterTransport.bluetooth ? Icons.bluetooth : Icons.usb;
+    final transportIcon = printer.transport == PrinterTransport.bluetooth ? FulusArt.printerBluetooth : FulusArt.printerUsb;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
@@ -169,7 +170,7 @@ class _PairedPrinterTile extends ConsumerWidget {
               color: AppColors.surfaceAltOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(transportIcon, color: AppColors.primaryOf(context)),
+            child: FulusArtIcon(transportIcon, size: 30, semanticLabel: printer.transport == PrinterTransport.bluetooth ? 'Bluetooth' : 'USB'),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -295,24 +296,24 @@ class _FindPrinterSheetState extends ConsumerState<_FindPrinterSheet> {
                           ],
                         ),
                       ),
-                      Icon(Icons.print_outlined, color: AppColors.primaryOf(context)),
+                      FulusArtIcon(FulusArt.print, size: 30, semanticLabel: 'Printers'),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   if (wide)
                     Row(
                       children: [
-                        Expanded(child: _DiscoveryButton(label: 'Bluetooth', icon: Icons.bluetooth, onPressed: () => _scan(true))),
+                        Expanded(child: _DiscoveryButton(label: 'Bluetooth', icon: Icons.bluetooth, art: FulusArt.printerBluetooth, onPressed: () => _scan(true))),
                         const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: _DiscoveryButton(label: 'USB', icon: Icons.usb, onPressed: () => _scan(false))),
+                        Expanded(child: _DiscoveryButton(label: 'USB', icon: Icons.usb, art: FulusArt.printerUsb, onPressed: () => _scan(false))),
                       ],
                     )
                   else
                     Column(
                       children: [
-                        SizedBox(width: double.infinity, child: _DiscoveryButton(label: 'Bluetooth', icon: Icons.bluetooth, onPressed: () => _scan(true))),
+                        SizedBox(width: double.infinity, child: _DiscoveryButton(label: 'Bluetooth', icon: Icons.bluetooth, art: FulusArt.printerBluetooth, onPressed: () => _scan(true))),
                         const SizedBox(height: AppSpacing.sm),
-                        SizedBox(width: double.infinity, child: _DiscoveryButton(label: 'USB', icon: Icons.usb, onPressed: () => _scan(false))),
+                        SizedBox(width: double.infinity, child: _DiscoveryButton(label: 'USB', icon: Icons.usb, art: FulusArt.printerUsb, onPressed: () => _scan(false))),
                       ],
                     ),
                   const SizedBox(height: AppSpacing.md),
@@ -373,10 +374,11 @@ class _FindPrinterSheetState extends ConsumerState<_FindPrinterSheet> {
 }
 
 class _DiscoveryButton extends StatelessWidget {
-  const _DiscoveryButton({required this.label, required this.icon, required this.onPressed});
+  const _DiscoveryButton({required this.label, required this.icon, required this.art, required this.onPressed});
 
   final String label;
   final IconData icon;
+  final FulusArt art;
   final VoidCallback onPressed;
 
   @override
@@ -384,6 +386,7 @@ class _DiscoveryButton extends StatelessWidget {
     return FulusButton(
       label: label,
       icon: icon,
+      art: art,
       variant: FulusButtonVariant.secondary,
       onPressed: onPressed,
     );

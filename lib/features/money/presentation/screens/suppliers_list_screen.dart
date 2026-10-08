@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fulus_mobile/core/money/money.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../domain/entities/supplier.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
@@ -74,6 +75,7 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
                   if (suppliers.isEmpty)
                     FulusEmptyState(
                       icon: FulusIcons.localShipping,
+                      art: FulusArt.suppliers,
                       headline: 'No suppliers yet',
                       body: 'Suppliers you owe for stock bought on credit will show up here, with a running balance.',
                       actionLabel: 'Add supplier',
@@ -135,7 +137,7 @@ class _SupplierOverview extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _Metric(icon: Icons.local_shipping_outlined, label: 'Suppliers', value: '$count'),
+                _Metric(icon: Icons.local_shipping_outlined, art: FulusArt.suppliers, label: 'Suppliers', value: '$count'),
                 const SizedBox(height: AppSpacing.lg),
                 Divider(height: 1, color: AppColors.borderOf(context)),
                 const SizedBox(height: AppSpacing.lg),
@@ -170,8 +172,9 @@ class _SupplierOverview extends StatelessWidget {
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric({required this.icon, required this.label, required this.value});
+  const _Metric({required this.icon, required this.label, required this.value, this.art});
   final IconData icon;
+  final FulusArt? art;
   final String label;
   final String value;
 
@@ -183,7 +186,9 @@ class _Metric extends StatelessWidget {
             height: 42,
             alignment: Alignment.center,
             decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
-            child: Icon(icon, color: AppColors.primaryOf(context)),
+            child: art != null
+              ? FulusArtIcon(art!, size: 34, semanticLabel: label)
+              : Icon(icon, color: AppColors.primaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

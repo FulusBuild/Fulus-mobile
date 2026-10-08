@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
@@ -284,6 +285,7 @@ class _MoneyQuickActions extends StatelessWidget {
       _MoneyAction(
         color: AppColors.success,
         icon: FulusIcons.moneyIn,
+        art: FulusArt.moneyIn,
         label: 'Money In',
         value: formatMoney(summary.moneyIn, symbol: currencySymbol),
         onTap: () => context.pushNamed('moneyAddIncome'),
@@ -291,6 +293,7 @@ class _MoneyQuickActions extends StatelessWidget {
       _MoneyAction(
         color: AppColors.warning,
         icon: FulusIcons.moneyOut,
+        art: FulusArt.moneyOut,
         label: 'Money Out',
         value: formatMoney(summary.moneyOut, symbol: currencySymbol),
         onTap: () => context.pushNamed('moneyAddExpense'),
@@ -327,7 +330,7 @@ class _MoneyActionCell extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(action.icon, size: AppIconSize.emphasis, color: action.color),
+            FulusArtIcon(action.art, size: AppIconSize.emphasis, semanticLabel: action.label),
             const Spacer(),
             Text(
               action.label,
@@ -360,6 +363,7 @@ class _MoneyAction {
   const _MoneyAction({
     required this.color,
     required this.icon,
+    required this.art,
     required this.label,
     required this.value,
     required this.onTap,
@@ -367,6 +371,7 @@ class _MoneyAction {
 
   final Color color;
   final IconData icon;
+  final FulusArt art;
   final String label;
   final String value;
   final VoidCallback onTap;

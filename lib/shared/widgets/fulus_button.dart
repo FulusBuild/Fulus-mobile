@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_art.dart';
 import '../../core/ux/consumer_polish.dart';
 
 enum FulusButtonVariant { primary, secondary, destructive, text }
@@ -15,6 +16,7 @@ class FulusButton extends StatelessWidget {
     required this.onPressed,
     this.variant = FulusButtonVariant.primary,
     this.icon,
+    this.art,
     this.loading = false,
     this.loadingLabel,
     this.foregroundColor,
@@ -26,6 +28,7 @@ class FulusButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final FulusButtonVariant variant;
   final IconData? icon;
+  final FulusArt? art;
   final bool loading;
   final Color? foregroundColor;
   final Color? borderColor;
@@ -124,13 +127,15 @@ class FulusButton extends StatelessWidget {
         ],
       );
     }
-    if (icon == null) return Text(label, textAlign: TextAlign.center);
+    if (icon == null && art == null) return Text(label, textAlign: TextAlign.center);
     return Wrap(
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: AppSpacing.sm,
       children: [
-        Icon(icon, size: AppIconSize.compact),
+        art != null
+            ? FulusArtIcon(art!, size: AppIconSize.compact, semanticLabel: label)
+            : Icon(icon, size: AppIconSize.compact),
         Text(label, textAlign: TextAlign.center),
       ],
     );

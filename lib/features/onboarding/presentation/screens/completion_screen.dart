@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Walkthrough Phase 11. `walkthroughStep` is already
@@ -60,6 +61,7 @@ class CompletionScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             FulusActionTile(
               icon: FulusIcons.stock,
+              art: FulusArt.stock,
               label: 'Explore inventory',
               subtitle: 'Review your products and stock levels.',
               onTap: () => _goAndClose(context, 'stock'),
@@ -67,6 +69,7 @@ class CompletionScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             FulusActionTile(
               icon: FulusIcons.reports,
+              art: FulusArt.reports,
               label: 'View reports',
               subtitle: 'See how your business is performing.',
               onTap: () => _goAndClose(context, 'moreReports'),
@@ -74,6 +77,7 @@ class CompletionScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             FulusActionTile(
               icon: FulusIcons.customers,
+              art: FulusArt.customers,
               label: 'Add customers',
               subtitle: 'Keep customer relationships in one place.',
               onTap: () => _goAndClose(context, 'moneyCustomers'),
@@ -81,6 +85,7 @@ class CompletionScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             FulusActionTile(
               icon: FulusIcons.home,
+              art: FulusArt.home,
               label: 'Start using Fulus',
               subtitle: 'Return to your business home.',
               onTap: () => _goAndClose(context, 'home'),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../data/local/database/database.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/theme/fulus_art.dart';
 import '../../../../../core/utils/async_timeout.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../../sync/sync_status.dart';
@@ -318,7 +319,18 @@ class _StatusCard extends StatelessWidget {
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: FulusArtIcon(
+              switch (status.kind) {
+                SyncStatusKind.disabled => FulusArt.cloudOff,
+                SyncStatusKind.cloudUnavailable => FulusArt.cloudOff,
+                SyncStatusKind.settled => FulusArt.cloudDone,
+                SyncStatusKind.pending => FulusArt.cloud,
+                SyncStatusKind.syncing => FulusArt.sync,
+                SyncStatusKind.attentionNeeded => FulusArt.cloudOff,
+              },
+              size: 40,
+              semanticLabel: headline,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

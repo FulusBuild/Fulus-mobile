@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
+import '../../core/theme/fulus_art.dart';
 import '../../core/ux/consumer_polish.dart';
 
 /// Shared content surface. Cards stay quiet; hierarchy comes from spacing,
@@ -67,6 +68,7 @@ class FulusStatCard extends StatelessWidget {
     this.trendLabel,
     this.valueColor,
     this.icon,
+    this.art,
     this.iconColor,
     this.onTap,
   });
@@ -77,6 +79,7 @@ class FulusStatCard extends StatelessWidget {
   final String? trendLabel;
   final Color? valueColor;
   final IconData? icon;
+  final FulusArt? art;
   final Color? iconColor;
   final VoidCallback? onTap;
   static const minWidth = 136.0;
@@ -91,22 +94,26 @@ class FulusStatCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: hasFiniteIconRegion ? MainAxisSize.max : MainAxisSize.min,
         children: [
-          if (icon != null && hasFiniteIconRegion)
+          if ((icon != null || art != null) && hasFiniteIconRegion)
             Expanded(
               child: Align(
                 alignment: Alignment.topLeft,
                 child: FittedBox(
                   fit: BoxFit.contain,
                   alignment: Alignment.topLeft,
-                  child: Icon(icon, color: iconColor ?? dataColor),
+                  child: art != null
+                      ? FulusArtIcon(art!, size: AppIconSize.emphasis, semanticLabel: label)
+                      : Icon(icon, color: iconColor ?? dataColor),
                 ),
               ),
             )
-          else if (icon != null) ...[
+          else if (icon != null || art != null) ...[
             FittedBox(
               fit: BoxFit.contain,
               alignment: Alignment.topLeft,
-              child: Icon(icon, color: iconColor ?? dataColor),
+              child: art != null
+                  ? FulusArtIcon(art!, size: AppIconSize.emphasis, semanticLabel: label)
+                  : Icon(icon, color: iconColor ?? dataColor),
             ),
             const SizedBox(height: AppSpacing.sm),
           ],
@@ -163,7 +170,7 @@ class FulusStatCard extends StatelessWidget {
         ],
       );
 
-      if (icon == null || !hasFiniteIconRegion) return content;
+      if (icon == null && art == null || !hasFiniteIconRegion) return content;
 
       return AspectRatio(
         // The stat-card family owns the overall content geometry. The

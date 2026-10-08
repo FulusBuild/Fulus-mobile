@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
+import '../../core/theme/fulus_art.dart';
 import 'fulus_button.dart';
 
 /// "No products yet. Add your first product to start selling." —
@@ -18,6 +19,7 @@ class FulusEmptyState extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.icon = FulusIcons.inbox,
+    this.art,
     this.headlineColor,
     this.bodyColor,
   });
@@ -27,6 +29,7 @@ class FulusEmptyState extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
   final IconData icon;
+  final FulusArt? art;
   final Color? headlineColor;
   final Color? bodyColor;
 
@@ -46,7 +49,9 @@ class FulusEmptyState extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, size: AppIconSize.hero, color: AppColors.primaryOf(context)),
+              child: art != null
+                  ? FulusArtIcon(art!, size: AppIconSize.hero, semanticLabel: headline)
+                  : Icon(icon, size: AppIconSize.hero, color: AppColors.primaryOf(context)),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(

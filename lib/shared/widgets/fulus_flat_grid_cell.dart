@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_art.dart';
 import '../../core/ux/consumer_polish.dart';
 
 /// Flat secondary-navigation cell used when a screen has more destinations
@@ -12,12 +13,14 @@ class FulusFlatGridCell extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.iconColor,
+    this.art,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final Color? iconColor;
+  final FulusArt? art;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +52,9 @@ class FulusFlatGridCell extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(icon, size: 30, color: color),
+              art != null
+                  ? FulusArtIcon(art!, size: 30, semanticLabel: label)
+                  : Icon(icon, size: 30, color: color),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 label,

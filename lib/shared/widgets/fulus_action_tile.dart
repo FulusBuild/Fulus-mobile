@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_art.dart';
 import '../../core/ux/consumer_polish.dart';
 
 /// A primary Fulus workspace tile.
@@ -16,6 +17,7 @@ class FulusActionTile extends StatelessWidget {
     required this.onTap,
     this.subtitle,
     this.trailing,
+    this.art,
   });
 
   final IconData icon;
@@ -23,6 +25,7 @@ class FulusActionTile extends StatelessWidget {
   final VoidCallback? onTap;
   final String? subtitle;
   final Widget? trailing;
+  final FulusArt? art;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +46,9 @@ class FulusActionTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(icon, size: AppIconSize.emphasis, color: primary),
+            art != null
+                ? FulusArtIcon(art!, size: AppIconSize.emphasis, semanticLabel: label)
+                : Icon(icon, size: AppIconSize.emphasis, color: primary),
             Row(
               children: [
                 Expanded(
