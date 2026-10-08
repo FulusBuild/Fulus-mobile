@@ -540,8 +540,10 @@ class _HomeQuickActions extends StatelessWidget {
     final rows = shortcuts.length < 2 ? 2 : shortcuts.length;
     // ~420dp is the space taken by header, greeting, sales card, labels,
     // bottom bar and padding.
-    final ideal = (screenHeight - 420 - gap * (rows - 1)) / rows;
-    final tileHeight = ideal.clamp(minTile, 100.0).toDouble();
+    // Give the action block enough height to visually fill the viewport while
+    // preserving a small amount of intentional breathing room at the bottom.
+    final ideal = (screenHeight - 330 - gap * (rows - 1)) / rows;
+    final tileHeight = ideal.clamp(minTile, 180.0).toDouble();
     final blockHeight = tileHeight * rows + gap * (rows - 1);
 
     const hero = _HomeSellHero();
@@ -563,7 +565,7 @@ class _HomeQuickActions extends StatelessWidget {
                 for (var i = 0; i < shortcuts.length; i++) ...[
                   if (i > 0) const SizedBox(height: gap),
                   Expanded(
-                    child: FulusIconTile(
+                    child: _HomeShortcutTile(
                       icon: shortcuts[i].icon,
                       art: shortcuts[i].art,
                       color: shortcuts[i].color,
@@ -581,6 +583,85 @@ class _HomeQuickActions extends StatelessWidget {
   }
 }
 
+class _HomeShortcutTile extends StatelessWidget {
+  const _HomeShortcutTile({
+    required this.icon,
+    required this.art,
+    required this.color,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final FulusArt art;
+  final Color color;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = AppColors.isDark(context)
+        ? color.withValues(alpha: 0.18)
+        : Color.alphaBlend(color.withValues(alpha: 0.14), Colors.white);
+
+    return FulusPressable(
+      onPressed: onTap,
+      semanticsLabel: label,
+      child: Material(
+        color: AppColors.surfaceOf(context),
+        shape: Border.all(
+          color: AppColors.borderOf(context).withValues(alpha: 0.7),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final height = constraints.hasBoundedHeight ? constraints.maxHeight : 96.0;
+            final badge = (height - AppSpacing.md * 2).clamp(56.0, 72.0).toDouble();
+            final glyph = badge * 0.68;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Row(
+                children: [
+                  Container(
+                    width: badge,
+                    height: badge,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: tint,
+                      shape: BoxShape.circle,
+                    ),
+                    child: FulusArtIcon(
+                      art,
+                      size: glyph,
+                      semanticLabel: label,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        style: AppTypography.bodyLarge.copyWith(
+                          color: AppColors.textPrimaryOf(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class _HomeSellHero extends StatelessWidget {
   const _HomeSellHero();
 
@@ -592,9 +673,8 @@ class _HomeSellHero extends StatelessWidget {
       onPressed: () => context.goNamed('sell'),
       child: Material(
         color: dark ? AppColors.success.withValues(alpha: 0.12) : AppColors.successLight,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: AppColors.success.withValues(alpha: 0.22)),
+        shape: Border.all(
+          color: AppColors.success.withValues(alpha: 0.22),
         ),
         child: Center(
           child: FittedBox(
@@ -623,11 +703,7 @@ class _HomeSellHero extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Start a sale',
-                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                  ),
+                  const SizedBox.shrink(),
                 ],
               ),
             ),
@@ -665,15 +741,16 @@ class _HomeSalesHeroCard extends StatelessWidget {
       label: 'Today’s sales, $value, $count',
       child: SizedBox(
         width: double.infinity,
-        child: Material(
-          color: AppColors.salesStrong,
-          borderRadius: BorderRadius.circular(28),
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl - AppSpacing.xs,
-              vertical: compact ? AppSpacing.md : AppSpacing.lg + AppSpacing.xs,
-            ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: compact ? 152 : 180),
+          child: Material(
+            color: AppColors.salesStrong,
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl - AppSpacing.xs,
+                vertical: compact ? AppSpacing.md : AppSpacing.lg + AppSpacing.xs,
+              ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -703,7 +780,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(color: onGreenMuted, fontSize: 15),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
