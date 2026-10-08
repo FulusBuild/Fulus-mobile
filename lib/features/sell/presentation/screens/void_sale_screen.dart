@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
@@ -86,6 +87,7 @@ class _VoidSaleScreenState extends ConsumerState<VoidSaleScreen> {
           if (voidableQuantity <= 0) {
             return FulusEmptyState(
               icon: Icons.block_outlined,
+              art: FulusArt.voidSale,
               headline: 'Nothing left to void on this sale.',
               body: 'It has already been fully refunded or voided.',
             );
