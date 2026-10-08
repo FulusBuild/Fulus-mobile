@@ -49,10 +49,10 @@ class FulusActionTile extends StatelessWidget {
             art != null
                 ? FulusArtIcon(art!, size: AppIconSize.emphasis, semanticLabel: label)
                 : Icon(icon, size: AppIconSize.emphasis, color: primary),
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
+                Text(
                     label,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -62,9 +62,18 @@ class FulusActionTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (trailing != null) trailing!,
+                if (subtitle != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                  ),
+                ],
               ],
             ),
+            if (trailing != null) trailing!,
           ],
         ),
       ),
