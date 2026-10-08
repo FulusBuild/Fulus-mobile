@@ -241,12 +241,10 @@ class _BalanceHero extends StatelessWidget {
       decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(AppRadius.xl)),
       child: Builder(builder: (context) {
         final foreground = AppColors.onColor(AppColors.success);
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700)),
-        ]),
+        return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        Text('Available Balance', textAlign: TextAlign.center, style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700)),
         const SizedBox(height: AppSpacing.sm),
-        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 28, fontWeight: FontWeight.w800))),
+        FittedBox(alignment: Alignment.center, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 28, fontWeight: FontWeight.w800))),
         const SizedBox(height: AppSpacing.xs),
       ]);
       }),
