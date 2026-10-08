@@ -808,11 +808,10 @@ class _MoreScreen extends ConsumerWidget {
     final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
 
     Widget tileGrid(List<Widget> tiles) {
-      // Icon-over-label cells with hairline dividers (the handheld POS
-      // reference layout). Cell height leaves room for a 56dp icon and grows
-      // with text scaling.
+      // Flat, edge-to-edge icon-over-label grid. Cells touch with only
+      // hairline dividers between them; there are no section cards or gaps.
       final textScale = MediaQuery.textScalerOf(context).scale(1);
-      final cellHeight = textScale > 1.3 ? 136.0 : 116.0;
+      final cellHeight = textScale > 1.3 ? 144.0 : 132.0;
       return LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 640 ? 3 : 2;
@@ -823,35 +822,27 @@ class _MoreScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     for (var c = 0; c < columns; c++)
-                      Expanded(child: i + c < tiles.length ? tiles[i + c] : const SizedBox.shrink()),
+                      Expanded(
+                        child: i + c < tiles.length
+                            ? tiles[i + c]
+                            : const SizedBox.shrink(),
+                      ),
                   ],
                 ),
               ),
           ];
-          final radius = BorderRadius.circular(AppRadius.xl);
-          return ClipRRect(
-            borderRadius: radius,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.surfaceOf(context),
-                borderRadius: radius,
-                border: Border.all(color: AppColors.dividerOf(context), width: 0.5),
-              ),
-              child: Column(children: rows),
-            ),
-          );
+          return Column(children: rows);
         },
       );
     }
 
     return FulusScreen(
       title: 'More',
+      applyPadding: false,
       body: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+        padding: EdgeInsets.zero,
         children: [
-          _MoreGroup(
-            title: 'Manage',
-            child: tileGrid([
+          tileGrid([
               FulusFlatGridCell(
                 iconSize: 56,
                 icon: FulusIcons.customers,
@@ -885,10 +876,6 @@ class _MoreScreen extends ConsumerWidget {
                 onTap: canSettings ? () => context.goNamed('moreSettings') : null,
               ),
             ]),
-          ),
-          _MoreGroup(
-            title: 'Understand',
-            child: tileGrid([
               FulusFlatGridCell(
                 iconSize: 56,
                 icon: FulusIcons.reports,
@@ -906,10 +893,6 @@ class _MoreScreen extends ConsumerWidget {
                 onTap: () => context.goNamed('moreNotifications'),
               ),
             ]),
-          ),
-          _MoreGroup(
-            title: 'Tools',
-            child: tileGrid([
               FulusFlatGridCell(
                 iconSize: 56,
                 icon: FulusIcons.backup,
@@ -942,35 +925,6 @@ class _MoreScreen extends ConsumerWidget {
                 onTap: () => context.goNamed('moreDiagnostics'),
               ),
             ]),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MoreGroup extends StatelessWidget {
-  const _MoreGroup({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondaryOf(context),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          child,
         ],
       ),
     );
