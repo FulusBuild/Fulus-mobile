@@ -29,8 +29,10 @@ void main() {
     expect(await blocker.acquire(), isTrue);
 
     final restore = coordinator.restore(
+      businessId: 'business-id',
       snapshot: <String, dynamic>{
         'version': 6,
+      'business': {'id': 'business-id'},
         'membership': {'user_id': 'owner-cloud-id', 'role_name': 'owner'},
         'profile': {'full_name': 'Owner'},
         'locations': <dynamic>[],
@@ -55,8 +57,10 @@ void main() {
 
   test('maintenance fence remains sufficient for restore without a sync lease', () async {
     final restore = coordinator.restore(
+      businessId: 'business-id',
       snapshot: <String, dynamic>{
         'version': 6,
+      'business': {'id': 'business-id'},
         'membership': {'user_id': 'owner-cloud-id', 'role_name': 'owner'},
         'profile': {'full_name': 'Owner'},
         'locations': <dynamic>[],
@@ -99,6 +103,7 @@ void main() {
 
     await expectLater(
       coordinator.restore(
+        businessId: 'business-id',
         snapshot: <String, dynamic>{},
         ownerCloudUserId: 'owner-cloud-id',
         ownerEmail: 'owner@example.com',
@@ -131,6 +136,7 @@ void main() {
 
     await expectLater(
       coordinator.restore(
+        businessId: 'business-id',
         snapshot: <String, dynamic>{},
         ownerCloudUserId: 'owner-cloud-id',
         ownerEmail: 'owner@example.com',
@@ -148,10 +154,36 @@ void main() {
     expect(await db.select(db.syncConflictRecords).get(), hasLength(1));
   });
 
+  test('rejects a snapshot bound to a different cloud business', () async {
+    await expectLater(
+      coordinator.restore(
+        businessId: 'business-id',
+        snapshot: <String, dynamic>{
+          'version': 6,
+          'business': {'id': 'other-business'},
+        },
+        ownerCloudUserId: 'owner-cloud-id',
+        ownerEmail: 'owner@example.com',
+        settings: const BusinessSettingsResponseDto(
+          id: 'business-id',
+          businessName: 'Store',
+          vatEnabled: false,
+          vatRate: 0,
+          currencySymbol: '₦',
+        ),
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(await db.select(db.localCloudBindings).get(), isEmpty);
+    expect(await db.select(db.products).get(), isEmpty);
+  });
+
   test('restores owner identity, settings, and current session', () async {
     const ownerId = 'owner-cloud-id';
     final snapshot = <String, dynamic>{
       'version': 6,
+      'business': {'id': 'business-id'},
       'membership': {'user_id': ownerId, 'role_name': 'owner'},
       'profile': {'id': ownerId, 'full_name': 'Amina Yusuf'},
       'business_memberships': [
@@ -181,6 +213,7 @@ void main() {
     );
 
     await coordinator.restore(
+      businessId: 'business-id',
       snapshot: snapshot,
       ownerCloudUserId: ownerId,
       ownerEmail: 'amina@example.com',
@@ -207,6 +240,11 @@ void main() {
     final localSettings = await (db.select(db.businessSettings)).getSingle();
     expect(localSettings.businessName, 'Amina Store');
     expect(localSettings.currencySymbol, '₦');
+
+    final binding = await (db.select(db.localCloudBindings)
+          ..where((row) => row.id.equals('singleton')))
+        .getSingle();
+    expect(binding.businessId, 'business-id');
   });
 
   test('seeds the owner before restoring sales on a fresh installation', () async {
@@ -214,6 +252,7 @@ void main() {
 
     final snapshot = <String, dynamic>{
       'version': 6,
+      'business': {'id': 'business-id'},
       'membership': {'user_id': ownerId, 'role_name': 'owner'},
       'profile': {'id': ownerId, 'full_name': 'Restored Owner'},
       'business_memberships': [
@@ -265,6 +304,7 @@ void main() {
     };
 
     await coordinator.restore(
+      businessId: 'business-id',
       snapshot: snapshot,
       ownerCloudUserId: ownerId,
       ownerEmail: 'owner@example.com',
@@ -291,6 +331,7 @@ void main() {
     const adminId = 'admin-cloud-id';
     final snapshot = <String, dynamic>{
       'version': 6,
+      'business': {'id': 'business-id'},
       'membership': {'user_id': adminId, 'role_name': 'admin'},
       'profile': {'id': adminId, 'full_name': 'Admin User'},
       'business_memberships': [
@@ -320,6 +361,7 @@ void main() {
     );
 
     await coordinator.restore(
+      businessId: 'business-id',
       snapshot: snapshot,
       ownerCloudUserId: adminId,
       ownerEmail: 'admin@example.com',

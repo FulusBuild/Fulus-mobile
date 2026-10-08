@@ -294,6 +294,151 @@ void main() {
     expect(sales.map((row) => row.cashierUserId), containsAll(<String>['owner-1', 'cashier-1']));
   });
 
+  test('restores all catalog and receipt money as minor units and is repeatable', () async {
+    final snapshot = <String, dynamic>{
+      'version': 7,
+      'locations': [
+        {
+          'id': 'money-location',
+          'name': 'Money location',
+          'created_at': '2026-10-01T00:00:00Z',
+          'updated_at': '2026-10-01T00:00:00Z',
+        },
+      ],
+      'customers': [
+        {
+          'id': 'money-customer',
+          'name': 'Money customer',
+          'credit_limit': '150000.00',
+          'outstanding_balance': '1234.56',
+          'created_at': '2026-10-01T00:00:00Z',
+          'updated_at': '2026-10-01T00:00:00Z',
+        },
+      ],
+      'products': [
+        {
+          'id': 'money-product',
+          'name': 'Money product',
+          'sku': 'MONEY-RESTORE-1',
+          'cost_price': '845.00',
+          'selling_price': '860.00',
+          'created_at': '2026-10-01T00:00:00Z',
+          'updated_at': '2026-10-01T00:00:00Z',
+        },
+      ],
+      'sales': [
+        {
+          'id': 'money-sale',
+          'client_reference': 'money-sale',
+          'location_id': 'money-location',
+          'customer_id': 'money-customer',
+          'sale_date': '2026-10-01T10:00:00Z',
+          'subtotal': '860.00',
+          'discount': '5.25',
+          'tax': '0.00',
+          'total': '854.75',
+          'amount_paid': '854.75',
+          'cash_tendered': '900.00',
+          'cash_change': '45.25',
+          'created_at': '2026-10-01T10:00:00Z',
+          'updated_at': '2026-10-01T10:00:00Z',
+        },
+      ],
+      'sale_items': [
+        {
+          'id': 'money-sale-item',
+          'sale_id': 'money-sale',
+          'product_id': 'money-product',
+          'quantity': 1,
+          'unit_price': '860.00',
+          'cost_price_at_sale': '845.00',
+          'line_discount': '5.25',
+        },
+      ],
+      'sale_payments': [
+        {
+          'id': 'money-payment',
+          'sale_id': 'money-sale',
+          'amount': '854.75',
+          'tendered_amount': '900.00',
+          'payment_method': 'cash',
+          'created_at': '2026-10-01T10:00:00Z',
+        },
+      ],
+      'product_stock_levels': [],
+      'customer_ledger_entries': [],
+      'inventory_movements': [],
+      'expense_categories': [],
+      'expenses': [],
+      'income_records': [],
+      'returns': [],
+      'return_items': [],
+      'tax_remittances': [],
+      'cash_drawer_shifts': [],
+      'audit_events': [],
+    };
+
+    final importer = CloudRestoreImporter(db);
+    await importer.importSnapshot(snapshot);
+
+    var product = (await db.select(db.products).get()).single;
+    var customer = (await db.select(db.customers).get()).single;
+    var sale = (await db.select(db.sales).get()).single;
+    var item = (await db.select(db.saleItems).get()).single;
+    var payment = (await db.select(db.salePayments).get()).single;
+
+    expect(product.costPrice, 84500);
+    expect(product.sellingPrice, 86000);
+    expect(customer.creditLimit, 15000000);
+    expect(customer.outstandingBalance, 123456);
+    expect(sale.subtotal, 86000);
+    expect(sale.discount, 525);
+    expect(sale.total, 85475);
+    expect(sale.amountPaid, 85475);
+    expect(sale.cashTendered, 90000);
+    expect(sale.cashChange, 4525);
+    expect(item.unitPrice, 86000);
+    expect(item.costPriceAtSale, 84500);
+    expect(item.lineDiscount, 525);
+    expect(payment.amount, 85475);
+    expect(payment.tenderedAmount, 90000);
+
+    // A second full restore must preserve the same scale, not multiply again.
+    await importer.importSnapshot(snapshot);
+    product = (await db.select(db.products).get()).single;
+    customer = (await db.select(db.customers).get()).single;
+    sale = (await db.select(db.sales).get()).single;
+    item = (await db.select(db.saleItems).get()).single;
+    payment = (await db.select(db.salePayments).get()).single;
+    expect(product.sellingPrice, 86000);
+    expect(customer.outstandingBalance, 123456);
+    expect(sale.total, 85475);
+    expect(item.unitPrice, 86000);
+    expect(payment.amount, 85475);
+  });
+
+  test('rejects numeric monetary wire values instead of guessing units', () async {
+    final snapshot = <String, dynamic>{
+      'version': 7,
+      'locations': [],
+      'products': [
+        {
+          'id': 'bad-money-product',
+          'name': 'Bad money product',
+          'sku': 'BAD-MONEY-1',
+          'cost_price': 845,
+          'selling_price': '860.00',
+        },
+      ],
+    };
+
+    await expectLater(
+      CloudRestoreImporter(db).importSnapshot(snapshot),
+      throwsA(isA<FormatException>()),
+    );
+    expect(await db.select(db.products).get(), isEmpty);
+  });
+
   test('translates cloud inventory movement deltas into local movement schema', () async {
     final snapshot = <String, dynamic>{
       'version': 6,

@@ -1,6 +1,7 @@
 import '../../core/money/money.dart';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 
 import '../../data/local/database/database.dart';
@@ -58,16 +59,29 @@ class ProductSyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for product sync.');
     }
     var photoPath = product.photoPath;
-    if (photoPath != null && !photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
-      photoPath = await _productImageApi.upload(
-        file: File(photoPath),
-        businessId: businessId,
-        productLocalId: localId,
-      );
-      await _productRepository.setLocalOverrides(
-        productLocalId: localId,
-        photoPath: photoPath,
-      );
+    var retryPhotoUploadAfterCreate = false;
+    if (product.deletedAt == null &&
+        photoPath != null &&
+        !photoPath.startsWith('http://') &&
+        !photoPath.startsWith('https://')) {
+      try {
+        photoPath = await _productImageApi.upload(
+          file: File(photoPath),
+          businessId: businessId,
+          productLocalId: localId,
+        );
+        await _productRepository.setLocalOverrides(
+          productLocalId: localId,
+          photoPath: photoPath,
+        );
+      } on DioException {
+        // A catalog photo is ancillary to product identity and opening stock.
+        // Do not let a Storage 4xx/5xx prevent the authoritative product.create
+        // operation from running. Keep the local path and queue a normal product
+        // update after create so the image upload can be retried independently.
+        photoPath = null;
+        retryPhotoUploadAfterCreate = true;
+      }
     }
 
     // Product creation carries one initial stock/location pair. If stock was
@@ -145,6 +159,15 @@ class ProductSyncHandler implements SyncHandler {
     }
 
     await _productRepository.markSynced(localId: localId, serverId: serverId, operationId: operationId);
+    if (retryPhotoUploadAfterCreate && product.photoPath != null) {
+      // updateProduct preserves the device-local path and enqueues a separate
+      // update mutation. A repeated Storage failure can no longer hold up the
+      // product's server identity or sales that depend on it.
+      await _productRepository.updateProduct(
+        localId: localId,
+        photoPath: product.photoPath,
+      );
+    }
   }
 
   Future<void> _syncUpdate(String localId, {required String operationId, int? baseCursor}) async {

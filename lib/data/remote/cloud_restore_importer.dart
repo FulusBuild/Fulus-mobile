@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../core/money/money.dart';
+
 import '../../domain/entities/auth_user.dart';
 import '../../domain/entities/permission.dart';
 import '../local/database/database.dart';
@@ -39,6 +41,34 @@ class CloudRestoreImporter {
     'tax_remittances': 'tax_remittances',
     'cash_drawer_shifts': 'cash_drawer_shifts',
     'audit_events': 'audit_logs',
+  };
+
+  // The cloud restore RPC's money contract is a decimal string with exactly
+  // two fractional digits. Local financial columns store integer minor units.
+  // Keep this mapping explicit: a generic SQLite INTEGER coercion can silently
+  // turn "860.00" into 860 instead of the required 86000.
+  static const _moneyColumnsByTable = <String, Set<String>>{
+    'products': {'cost_price', 'selling_price'},
+    'customers': {'credit_limit', 'outstanding_balance'},
+    'employees': {'salary'},
+    'sales': {
+      'subtotal',
+      'whole_cart_discount',
+      'discount',
+      'tax',
+      'total',
+      'amount_paid',
+      'cash_tendered',
+      'cash_change',
+    },
+    'sale_items': {'unit_price', 'cost_price_at_sale', 'line_discount'},
+    'sale_payments': {'amount', 'tendered_amount'},
+    'customer_ledger_entries': {'amount'},
+    'expenses': {'amount'},
+    'income_records': {'amount'},
+    'return_requests': {'refund_amount'},
+    'tax_remittances': {'amount_remitted'},
+    'cash_drawer_shifts': {'opening_cash', 'closing_cash', 'cash_difference'},
   };
 
   static const _clearOrder = <String>[
@@ -573,7 +603,12 @@ class CloudRestoreImporter {
     for (final column in info.columns) {
       final remoteKey = _remoteKeyForColumn(column.name, normalizedRemote);
       if (remoteKey == null) continue;
-      values[column.name] = _coerce(normalizedRemote[remoteKey], column.type);
+      values[column.name] = _coerce(
+        normalizedRemote[remoteKey],
+        column.type,
+        table: table,
+        column: column.name,
+      );
     }
 
     final remoteId = normalizedRemote['id']?.toString();
@@ -801,8 +836,20 @@ class CloudRestoreImporter {
     return null;
   }
 
-  Object? _coerce(Object? value, String sqliteType) {
+  Object? _coerce(
+    Object? value,
+    String sqliteType, {
+    required String table,
+    required String column,
+  }) {
     if (value == null) return null;
+
+    if (_moneyColumnsByTable[table]?.contains(column) ?? false) {
+      // moneyFromWire rejects JSON numbers and malformed strings rather than
+      // guessing their units. The surrounding restore transaction then rolls
+      // back instead of committing corrupted prices or receipt history.
+      return moneyFromWire(value);
+    }
     if (value is bool) return value ? 1 : 0;
     if (value is Map || value is List) return jsonEncode(value);
     if (sqliteType.contains('INT')) {
