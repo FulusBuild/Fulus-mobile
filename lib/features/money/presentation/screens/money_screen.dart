@@ -238,7 +238,7 @@ class _BalanceHero extends StatelessWidget {
     height: 142,
     child: Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(AppRadius.xl)),
+      decoration: const BoxDecoration(color: AppColors.primary),
       child: Builder(builder: (context) {
         final foreground = AppColors.onColor(AppColors.success);
         return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
