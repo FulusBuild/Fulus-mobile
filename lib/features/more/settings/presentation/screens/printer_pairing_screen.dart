@@ -311,9 +311,9 @@ class _FindPrinterSheetState extends ConsumerState<_FindPrinterSheet> {
                   else
                     Column(
                       children: [
-                        SizedBox(width: double.infinity, child: _DiscoveryButton(label: 'Bluetooth', icon: Icons.bluetooth, onPressed: () => _scan(true))),
+                        SizedBox(width: double.infinity, child: _DiscoveryButton(label: 'Bluetooth', icon: Icons.bluetooth, art: FulusArt.printerBluetooth, onPressed: () => _scan(true))),
                         const SizedBox(height: AppSpacing.sm),
-                        SizedBox(width: double.infinity, child: _DiscoveryButton(label: 'USB', icon: Icons.usb, onPressed: () => _scan(false))),
+                        SizedBox(width: double.infinity, child: _DiscoveryButton(label: 'USB', icon: Icons.usb, art: FulusArt.printerUsb, onPressed: () => _scan(false))),
                       ],
                     ),
                   const SizedBox(height: AppSpacing.md),
