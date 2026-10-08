@@ -932,7 +932,7 @@ class _MoreScreen extends ConsumerWidget {
         ],
       ),
     );
-
+  }
 }
 
 /// A defensive fallback for the handful of Money routes that need an
