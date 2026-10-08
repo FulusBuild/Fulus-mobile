@@ -115,6 +115,7 @@ class GetStartedScreen extends ConsumerWidget {
         children: [
           FulusActionTile(
             icon: Icons.login_rounded,
+            art: FulusArt.signIn,
             label: 'Sign in',
             onTap: () {
               Navigator.of(sheetContext).pop();
@@ -126,6 +127,7 @@ class GetStartedScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           FulusActionTile(
             icon: Icons.badge_rounded,
+            art: FulusArt.joinEmployee,
             label: 'Join a business',
             onTap: () {
               Navigator.of(sheetContext).pop();
