@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Walkthrough Phases 6–9 (prep, cart, payment, success) share one
@@ -34,7 +35,7 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                       color: AppColors.primaryOf(context).withValues(alpha: .10),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
                     ),
-                    child: Icon(FulusIcons.sell, color: AppColors.primaryOf(context), size: 32),
+                    child: FulusArtIcon(FulusArt.sell, size: 40, semanticLabel: 'Sell'),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -53,6 +54,7 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xl),
                 FulusActionTile(
                   icon: FulusIcons.sell,
+                  art: FulusArt.sell,
                   label: "Let's go",
                   subtitle: 'Open Sell and make your first real sale.',
                   onTap: () {
