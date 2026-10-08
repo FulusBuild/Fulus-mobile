@@ -107,7 +107,7 @@ class _ProfileBody extends ConsumerWidget {
                         children: [
                           Row(
                             children: [
-                              FulusAvatar(name: customer.name, size: 52),
+                              FulusAvatar(name: customer.name, size: 56),
                               const SizedBox(width: AppSpacing.md),
                               Expanded(
                                 child: Column(
@@ -117,7 +117,10 @@ class _ProfileBody extends ConsumerWidget {
                                       customer.name,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                                      style: AppTypography.subheading.copyWith(
+                                        color: AppColors.textPrimaryOf(context),
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                     if (customer.phone != null)
                                       Text(customer.phone!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
@@ -136,59 +139,63 @@ class _ProfileBody extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          if (customer.address != null || (customer.notes != null && customer.notes!.isNotEmpty)) ...[
-                            const SizedBox(height: AppSpacing.md),
-                            if (customer.address != null)
-                              FulusListRow(
-                                leading: const Icon(Icons.location_on_outlined),
-                                title: const Text('Address'),
-                                subtitle: Text(customer.address!),
-                              ),
-                            if (customer.notes != null && customer.notes!.isNotEmpty)
-                              FulusListRow(
-                                leading: const Icon(Icons.notes_outlined),
-                                title: const Text('Notes'),
-                                subtitle: Text(customer.notes!),
-                              ),
-                          ],
                           const SizedBox(height: AppSpacing.lg),
-                          FulusCard(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            child: LayoutBuilder(
-                              builder: (context, metricConstraints) {
-                                final compact = metricConstraints.maxWidth < 430;
-                                final balance = _BalanceMetric(
-                                  label: 'Outstanding balance',
-                                  value: formatMoney(customer.outstandingBalance, symbol: currencySymbol),
-                                );
-                                final limit = customer.creditLimit == null
-                                    ? const _BalanceMetric(label: 'Credit limit', value: 'Not set')
-                                    : _BalanceMetric(
-                                        label: 'Credit limit',
-                                        value: formatMoney(customer.creditLimit!, symbol: currencySymbol),
-                                      );
-                                if (compact) {
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      balance,
-                                      const SizedBox(height: AppSpacing.md),
-                                      limit,
-                                    ],
-                                  );
-                                }
-                                return Row(
+                          LayoutBuilder(
+                            builder: (context, metricConstraints) {
+                              final compact = metricConstraints.maxWidth < 430;
+                              final balance = _BalanceMetric(
+                                label: 'Outstanding balance',
+                                value: formatMoney(customer.outstandingBalance, symbol: currencySymbol),
+                                prominent: true,
+                              );
+                              final limit = customer.creditLimit == null
+                                  ? const _BalanceMetric(label: 'Credit limit', value: 'Not set')
+                                  : _BalanceMetric(
+                                      label: 'Credit limit',
+                                      value: formatMoney(customer.creditLimit!, symbol: currencySymbol),
+                                    );
+                              if (compact) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    Expanded(child: balance),
-                                    const SizedBox(width: AppSpacing.lg),
-                                    Container(width: 1, height: 44, color: AppColors.borderOf(context)),
-                                    const SizedBox(width: AppSpacing.lg),
-                                    Expanded(child: limit),
+                                    balance,
+                                    const SizedBox(height: AppSpacing.md),
+                                    const Divider(height: 1),
+                                    const SizedBox(height: AppSpacing.md),
+                                    limit,
                                   ],
                                 );
-                              },
-                            ),
+                              }
+                              return Row(
+                                children: [
+                                  Expanded(child: balance),
+                                  const SizedBox(width: AppSpacing.lg),
+                                  Container(width: 1, height: 52, color: AppColors.borderOf(context)),
+                                  const SizedBox(width: AppSpacing.lg),
+                                  Expanded(child: limit),
+                                ],
+                              );
+                            },
                           ),
+                          if (customer.address != null || (customer.notes != null && customer.notes!.isNotEmpty)) ...[
+                            const SizedBox(height: AppSpacing.lg),
+                            const Divider(height: 1),
+                            const SizedBox(height: AppSpacing.md),
+                            if (customer.address != null)
+                              _ProfileInfoRow(
+                                icon: Icons.location_on_outlined,
+                                label: 'Address',
+                                value: customer.address!,
+                              ),
+                            if (customer.notes != null && customer.notes!.isNotEmpty) ...[
+                              if (customer.address != null) const SizedBox(height: AppSpacing.md),
+                              _ProfileInfoRow(
+                                icon: Icons.notes_outlined,
+                                label: 'Notes',
+                                value: customer.notes!,
+                              ),
+                            ],
+                          ],
                           const SizedBox(height: AppSpacing.lg),
                           FulusActionTile(
                             icon: Icons.payments_outlined,
@@ -207,13 +214,13 @@ class _ProfileBody extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    _ArchiveSection(customer: customer, onChanged: onChanged),
-                    const SizedBox(height: AppSpacing.lg),
                     const FulusSectionHeader(title: 'Purchase history', subtitle: 'Sales made to this customer'),
                     _buildPurchaseHistorySection(context, ref),
                     const SizedBox(height: AppSpacing.lg),
                     const FulusSectionHeader(title: 'Credit history', subtitle: 'Credit sales and repayments'),
                     _buildLedgerSection(ref),
+                    const SizedBox(height: AppSpacing.xl),
+                    _ArchiveSection(customer: customer, onChanged: onChanged),
                   ],
                 ),
               ),
@@ -290,22 +297,65 @@ class _ProfileBody extends ConsumerWidget {
 }
 
 class _BalanceMetric extends StatelessWidget {
-  const _BalanceMetric({required this.label, required this.value});
+  const _BalanceMetric({required this.label, required this.value, this.prominent = false});
 
   final String label;
   final String value;
+  final bool prominent;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-        const SizedBox(height: 2),
+        Text(
+          label,
+          style: AppTypography.caption.copyWith(
+            color: AppColors.textSecondaryOf(context),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
         FittedBox(
           alignment: Alignment.centerLeft,
           fit: BoxFit.scaleDown,
-          child: Text(value, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
+          child: Text(
+            value,
+            style: (prominent ? AppTypography.heading : AppTypography.subheading).copyWith(
+              color: AppColors.textPrimaryOf(context),
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileInfoRow extends StatelessWidget {
+  const _ProfileInfoRow({required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: AppColors.textSecondaryOf(context)),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text(value, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
+            ],
+          ),
         ),
       ],
     );
