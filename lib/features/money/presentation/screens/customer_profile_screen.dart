@@ -218,7 +218,6 @@ class _ProfileBody extends ConsumerWidget {
                             ),
                           ],
                         ],
-                      ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     const FulusSectionHeader(title: 'Purchase history', subtitle: 'Sales made to this customer'),
