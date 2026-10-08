@@ -603,10 +603,11 @@ class _PaymentMethodTile extends StatelessWidget {
           children: [
             Expanded(
               child: Center(
-                child: FulusArtIcon(
-                  art,
-                  size: 64,
-                  semanticLabel: label,
+                child: ExcludeSemantics(
+                  child: FulusArtIcon(
+                    art,
+                    size: 64,
+                  ),
                 ),
               ),
             ),
