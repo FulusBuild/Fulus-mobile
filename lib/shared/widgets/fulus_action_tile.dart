@@ -16,6 +16,7 @@ class FulusActionTile extends StatelessWidget {
     required this.onTap,
     this.subtitle,
     this.trailing,
+    this.art,
   });
 
   final IconData icon;
@@ -23,6 +24,7 @@ class FulusActionTile extends StatelessWidget {
   final VoidCallback? onTap;
   final String? subtitle;
   final Widget? trailing;
+  final FulusArt? art;
 
   @override
   Widget build(BuildContext context) {
