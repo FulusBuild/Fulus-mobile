@@ -744,7 +744,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: compact ? 152 : 180),
           child: Material(
-            color: AppColors.salesStrong,
+            color: AppColors.primary,
             clipBehavior: Clip.antiAlias,
             child: Padding(
               padding: EdgeInsets.symmetric(
