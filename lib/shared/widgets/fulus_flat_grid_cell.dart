@@ -14,6 +14,8 @@ class FulusFlatGridCell extends StatelessWidget {
     required this.onTap,
     this.iconColor,
     this.art,
+    this.iconSize = 44,
+    this.minHeight = 112,
   });
 
   final IconData icon;
@@ -22,16 +24,23 @@ class FulusFlatGridCell extends StatelessWidget {
   final Color? iconColor;
   final FulusArt? art;
 
+  /// Icon edge length. Icons are the primary signal on these cells, so the
+  /// default is large; screens with room (More) pass a bigger value.
+  final double iconSize;
+  final double minHeight;
+
   @override
   Widget build(BuildContext context) {
     final foreground = AppColors.textPrimaryOf(context);
     final color = iconColor ?? AppColors.primaryOf(context);
 
-    return FulusPressable(
+    return Opacity(
+      opacity: onTap == null ? 0.45 : 1,
+      child: FulusPressable(
         onPressed: onTap,
         semanticsLabel: label,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 112),
+          constraints: BoxConstraints(minHeight: minHeight),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
@@ -53,8 +62,8 @@ class FulusFlatGridCell extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               art != null
-                  ? FulusArtIcon(art!, size: 44, semanticLabel: label)
-                  : Icon(icon, size: 44, color: color),
+                  ? FulusArtIcon(art!, size: iconSize, semanticLabel: label)
+                  : Icon(icon, size: iconSize, color: color),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 label,
@@ -69,6 +78,7 @@ class FulusFlatGridCell extends StatelessWidget {
             ],
           ),
         ),
+      ),
     );
   }
 }
