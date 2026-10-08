@@ -196,7 +196,7 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(FulusIcons.camera, size: 48, color: AppColors.textSecondaryOf(context)),
+            FulusIconVisual(icon: FulusIcons.camera, size: 48, color: AppColors.textSecondaryOf(context)),
             const SizedBox(height: AppSpacing.md),
             Text('Camera unavailable', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AppSpacing.sm),
