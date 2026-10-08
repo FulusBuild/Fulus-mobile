@@ -487,7 +487,11 @@ class _CustomerRow extends StatelessWidget {
               color: AppColors.selectedTintOf(context),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Icon(FulusIcons.person, color: AppColors.primaryOf(context)),
+            child: FulusArtIcon(
+              FulusArt.customers,
+              size: AppIconSize.large,
+              semanticLabel: 'Customer',
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
