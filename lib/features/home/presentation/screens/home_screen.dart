@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_settings.dart';
@@ -219,6 +220,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: FulusActionTile(
                         icon: FulusIcons.locations,
+                        art: FulusArt.locations,
                         label: location.name,
                         subtitle: location.localId == activeId ? 'Current location' : 'Switch here',
                         onTap: switchingId.isEmpty ? () => select(location) : null,
@@ -457,6 +459,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       const _HomeActionCell(
         color: AppColors.primary,
         icon: FulusIcons.sell,
+        art: FulusArt.sell,
         label: 'Sell',
         route: 'sell',
       ),
@@ -464,6 +467,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         const _HomeActionCell(
           color: AppColors.sales,
           icon: FulusIcons.receipt,
+          art: FulusArt.receipt,
           label: 'Receipts',
           route: 'receiptHistory',
         ),
@@ -471,6 +475,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         const _HomeActionCell(
           color: AppColors.customers,
           icon: FulusIcons.customers,
+          art: FulusArt.customers,
           label: 'Customers',
           route: 'moneyCustomers',
         ),
@@ -478,6 +483,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         const _HomeActionCell(
           color: AppColors.reports,
           icon: FulusIcons.reports,
+          art: FulusArt.reports,
           label: 'Reports',
           route: 'moreReports',
         ),
@@ -525,12 +531,14 @@ class _HomeActionCell extends StatelessWidget {
   const _HomeActionCell({
     required this.color,
     required this.icon,
+    this.art,
     required this.label,
     required this.route,
   });
 
   final Color color;
   final IconData icon;
+  final FulusArt? art;
   final String label;
   final String route;
 
@@ -550,7 +558,9 @@ class _HomeActionCell extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 36, color: color),
+              art != null
+                  ? FulusArtIcon(art!, size: 36, semanticLabel: label)
+                  : Icon(icon, size: 36, color: color),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 label,
