@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_icon_visual.dart';
 import '../../core/ux/consumer_polish.dart';
 
 /// A primary Fulus workspace tile.
@@ -43,7 +44,7 @@ class FulusActionTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(icon, size: AppIconSize.emphasis, color: primary),
+            FulusIconVisual(icon: icon, size: AppIconSize.emphasis, color: primary),
             Row(
               children: [
                 Expanded(
