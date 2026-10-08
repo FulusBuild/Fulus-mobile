@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'fulus_account_screen.dart';
 import 'owner_setup_screen.dart';
@@ -52,6 +53,7 @@ class GetStartedScreen extends ConsumerWidget {
                     label: 'Create your business',
                     subtitle: 'Set up Fulus in a few simple steps.',
                     icon: Icons.storefront_rounded,
+                    art: FulusArt.createBusiness,
                     onTap: () async {
                       final onboardingState = ref.read(onboardingStateProvider);
                       await onboardingState.advanceWalkthroughTo(OnboardingStep.businessSetup);
@@ -67,6 +69,7 @@ class GetStartedScreen extends ConsumerWidget {
                     label: 'Sign in',
                     subtitle: 'Restore a Fulus business to this device.',
                     icon: Icons.login_rounded,
+                    art: FulusArt.signIn,
                     onTap: () {
                       Navigator.of(context).push<void>(
                         MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
@@ -78,6 +81,7 @@ class GetStartedScreen extends ConsumerWidget {
                     label: 'Continue offline',
                     subtitle: 'Run your business locally without an account.',
                     icon: Icons.cloud_off_rounded,
+                    art: FulusArt.offline,
                     onTap: () {
                       Navigator.of(context).push<void>(
                         MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
