@@ -346,7 +346,26 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     final creating = _mode == _AccountMode.create;
     return FulusScreen(
       body: SafeArea(
-        child: Center(
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  0,
+                ),
+                child: FulusIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Back to Get Started',
+                  onPressed: _busy ? null : () => Navigator.of(context).pop(),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: ConstrainedBox(
@@ -432,8 +451,9 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
 
                 ],
               ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
