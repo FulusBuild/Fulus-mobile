@@ -5,10 +5,6 @@ import '../../core/theme/fulus_art.dart';
 import '../../core/ux/consumer_polish.dart';
 
 /// A primary Fulus workspace tile.
-///
-/// This is intentionally more visual than a list row or compact shortcut:
-/// large touch area, strong icon, short label, and a quiet surface. Screens
-/// should use this for high-value actions that belong in the main workspace.
 class FulusActionTile extends StatelessWidget {
   const FulusActionTile({
     super.key,
@@ -18,6 +14,7 @@ class FulusActionTile extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.art,
+    this.compact = false,
   });
 
   final IconData icon;
@@ -26,6 +23,7 @@ class FulusActionTile extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final FulusArt? art;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +34,8 @@ class FulusActionTile extends StatelessWidget {
       onPressed: onTap,
       semanticsLabel: label,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 128),
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        constraints: BoxConstraints(minHeight: compact ? 96 : 128),
+        padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.lg),
         decoration: BoxDecoration(
           color: AppColors.selectedTintOf(context),
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -47,8 +45,8 @@ class FulusActionTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             art != null
-                ? FulusArtIcon(art!, size: AppIconSize.emphasis, semanticLabel: label)
-                : Icon(icon, size: AppIconSize.emphasis, color: primary),
+                ? FulusArtIcon(art!, size: compact ? AppIconSize.large : AppIconSize.emphasis, semanticLabel: label)
+                : Icon(icon, size: compact ? AppIconSize.large : AppIconSize.emphasis, color: primary),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -69,7 +67,7 @@ class FulusActionTile extends StatelessWidget {
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           subtitle!,
-                          maxLines: 2,
+                          maxLines: compact ? 1 : 2,
                           overflow: TextOverflow.ellipsis,
                           style: AppTypography.caption.copyWith(
                             color: AppColors.textSecondaryOf(context),
@@ -89,4 +87,5 @@ class FulusActionTile extends StatelessWidget {
         ),
       ),
     );
-  }}
+  }
+}
