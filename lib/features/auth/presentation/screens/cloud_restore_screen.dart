@@ -141,6 +141,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         executionLease: restoreLease,
       ).restore(
         snapshot: snapshot,
+        businessId: businessId,
         ownerCloudUserId: ownerCloudUserId,
         ownerEmail: widget.ownerEmail,
         settings: settings,
