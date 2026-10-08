@@ -78,7 +78,7 @@ class MoneyTransactionTile extends StatelessWidget {
               child: Center(
                 child: Icon(
                   moneyTransactionIcon(t),
-                  size: AppIconSize.compact,
+                  size: 28,
                   color: t.isInflow ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context),
                 ),
               ),

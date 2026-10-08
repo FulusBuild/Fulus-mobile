@@ -29,13 +29,14 @@ class FirstSaleIntroScreen extends ConsumerWidget {
               const OnboardingStepHeader(step: 5, total: 7, title: 'Make your first sale'),
                 Center(
                   child: Container(
-                    width: 64,
-                    height: 64,
+                    width: 96,
+                    height: 96,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: AppColors.primaryOf(context).withValues(alpha: .10),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
                     ),
-                    child: FulusArtIcon(FulusArt.sell, size: 40, semanticLabel: 'Sell'),
+                    child: FulusArtIcon(FulusArt.sell, size: 60, semanticLabel: 'Sell'),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),

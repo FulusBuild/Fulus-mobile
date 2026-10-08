@@ -37,8 +37,9 @@ class FirstRunSetupScreen extends ConsumerWidget {
               const OnboardingStepHeader(step: 1, total: 7, title: 'You’re ready to run your business'),
               Center(
                 child: Container(
-                  width: 72,
-                  height: 72,
+                  width: 96,
+                  height: 96,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppColors.primaryOf(context).withValues(alpha: .10),
                     borderRadius: BorderRadius.circular(AppRadius.lg),

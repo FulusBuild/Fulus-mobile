@@ -321,7 +321,7 @@ class _MoneyActionCell extends StatelessWidget {
       semanticsLabel: action.label + ', ' + action.value,
       onPressed: action.onTap,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 104),
+        constraints: const BoxConstraints(minHeight: 128),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: action.color.withValues(alpha: 0.10),

@@ -810,13 +810,17 @@ class _MoreScreen extends ConsumerWidget {
     Widget tileGrid(List<Widget> tiles) {
       return LayoutBuilder(
         builder: (context, constraints) {
+          const gap = AppSpacing.md;
           final columns = constraints.maxWidth >= 640 ? 3 : 2;
           final width =
-              (constraints.maxWidth - (AppSpacing.sm * (columns - 1))) / columns;
-          final tileHeight = constraints.maxWidth >= 640 ? 176.0 : 168.0;
+              ((constraints.maxWidth - (gap * (columns - 1))) / columns).floorToDouble();
+          // Rows are tall enough for a large icon badge; taller still when
+          // text is scaled up.
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final tileHeight = textScale > 1.3 ? 84.0 : 72.0;
           return Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
+            spacing: gap,
+            runSpacing: gap,
             children: [
               for (final tile in tiles)
                 SizedBox(
@@ -832,45 +836,37 @@ class _MoreScreen extends ConsumerWidget {
 
     return FulusScreen(
       title: 'More',
-      actions: [
-        if (canSettings)
-          FulusIconButton(
-            icon: FulusIcons.settings,
-            tooltip: 'Settings',
-            onPressed: () => context.goNamed('moreSettings'),
-          ),
-      ],
       body: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.lg),
         children: [
           _MoreGroup(
             title: 'Manage',
             child: tileGrid([
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.customers,
                 art: FulusArt.customers,
-                iconColor: AppColors.customers,
+                color: AppColors.customers,
                 label: 'Customers',
                 onTap: canCustomers ? () => context.pushNamed('moreCustomers') : null,
               ),
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.staff,
                 art: FulusArt.staff,
-                iconColor: AppColors.primary,
+                color: AppColors.primary,
                 label: 'Employees',
                 onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
               ),
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.locations,
                 art: FulusArt.locations,
-                iconColor: AppColors.info,
+                color: AppColors.info,
                 label: 'Locations',
                 onTap: canManageSettings ? () => context.goNamed('moreSettingsLocations') : null,
               ),
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.settings,
                 art: FulusArt.settings,
-                iconColor: AppColors.primary,
+                color: AppColors.primary,
                 label: 'Settings',
                 onTap: canSettings ? () => context.goNamed('moreSettings') : null,
               ),
@@ -879,17 +875,17 @@ class _MoreScreen extends ConsumerWidget {
           _MoreGroup(
             title: 'Understand',
             child: tileGrid([
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.reports,
                 art: FulusArt.reports,
-                iconColor: AppColors.reports,
+                color: AppColors.reports,
                 label: 'Reports',
                 onTap: canReports ? () => context.goNamed('moreReports') : null,
               ),
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.notifications,
                 art: FulusArt.notifications,
-                iconColor: AppColors.warning,
+                color: AppColors.warning,
                 label: 'Alerts',
                 onTap: () => context.goNamed('moreNotifications'),
               ),
@@ -898,36 +894,35 @@ class _MoreScreen extends ConsumerWidget {
           _MoreGroup(
             title: 'Tools',
             child: tileGrid([
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.backup,
                 art: FulusArt.backup,
-                iconColor: AppColors.success,
+                color: AppColors.success,
                 label: 'Backup',
                 onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
               ),
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.sync,
                 art: FulusArt.sync,
-                iconColor: AppColors.info,
+                color: AppColors.info,
                 label: 'Sync',
                 onTap: canManageSettings ? () => context.goNamed('moreSyncDetail') : null,
               ),
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.print,
                 art: FulusArt.print,
-                iconColor: AppColors.primary,
+                color: AppColors.primary,
                 label: 'Printers',
                 onTap: canManageSettings ? () => context.pushNamed('morePrinters') : null,
               ),
-              FulusFlatGridCell(
+              FulusIconTile(
                 icon: FulusIcons.bugReport,
-                iconColor: AppColors.error,
+                color: AppColors.error,
                 label: 'Diagnostics',
                 onTap: () => context.goNamed('moreDiagnostics'),
               ),
             ]),
           ),
-          const SizedBox(height: AppSpacing.xxl),
         ],
       ),
     );
@@ -943,7 +938,7 @@ class _MoreGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

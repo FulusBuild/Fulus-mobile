@@ -182,13 +182,13 @@ class _Metric extends StatelessWidget {
   Widget build(BuildContext context) => Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 52,
+            height: 52,
             alignment: Alignment.center,
             decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
             child: art != null
-              ? FulusArtIcon(art!, size: 34, semanticLabel: label)
-              : Icon(icon, color: AppColors.primaryOf(context)),
+              ? FulusArtIcon(art!, size: 44, semanticLabel: label)
+              : Icon(icon, size: 30, color: AppColors.primaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

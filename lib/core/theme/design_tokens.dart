@@ -20,6 +20,8 @@ class AppColors {
   static const error = Color(0xFFDC2626);
   static const errorLight = Color(0xFFFEF2F2);
   static const sales = Color(0xFF16A34A);
+  /// Deeper green for the Home sales card so white text keeps AA contrast.
+  static const salesStrong = Color(0xFF15803D);
   static const salesLight = Color(0xFFDCFCE7);
   static const stock = Color(0xFFF97316);
   static const stockLight = Color(0xFFFFF7ED);
@@ -167,8 +169,10 @@ class AppIconSize {
   static const dense = 16.0;
   static const compact = 20.0;
   static const base = 24.0;
-  static const emphasis = 32.0;
-  static const hero = 48.0;
+  // Icons are the first thing people read, so emphasis/hero artwork is large.
+  // `compact` is intentionally unchanged (bottom navigation uses it).
+  static const emphasis = 44.0;
+  static const hero = 64.0;
   static const strokeWidth = 2.0;
 }
 const double kMinimumContrastRatio=4.5;

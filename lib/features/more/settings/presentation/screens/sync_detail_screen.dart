@@ -312,8 +312,8 @@ class _StatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 64,
+            height: 64,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
@@ -328,7 +328,7 @@ class _StatusCard extends StatelessWidget {
                 SyncStatusKind.syncing => FulusArt.sync,
                 SyncStatusKind.attentionNeeded => FulusArt.cloudOff,
               },
-              size: 40,
+              size: 48,
               semanticLabel: headline,
             ),
           ),

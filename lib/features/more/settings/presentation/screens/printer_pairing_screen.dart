@@ -44,14 +44,14 @@ class _PrinterPairingScreenState extends ConsumerState<PrinterPairingScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              width: 52,
-                              height: 52,
+                              width: 64,
+                              height: 64,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: AppColors.selectedTintOf(context),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
-                              child: FulusArtIcon(FulusArt.print, size: 36, semanticLabel: 'Printers'),
+                              child: FulusArtIcon(FulusArt.print, size: 48, semanticLabel: 'Printers'),
                             ),
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
@@ -163,14 +163,14 @@ class _PairedPrinterTile extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 52,
+            height: 52,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.surfaceAltOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: FulusArtIcon(transportIcon, size: 30, semanticLabel: printer.transport == PrinterTransport.bluetooth ? 'Bluetooth' : 'USB'),
+            child: FulusArtIcon(transportIcon, size: 38, semanticLabel: printer.transport == PrinterTransport.bluetooth ? 'Bluetooth' : 'USB'),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -296,7 +296,7 @@ class _FindPrinterSheetState extends ConsumerState<_FindPrinterSheet> {
                           ],
                         ),
                       ),
-                      FulusArtIcon(FulusArt.print, size: 30, semanticLabel: 'Printers'),
+                      FulusArtIcon(FulusArt.print, size: 44, semanticLabel: 'Printers'),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),

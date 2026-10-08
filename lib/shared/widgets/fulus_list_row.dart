@@ -6,7 +6,7 @@ import '../../core/ux/consumer_polish.dart';
 /// The default way to show more than 3–4 of anything — Component
 /// Library 5.4. Row height floors at 48dp but grows with content
 /// ("never clipped to force a fixed height"); [leading] is the optional
-/// 40dp icon/thumbnail tile "used whenever the row represents something
+/// 52dp icon/thumbnail tile "used whenever the row represents something
 /// visual... rather than a pure setting toggle."
 ///
 /// Pair with [FulusListDivider] in a `ListView.separated` — the divider
@@ -29,7 +29,7 @@ class FulusListRow extends StatelessWidget {
   final Widget title;
   final Widget? subtitle;
 
-  /// Sized to 40dp by this widget — pass an icon or a thumbnail image,
+  /// Sized to 52dp by this widget — pass an icon or a thumbnail image,
   /// not a pre-sized box.
   final Widget? leading;
 
@@ -40,7 +40,7 @@ class FulusListRow extends StatelessWidget {
   final Color? titleColor;
   final Color? subtitleColor;
 
-  static const leadingSize = 40.0;
+  static const leadingSize = 52.0;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +54,16 @@ class FulusListRow extends StatelessWidget {
             child: Row(
               children: [
                 if (leading != null) ...[
-                  SizedBox(width: leadingSize, height: leadingSize, child: leading),
+                  SizedBox(
+                    width: leadingSize,
+                    height: leadingSize,
+                    // Bare Icons default to 30dp so list rows stay readable at a
+                    // glance; icons that set their own size are unaffected.
+                    child: IconTheme.merge(
+                      data: const IconThemeData(size: 30),
+                      child: leading!,
+                    ),
+                  ),
                   const SizedBox(width: AppSpacing.md),
                 ],
                 Expanded(

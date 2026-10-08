@@ -114,13 +114,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                               ],
                             );
                             final icon = Container(
-                              width: 48,
-                              height: 48,
+                              width: 64,
+                              height: 64,
                               decoration: BoxDecoration(
                                 color: AppColors.primaryOf(context).withValues(alpha: 0.10),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
-                              child: FulusArtIcon(FulusArt.backup, size: 36, semanticLabel: 'Backup'),
+                              child: FulusArtIcon(FulusArt.backup, size: 48, semanticLabel: 'Backup'),
                             );
                             return stacked
                                 ? Column(
@@ -396,13 +396,13 @@ class _BackupTile extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: AppColors.selectedTintOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: FulusArtIcon(FulusArt.backup, size: 34, semanticLabel: 'Backup'),
+            child: FulusArtIcon(FulusArt.backup, size: 44, semanticLabel: 'Backup'),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

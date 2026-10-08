@@ -31,7 +31,7 @@ class FulusQuickAction extends StatelessWidget {
               // while keeping the interaction target independent and at
               // least 48dp. This follows the shared responsive grid rather
               // than the physical device type.
-              final iconSize = (constraints.maxWidth * .32).clamp(40.0, 48.0).toDouble();
+              final iconSize = (constraints.maxWidth * .4).clamp(56.0, 68.0).toDouble();
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -44,7 +44,7 @@ class FulusQuickAction extends StatelessWidget {
                       color: AppColors.isDark(context) ? AppColors.surfaceAltDark : AppColors.neutral100,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(icon, size: 32, color: primary),
+                    child: Icon(icon, size: iconSize * 0.6, color: primary),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   SizedBox(

@@ -27,8 +27,8 @@ class FulusErrorState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 72,
-              height: 72,
+              width: 96,
+              height: 96,
               decoration: BoxDecoration(
                 color: AppColors.errorOf(context).withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(AppRadius.xl),

@@ -80,6 +80,7 @@ abstract final class FulusIcons {
   static const palette = Symbols.palette;
   static const person = Symbols.person;
   static const switchAccount = Symbols.switch_account;
+  static const people = Symbols.group;
   static const personAdd = Symbols.person_add;
   static const archive = Symbols.archive;
   static const logout = Symbols.logout;

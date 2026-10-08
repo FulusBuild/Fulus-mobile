@@ -31,7 +31,7 @@ class FulusFlatGridCell extends StatelessWidget {
         onPressed: onTap,
         semanticsLabel: label,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 88),
+          constraints: const BoxConstraints(minHeight: 112),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
@@ -53,8 +53,8 @@ class FulusFlatGridCell extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               art != null
-                  ? FulusArtIcon(art!, size: 30, semanticLabel: label)
-                  : Icon(icon, size: 30, color: color),
+                  ? FulusArtIcon(art!, size: 44, semanticLabel: label)
+                  : Icon(icon, size: 44, color: color),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 label,

@@ -122,8 +122,8 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
                               curve: Curves.easeOutBack,
                               builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
                               child: Container(
-                                width: 72,
-                                height: 72,
+                                width: 96,
+                                height: 96,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: AppColors.primaryOf(context),

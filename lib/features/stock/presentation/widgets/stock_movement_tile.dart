@@ -32,7 +32,10 @@ class StockMovementTile extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 56),
         child: FulusListRow(
-          leading: Icon(icon, color: color),
+          leading: Container(
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.14)),
+            child: Center(child: Icon(icon, size: 28, color: color)),
+          ),
       title: Text(label),
       subtitle: Text(
         showProductName && product != null

@@ -325,7 +325,7 @@ class _ReceiptRow extends StatelessWidget {
         child: FulusListRow(
           leading: Container(
         decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceAltOf(context)),
-        child: Center(child: Icon(moneyTransactionIcon(t), size: AppIconSize.compact, color: AppColors.primaryOf(context))),
+        child: Center(child: Icon(moneyTransactionIcon(t), size: 28, color: AppColors.primaryOf(context))),
       ),
       title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitleParts.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis),
