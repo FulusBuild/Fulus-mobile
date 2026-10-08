@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/export/export_service.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
@@ -118,12 +119,14 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
         children: [
           FulusActionTile(
             icon: FulusIcons.tableChart,
+            art: FulusArt.table,
             label: 'CSV',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.csv),
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusActionTile(
             icon: FulusIcons.pictureAsPdf,
+            art: FulusArt.pdf,
             label: 'PDF',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.pdf),
           ),
