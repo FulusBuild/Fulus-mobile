@@ -6,6 +6,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
@@ -104,6 +105,7 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
               if (eligibleLines.isEmpty)
                 FulusEmptyState(
                   icon: Icons.assignment_return_outlined,
+                  art: FulusArt.refund,
                   headline: 'Nothing left to return on this sale.',
                   body: 'Every item has already been fully refunded.',
                 )
@@ -144,6 +146,7 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
                 ],
                 FulusActionTile(
                   icon: Icons.assignment_return_outlined,
+                  art: FulusArt.refund,
                   label: 'Confirm refund',
                   subtitle: _totalSelectedQuantity > 0
                       ? '${formatMoney(_estimatedRefund(data), symbol: currencySymbol)} · ${_totalSelectedQuantity} item${_totalSelectedQuantity == 1 ? '' : 's'}'
