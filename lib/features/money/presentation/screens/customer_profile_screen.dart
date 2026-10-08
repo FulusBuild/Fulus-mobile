@@ -101,10 +101,7 @@ class _ProfileBody extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
+                    Row(
                           children: [
                             FulusAvatar(name: customer.name, size: 56),
                             const SizedBox(width: AppSpacing.md),
@@ -250,7 +247,10 @@ class _ProfileBody extends ConsumerWidget {
       ),
       data: (transactions) {
         if (transactions.isEmpty) {
-          return const FulusEmptyState(icon: Icons.point_of_sale_outlined, headline: 'No purchases yet.', body: 'Sales made to this customer will show up here.');
+          return const _InlineHistoryEmpty(
+            headline: 'No purchases yet.',
+            body: 'Sales made to this customer will show up here.',
+          );
         }
         return FulusCard(
           padding: EdgeInsets.zero,
@@ -287,7 +287,10 @@ class _ProfileBody extends ConsumerWidget {
       ),
       data: (entries) {
         if (entries.isEmpty) {
-          return const FulusEmptyState(icon: Icons.receipt_long_outlined, headline: 'No credit history yet.', body: 'Credit sales and repayments for this customer will show up here.');
+          return const _InlineHistoryEmpty(
+            headline: 'No credit history yet.',
+            body: 'Credit sales and repayments for this customer will show up here.',
+          );
         }
         return FulusCard(
           padding: EdgeInsets.zero,
@@ -330,7 +333,7 @@ class _BalanceMetric extends StatelessWidget {
           fit: BoxFit.scaleDown,
           child: Text(
             value,
-            style: (prominent ? AppTypography.heading : AppTypography.subheading).copyWith(
+            style: (prominent ? AppTypography.display : AppTypography.subheading).copyWith(
               color: AppColors.textPrimaryOf(context),
               fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -415,10 +418,14 @@ class _ArchiveSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FulusButton(
-          label: _isArchived ? 'Restore this customer' : 'Archive this customer',
-          variant: _isArchived ? FulusButtonVariant.secondary : FulusButtonVariant.destructive,
-          onPressed: () => _isArchived ? _restore(context, ref) : _archive(context, ref),
+        Align(
+          alignment: Alignment.center,
+          child: FulusButton(
+            label: _isArchived ? 'Restore this customer' : 'Archive this customer',
+            variant: FulusButtonVariant.text,
+            foregroundColor: _isArchived ? AppColors.primaryOf(context) : AppColors.errorOf(context),
+            onPressed: () => _isArchived ? _restore(context, ref) : _archive(context, ref),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
@@ -512,6 +519,38 @@ class _PurchaseHistoryRow extends StatelessWidget {
     );
   }
 }
+class _InlineHistoryEmpty extends StatelessWidget {
+  const _InlineHistoryEmpty({required this.headline, required this.body});
+
+  final String headline;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Column(
+        children: [
+          Text(
+            headline,
+            style: AppTypography.body.copyWith(
+              color: AppColors.textPrimaryOf(context),
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            body,
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CustomerProfileLoadingSkeleton extends StatelessWidget {
   const _CustomerProfileLoadingSkeleton();
 
@@ -519,9 +558,11 @@ class _CustomerProfileLoadingSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(AppSpacing.sm),
     children: const [
-      FulusCardSkeleton(),
+      FulusListRowSkeleton(hasLeading: true),
       SizedBox(height: AppSpacing.lg),
-      FulusCardSkeleton(),
+      FulusListRowSkeleton(hasLeading: false),
+      SizedBox(height: AppSpacing.md),
+      FulusListRowSkeleton(hasLeading: false),
       SizedBox(height: AppSpacing.lg),
       FulusListRowSkeleton(hasLeading: false),
       FulusListRowSkeleton(hasLeading: false),
