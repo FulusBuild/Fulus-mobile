@@ -22,6 +22,7 @@ class CloudRestoreCoordinator {
 
   Future<CloudRestoreResult> restore({
     required Map<String, dynamic> snapshot,
+    required String businessId,
     required String ownerCloudUserId,
     required String ownerEmail,
     required BusinessSettingsResponseDto settings,
@@ -56,6 +57,14 @@ class CloudRestoreCoordinator {
         );
       }
 
+      final snapshotBusiness = snapshot['business'];
+      final snapshotBusinessId = snapshotBusiness is Map
+          ? snapshotBusiness['id']?.toString()
+          : null;
+      if (snapshotBusinessId == null || snapshotBusinessId != businessId) {
+        throw StateError('Cloud restore snapshot is bound to a different business.');
+      }
+
       // Restored sales reference the cloud cashier identity through the
       // local Users foreign key. On a fresh installation the owner row does
       // not exist yet, so seed the authenticated owner before importing
@@ -72,6 +81,18 @@ class CloudRestoreCoordinator {
         ownerCloudUserId: ownerCloudUserId,
         transactional: false,
         onProgress: onProgress,
+      );
+
+      // The SQLite binding is the safety fence used by every canonical
+      // apply transaction. Persist it atomically with the restored business
+      // image, not only in preferences, so the first post-reinstall pull can
+      // reconcile stock movements instead of blocking at the first change.
+      await _db.into(_db.localCloudBindings).insertOnConflictUpdate(
+        LocalCloudBindingsCompanion.insert(
+          id: 'singleton',
+          businessId: snapshotBusinessId,
+          updatedAt: DateTime.now(),
+        ),
       );
 
       onProgress?.call('Restoring business settings…');
