@@ -646,6 +646,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncConfig: syncConfig,
     syncPreferences: syncPreferences,
     database: database,
+    syncCursorStore: syncCursorStore,
     authRepository: authRepository,
     secureStorage: secureStorage,
     connectionState: fulusConnectionState,
