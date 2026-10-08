@@ -154,6 +154,31 @@ void main() {
     expect(await db.select(db.syncConflictRecords).get(), hasLength(1));
   });
 
+  test('rejects a snapshot bound to a different cloud business', () async {
+    await expectLater(
+      coordinator.restore(
+        businessId: 'business-id',
+        snapshot: <String, dynamic>{
+          'version': 6,
+          'business': {'id': 'other-business'},
+        },
+        ownerCloudUserId: 'owner-cloud-id',
+        ownerEmail: 'owner@example.com',
+        settings: const BusinessSettingsResponseDto(
+          id: 'business-id',
+          businessName: 'Store',
+          vatEnabled: false,
+          vatRate: 0,
+          currencySymbol: '₦',
+        ),
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(await db.select(db.localCloudBindings).get(), isEmpty);
+    expect(await db.select(db.products).get(), isEmpty);
+  });
+
   test('restores owner identity, settings, and current session', () async {
     const ownerId = 'owner-cloud-id';
     final snapshot = <String, dynamic>{
