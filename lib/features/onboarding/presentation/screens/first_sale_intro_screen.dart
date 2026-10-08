@@ -34,7 +34,7 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                       color: AppColors.primaryOf(context).withValues(alpha: .10),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
                     ),
-                    child: Icon(FulusIcons.sell, color: AppColors.primaryOf(context), size: 32),
+                    child: FulusIconVisual(icon: FulusIcons.sell, color: AppColors.primaryOf(context), size: 32),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
