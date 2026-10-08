@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_settings.dart';
@@ -456,7 +457,7 @@ class _HomeMockupDashboard extends StatelessWidget {
     final actions = <Widget>[
       const _HomeActionCell(
         color: AppColors.primary,
-        icon: FulusIcons.sell,
+        art: FulusArt.sell,
         label: 'Sell',
         route: 'sell',
       ),
