@@ -12,6 +12,7 @@ import 'fulus_connection_state.dart';
 import 'endpoints/auth_api.dart';
 import '../repositories/auth_repository_impl.dart';
 import '../local/database/database.dart';
+import '../local/sync_cursor_store.dart';
 import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_config.dart';
 
@@ -27,6 +28,7 @@ class CloudSessionBootstrapCoordinator {
     required SyncConfig syncConfig,
     required SharedPreferences syncPreferences,
     required AppDatabase database,
+    required SyncCursorStore syncCursorStore,
     required AuthRepositoryImpl authRepository,
     required SecureStorage secureStorage,
     required FulusConnectionState connectionState,
@@ -38,6 +40,7 @@ class CloudSessionBootstrapCoordinator {
         _syncConfig = syncConfig,
         _syncPreferences = syncPreferences,
         _db = database,
+        _syncCursorStore = syncCursorStore,
         _authRepository = authRepository,
         _secureStorage = secureStorage,
         _connectionState = connectionState,
@@ -50,6 +53,7 @@ class CloudSessionBootstrapCoordinator {
   final SyncConfig _syncConfig;
   final SharedPreferences _syncPreferences;
   final AppDatabase _db;
+  final SyncCursorStore _syncCursorStore;
   final AuthRepositoryImpl _authRepository;
   final SecureStorage _secureStorage;
   final FulusConnectionState _connectionState;
@@ -65,6 +69,10 @@ class CloudSessionBootstrapCoordinator {
         updatedAt: DateTime.now(),
       ),
     );
+    // The blocked-change record is a retry barrier, not an acknowledgement.
+    // Once the missing binding has been repaired, permit the same unchanged
+    // cursor sequence to be applied again instead of remaining exhausted.
+    await _syncCursorStore.clearBlockedChange(businessId);
   }
 
   Future<bool> bootstrap() async {
