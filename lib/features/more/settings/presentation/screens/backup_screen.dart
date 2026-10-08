@@ -179,7 +179,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       FulusListRow(
-                        leading: const Icon(FulusIcons.sync),
+                        leading: const FulusIconVisual(icon: FulusIcons.sync),
                         title: const Text('Sync status'),
                         onTap: canManageSettings ? () => context.pushNamed('moreSyncDetail') : null,
                       ),
