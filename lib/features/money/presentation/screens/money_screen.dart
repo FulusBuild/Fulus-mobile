@@ -242,7 +242,7 @@ class _BalanceHero extends StatelessWidget {
       child: Builder(builder: (context) {
         final foreground = AppColors.onColor(AppColors.success);
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(FulusIcons.wallet, color: foreground, size: 40), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
+        Row(children: [FulusArtIcon(FulusArt.money, size: 40, semanticLabel: 'Available Balance'), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
         const SizedBox(height: AppSpacing.sm),
         FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 28, fontWeight: FontWeight.w800))),
         const SizedBox(height: AppSpacing.xs),
