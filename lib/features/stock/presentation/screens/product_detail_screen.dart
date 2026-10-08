@@ -144,7 +144,7 @@ class _ProductDetailBody extends ConsumerWidget {
                                           errorBuilder: (context, error, stackTrace) => Container(
                                             color: AppColors.surfaceAltOf(context),
                                             alignment: Alignment.center,
-                                            child: Icon(FulusIcons.stock, color: AppColors.mutedOf(context), size: 40),
+                                            child: FulusIconVisual(icon: FulusIcons.stock, color: AppColors.mutedOf(context), size: 40),
                                           ),
                                         ),
                               ),
