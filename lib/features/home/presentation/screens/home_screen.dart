@@ -675,7 +675,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
               vertical: compact ? AppSpacing.md : AppSpacing.lg + AppSpacing.xs,
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   'Today’s sales',
@@ -684,7 +684,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 FittedBox(
                   fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.center,
                   child: Text(
                     value,
                     maxLines: 1,
@@ -700,6 +700,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                   count,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(color: onGreenMuted, fontSize: 15),
                 ),
               ],
