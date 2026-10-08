@@ -847,24 +847,28 @@ class _MoreScreen extends ConsumerWidget {
             child: tileGrid([
               FulusFlatGridCell(
                 icon: FulusIcons.customers,
+                art: FulusArt.customers,
                 iconColor: AppColors.customers,
                 label: 'Customers',
                 onTap: canCustomers ? () => context.pushNamed('moreCustomers') : null,
               ),
               FulusFlatGridCell(
                 icon: FulusIcons.staff,
+                art: FulusArt.staff,
                 iconColor: AppColors.primary,
                 label: 'Employees',
                 onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
               ),
               FulusFlatGridCell(
                 icon: FulusIcons.locations,
+                art: FulusArt.locations,
                 iconColor: AppColors.info,
                 label: 'Locations',
                 onTap: canManageSettings ? () => context.goNamed('moreSettingsLocations') : null,
               ),
               FulusFlatGridCell(
                 icon: FulusIcons.settings,
+                art: FulusArt.settings,
                 iconColor: AppColors.primary,
                 label: 'Settings',
                 onTap: canSettings ? () => context.goNamed('moreSettings') : null,
@@ -876,12 +880,14 @@ class _MoreScreen extends ConsumerWidget {
             child: tileGrid([
               FulusFlatGridCell(
                 icon: FulusIcons.reports,
+                art: FulusArt.reports,
                 iconColor: AppColors.reports,
                 label: 'Reports',
                 onTap: canReports ? () => context.goNamed('moreReports') : null,
               ),
               FulusFlatGridCell(
                 icon: FulusIcons.notifications,
+                art: FulusArt.notifications,
                 iconColor: AppColors.warning,
                 label: 'Alerts',
                 onTap: () => context.goNamed('moreNotifications'),
@@ -893,18 +899,21 @@ class _MoreScreen extends ConsumerWidget {
             child: tileGrid([
               FulusFlatGridCell(
                 icon: FulusIcons.backup,
+                art: FulusArt.backup,
                 iconColor: AppColors.success,
                 label: 'Backup',
                 onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
               ),
               FulusFlatGridCell(
                 icon: FulusIcons.sync,
+                art: FulusArt.sync,
                 iconColor: AppColors.info,
                 label: 'Sync',
                 onTap: canManageSettings ? () => context.goNamed('moreSyncDetail') : null,
               ),
               FulusFlatGridCell(
                 icon: FulusIcons.print,
+                art: FulusArt.print,
                 iconColor: AppColors.primary,
                 label: 'Printers',
                 onTap: canManageSettings ? () => context.pushNamed('morePrinters') : null,
