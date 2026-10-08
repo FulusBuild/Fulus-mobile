@@ -483,7 +483,7 @@ class _ReportTabBuilderState<T> extends State<_ReportTabBuilder<T>> {
         final data = snap.data as T;
         if (widget.isEmpty(data)) {
           return FulusEmptyState(
-            icon: Icons.bar_chart_outlined,
+            art: FulusArt.reports,
             headline: widget.emptyHeadline,
             body: widget.emptyBody,
           );
