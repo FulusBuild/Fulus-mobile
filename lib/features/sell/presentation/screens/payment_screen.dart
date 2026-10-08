@@ -127,7 +127,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               for (final method in _paymentMethods)
                                 if (method.key != 'credit' || creditEnabled)
                                   _PaymentMethodTile(
-                                    icon: _iconForMethod(method.key),
+                                    art: _artForMethod(method.key),
                                     label: method.label,
                                     selected: _method == method.key,
                                     onTap: () {
@@ -270,6 +270,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           const SizedBox(height: AppSpacing.md),
                           FulusActionTile(
                             icon: FulusIcons.callSplit,
+                            art: FulusArt.splitPayment,
                             label: 'Split payment',
                             subtitle: 'Use more than one payment method',
                             onTap: () {
@@ -552,9 +553,9 @@ class _PaymentRow extends StatelessWidget {
 }
 
 class _PaymentMethodTile extends StatelessWidget {
-  const _PaymentMethodTile({required this.icon, required this.label, required this.selected, required this.onTap});
+  const _PaymentMethodTile({required this.art, required this.label, required this.selected, required this.onTap});
 
-  final IconData icon;
+  final FulusArt art;
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -588,9 +589,7 @@ class _PaymentMethodTile extends StatelessWidget {
             Expanded(
               child: Center(
                 child: FulusArtIcon(
-                  _artForMethod(
-                    label == 'Transfer' ? 'mobile_money' : label.toLowerCase(),
-                  ),
+                  art,
                   size: 64,
                   semanticLabel: label,
                 ),
