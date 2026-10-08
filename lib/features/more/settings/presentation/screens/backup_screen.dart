@@ -8,6 +8,7 @@ import '../../../../../app/providers.dart';
 import '../../../../../app/restore_restart_gate.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/theme/fulus_art.dart';
 import '../../../../../core/utils/formatting.dart';
 import '../../../../../domain/entities/backup_record.dart';
 import '../../../../../domain/entities/auth_user.dart';
@@ -119,11 +120,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                                 color: AppColors.primaryOf(context).withValues(alpha: 0.10),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
-                              child: Icon(
-                                Icons.backup_outlined,
-                                color: AppColors.primaryOf(context),
-                                size: 25,
-                              ),
+                              child: FulusArtIcon(FulusArt.backup, size: 36, semanticLabel: 'Backup'),
                             );
                             return stacked
                                 ? Column(
@@ -154,6 +151,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                         child: Column(
                           children: [
                             _ActionRow(
+                              art: FulusArt.backup,
                               icon: Icons.backup_outlined,
                               title: 'Back up now',
                               subtitle: _busy
@@ -169,6 +167,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                             ),
                             const FulusListDivider(),
                             _ActionRow(
+                              art: FulusArt.restore,
                               icon: Icons.file_open_outlined,
                               title: 'Restore from a file',
                               subtitle: 'Import a .db backup from your device',
@@ -337,12 +336,14 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 class _ActionRow extends StatelessWidget {
   const _ActionRow({
     required this.icon,
+    required this.art,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
   final IconData icon;
+  final FulusArt art;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
@@ -350,7 +351,7 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FulusListRow(
-      leading: Icon(icon),
+      leading: FulusArtIcon(art, size: AppIconSize.emphasis, semanticLabel: title),
       title: Text(title),
       subtitle: Text(subtitle),
       onTap: onTap,
@@ -401,10 +402,7 @@ class _BackupTile extends StatelessWidget {
               color: AppColors.selectedTintOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(
-              Icons.backup_outlined,
-              color: AppColors.primaryOf(context),
-            ),
+            child: FulusArtIcon(FulusArt.backup, size: 34, semanticLabel: 'Backup'),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
