@@ -488,7 +488,7 @@ class _HomeMockupDashboard extends StatelessWidget {
           error: heroError,
           currencySymbol: currencySymbol,
         ),
-        const SizedBox(height: AppSpacing.xxl + AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xl + AppSpacing.md),
         Text(
           'Quick actions',
           style: AppTypography.bodyLarge.copyWith(
@@ -496,7 +496,7 @@ class _HomeMockupDashboard extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: 14),
         _HomeQuickActions(shortcuts: shortcuts),
       ],
     );
@@ -528,37 +528,41 @@ class _HomeQuickActions extends StatelessWidget {
   final List<_HomeShortcut> shortcuts;
 
   static const _columns = 2;
+  static const _tileAspect = 0.88; // width / height
 
   @override
   Widget build(BuildContext context) {
     const gap = AppSpacing.md;
-    final screenHeight = MediaQuery.sizeOf(context).height;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final minTile = textScale > 1.3 ? 144.0 : 120.0;
     final rowCount = (shortcuts.length / _columns).ceil().clamp(1, 4).toInt();
-    // Reserve space for the system bars, header, greeting, sales card, section
-    // label, bottom bar and a little breathing room.
-    final ideal = (screenHeight - 520 - gap * (rowCount - 1)) / rowCount;
-    final tileHeight = ideal.clamp(minTile, 190.0).toDouble();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Tile proportions come from the mockup (about 172 x 196 at 390dp
+        // wide), so height follows width instead of a guessed screen reserve.
+        final tileWidth = (constraints.maxWidth - gap * (_columns - 1)) / _columns;
+        final tileHeight = (tileWidth / _tileAspect).clamp(minTile, 220.0).toDouble();
 
-    return Column(
-      children: [
-        for (var row = 0; row < rowCount; row++) ...[
-          if (row > 0) const SizedBox(height: gap),
-          SizedBox(
-            height: tileHeight,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var col = 0; col < _columns; col++) ...[
-                  if (col > 0) const SizedBox(width: gap),
-                  Expanded(child: _tileAt(context, row * _columns + col)),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ],
+        return Column(
+          children: [
+            for (var row = 0; row < rowCount; row++) ...[
+              if (row > 0) const SizedBox(height: gap),
+              SizedBox(
+                height: tileHeight,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var col = 0; col < _columns; col++) ...[
+                      if (col > 0) const SizedBox(width: gap),
+                      Expanded(child: _tileAt(context, row * _columns + col)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -652,7 +656,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
       child: SizedBox(
         width: double.infinity,
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: compact ? 128 : 148),
+          constraints: BoxConstraints(minHeight: compact ? 120 : 136),
           child: Material(
             color: AppColors.primary,
             shape: RoundedRectangleBorder(
@@ -662,7 +666,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.xl - AppSpacing.xs,
-                vertical: compact ? AppSpacing.lg : AppSpacing.xl,
+                vertical: compact ? AppSpacing.lg : AppSpacing.lg + AppSpacing.xs,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,7 +702,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
-                        vertical: 5,
+                        vertical: 2,
                       ),
                       child: Text(
                         count,
