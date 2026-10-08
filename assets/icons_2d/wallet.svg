@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<defs>
+ <linearGradient id="leather" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4F78A5"/><stop offset=".55" stop-color="#315A84"/><stop offset="1" stop-color="#254665"/></linearGradient>
+ <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#6C91B7"/><stop offset="1" stop-color="#274B70"/></linearGradient>
+ <filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#233247" flood-opacity=".26"/></filter>
+</defs>
+<g filter="url(#s)">
+ <path d="M18 27c0-6 4-10 10-10h45c5 0 9 4 9 9v44c0 5-4 9-9 9H25c-5 0-9-4-9-9V29z" fill="url(#leather)" stroke="#203E5C" stroke-width="2"/>
+ <path d="M20 30h55c6 0 9 4 9 9v9H52c-7 0-12-5-12-12v-6z" fill="url(#edge)" opacity=".95"/>
+ <path d="M56 45h29v18H56c-5 0-9-4-9-9s4-9 9-9z" fill="#D8E0E7" stroke="#9BA8B3" stroke-width="1.5"/>
+ <circle cx="66" cy="54" r="3" fill="#71808C"/>
+ <path d="M27 25h42" stroke="#8EACC5" stroke-width="2" opacity=".45"/>
+</g></svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<defs>
+ <linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5C86B1"/><stop offset="1" stop-color="#294D72"/></linearGradient>
+ <filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#243447" flood-opacity=".23"/></filter>
+</defs>
+<g filter="url(#s)">
+ <rect x="13" y="24" width="70" height="48" rx="7" fill="url(#card)" stroke="#244666" stroke-width="1.5"/>
+ <rect x="13" y="35" width="70" height="7" fill="#D9E1E7" opacity=".82"/>
+ <rect x="23" y="49" width="17" height="10" rx="2" fill="#D7B15A"/>
+ <rect x="49" y="51" width="23" height="4" rx="2" fill="#AFC3D4"/>
+ <rect x="49" y="59" width="15" height="3" rx="1.5" fill="#8EA9C0"/>
+</g></svg>

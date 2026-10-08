@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<defs>
+ <linearGradient id="cloud" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#EEF5FA"/><stop offset="1" stop-color="#B8D0E2"/></linearGradient>
+ <filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#243447" flood-opacity=".2"/></filter>
+</defs>
+<g filter="url(#s)">
+ <path d="M25 70h48c9 0 14-11 7-18-2-2-5-3-8-3-2-12-17-18-28-9-9-7-23 0-22 11-10 0-10 19 3 19z" fill="url(#cloud)" stroke="#8EA7BA" stroke-width="1.5"/>
+ <path d="M48 39v25m0 0-8-8m8 8 8-8" fill="none" stroke="#4F789E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g></svg>

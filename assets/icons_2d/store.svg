@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<defs>
+ <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#F35B48"/><stop offset="1" stop-color="#D93C31"/></linearGradient>
+ <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFFDF8"/><stop offset="1" stop-color="#E8EDF1"/></linearGradient>
+ <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8EC7EA"/><stop offset="1" stop-color="#4F8FBE"/></linearGradient>
+ <filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#223047" flood-opacity=".22"/></filter>
+</defs>
+<g filter="url(#s)">
+ <path d="M13 35 18 18h60l5 17z" fill="url(#roof)"/>
+ <path d="M18 18h60l-5 7H23z" fill="#FF806B" opacity=".55"/>
+ <path d="M20 35h56v43H20z" fill="url(#wall)" stroke="#C8D0D8" stroke-width="1.5"/>
+ <path d="M25 42h19v17H25z" fill="url(#glass)" stroke="#6B91AD" stroke-width="1"/>
+ <path d="M52 42h19v36H52z" fill="#78A8CF" stroke="#5E829F" stroke-width="1"/>
+ <path d="M57 63h9v15h-9z" fill="#DCE6EC"/>
+ <circle cx="65" cy="70" r="1.5" fill="#6E8495"/>
+ <path d="M20 74h56v4H20z" fill="#C9D1D7"/>
+</g></svg>
