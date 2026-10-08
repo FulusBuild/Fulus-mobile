@@ -169,6 +169,7 @@ class AppIconSize {
   static const dense = 16.0;
   static const compact = 20.0;
   static const base = 24.0;
+  static const large = 32.0;
   // Icons are the first thing people read, so emphasis/hero artwork is large.
   // `compact` is intentionally unchanged (bottom navigation uses it).
   static const emphasis = 44.0;
