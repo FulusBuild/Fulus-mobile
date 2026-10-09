@@ -47,13 +47,12 @@ class SearchRepositoryImpl implements SearchRepository {
     if (session == null || session.activeLocationId == null) {
       return SearchResults.empty(query);
     }
-    final locationId = session.activeLocationId;
+    final locationId = session.activeLocationId!;
 
     final customers = await _searchCustomers(
       pattern,
       limitPerModule,
       locationId: locationId,
-      hasSession: session != null,
     );
     final products = await _searchProducts(
       pattern,
@@ -79,8 +78,7 @@ class SearchRepositoryImpl implements SearchRepository {
   Future<List<SearchResultItem>> _searchCustomers(
     String pattern,
     int limit, {
-    String? locationId,
-    required bool hasSession,
+    required String locationId,
   }) async {
     final q = _db.select(_db.customers)
       ..where(
@@ -90,9 +88,7 @@ class SearchRepositoryImpl implements SearchRepository {
                 t.phone.like(pattern) |
                 t.email.like(pattern)),
       );
-    if (hasSession) {
-      q.where((customer) => customer.locationId.equals(locationId));
-    }
+    q.where((customer) => customer.locationId.equals(locationId));
     q.limit(limit);
     final rows = await q.get();
     return rows
@@ -121,9 +117,7 @@ class SearchRepositoryImpl implements SearchRepository {
                 t.sku.like(pattern) |
                 t.barcode.like(pattern)),
       );
-    if (hasSession) {
-      q.where((product) => product.locationId.equals(locationId));
-    }
+    q.where((product) => product.locationId.equals(locationId));
     q.limit(limit);
     final rows = await q.get();
     return rows
@@ -158,9 +152,7 @@ class SearchRepositoryImpl implements SearchRepository {
             t.deletedAt.isNull() &
             (t.invoiceNumber.like(pattern) | t.notes.like(pattern)),
       );
-    if (hasSession) {
-      q.where((sale) => sale.locationId.equals(locationId));
-    }
+    q.where((sale) => sale.locationId.equals(locationId));
     q.limit(limit);
     final rows = await q.get();
     return rows
