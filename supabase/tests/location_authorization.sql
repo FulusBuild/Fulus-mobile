@@ -102,6 +102,10 @@ select id, 'Other Business Location', 'AUTH-OTHER', 'active'
 from public.businesses
 where name = 'Authorization Other Business';
 
+-- Deliberately grant UPDATE in this rollback-only test so RLS, not table
+-- privileges alone, is what prevents cross-location writes.
+grant update on public.products, public.customers to authenticated;
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub', (select worker_id::text from _authz_test_ids), true);
 
