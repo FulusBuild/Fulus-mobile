@@ -26,7 +26,7 @@ void main() {
   late MockLocationRepository locationRepository;
   late CustomerSyncHandler handler;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     fulusSyncApi = MockFulusSyncApi();
     fulusConnectionState = MockFulusConnectionState();
@@ -36,7 +36,7 @@ void main() {
       localId: 'loc-1', serverId: 'server-location-1', name: 'Main Store',
       createdAt: DateTime.utc(2026, 1, 1), updatedAt: DateTime.utc(2026, 1, 1),
     ));
-    db.into(db.locations).insert(LocationsCompanion.insert(
+    await db.into(db.locations).insert(LocationsCompanion.insert(
       localId: 'loc-1', serverId: const Value('server-location-1'), name: 'Main Store',
       createdAt: DateTime.utc(2026, 1, 1), updatedAt: DateTime.utc(2026, 1, 1),
       syncStatus: SyncStatus.settled,
