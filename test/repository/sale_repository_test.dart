@@ -113,10 +113,16 @@ void main() {
     // _FakeAuthRepository above attributes every sale to 'user-cashier-1',
     // so that row has to exist first.
     await seedUser(db, localId: 'user-cashier-1');
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'user-cashier-1',
+      activeLocationId: const Value(locationId),
+    ));
 
     await db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: productId,
+            locationId: const Value(locationId),
             name: 'Test Product',
             sku: 'SKU-1',
             costPrice: moneyFromMajor(100),
