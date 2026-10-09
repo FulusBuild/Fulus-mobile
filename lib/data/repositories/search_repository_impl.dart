@@ -41,10 +41,32 @@ class SearchRepositoryImpl implements SearchRepository {
     if (trimmed.isEmpty) return SearchResults.empty(query);
 
     final pattern = '%$trimmed%';
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session != null && session.activeLocationId == null) {
+      return SearchResults.empty(query);
+    }
+    final locationId = session?.activeLocationId;
 
-    final customers = await _searchCustomers(pattern, limitPerModule);
-    final products = await _searchProducts(pattern, limitPerModule);
-    final sales = await _searchSales(pattern, limitPerModule);
+    final customers = await _searchCustomers(
+      pattern,
+      limitPerModule,
+      locationId: locationId,
+      hasSession: session != null,
+    );
+    final products = await _searchProducts(
+      pattern,
+      limitPerModule,
+      locationId: locationId,
+      hasSession: session != null,
+    );
+    final sales = await _searchSales(
+      pattern,
+      limitPerModule,
+      locationId: locationId,
+      hasSession: session != null,
+    );
 
     return SearchResults(
       query: query,
@@ -56,8 +78,10 @@ class SearchRepositoryImpl implements SearchRepository {
 
   Future<List<SearchResultItem>> _searchCustomers(
     String pattern,
-    int limit,
-  ) async {
+    int limit, {
+    String? locationId,
+    required bool hasSession,
+  }) async {
     final q = _db.select(_db.customers)
       ..where(
         (t) =>
@@ -65,8 +89,11 @@ class SearchRepositoryImpl implements SearchRepository {
             (t.name.like(pattern) |
                 t.phone.like(pattern) |
                 t.email.like(pattern)),
-      )
-      ..limit(limit);
+      );
+    if (hasSession) {
+      q.where((customer) => customer.locationId.equals(locationId));
+    }
+    q.limit(limit);
     final rows = await q.get();
     return rows
         .map(
@@ -82,8 +109,10 @@ class SearchRepositoryImpl implements SearchRepository {
 
   Future<List<SearchResultItem>> _searchProducts(
     String pattern,
-    int limit,
-  ) async {
+    int limit, {
+    String? locationId,
+    required bool hasSession,
+  }) async {
     final q = _db.select(_db.products)
       ..where(
         (t) =>
@@ -91,8 +120,11 @@ class SearchRepositoryImpl implements SearchRepository {
             (t.name.like(pattern) |
                 t.sku.like(pattern) |
                 t.barcode.like(pattern)),
-      )
-      ..limit(limit);
+      );
+    if (hasSession) {
+      q.where((product) => product.locationId.equals(locationId));
+    }
+    q.limit(limit);
     final rows = await q.get();
     return rows
         .map(
@@ -108,8 +140,10 @@ class SearchRepositoryImpl implements SearchRepository {
 
   Future<List<SearchResultItem>> _searchSales(
     String pattern,
-    int limit,
-  ) async {
+    int limit, {
+    String? locationId,
+    required bool hasSession,
+  }) async {
     // "Excluding cancelled," per search_service.py — this schema has no
     // separate status/is_cancelled column on Sales (verified directly in
     // tables.dart), so deletedAt.isNull() is the equivalent local
@@ -123,8 +157,11 @@ class SearchRepositoryImpl implements SearchRepository {
         (t) =>
             t.deletedAt.isNull() &
             (t.invoiceNumber.like(pattern) | t.notes.like(pattern)),
-      )
-      ..limit(limit);
+      );
+    if (hasSession) {
+      q.where((sale) => sale.locationId.equals(locationId));
+    }
+    q.limit(limit);
     final rows = await q.get();
     return rows
         .map(
