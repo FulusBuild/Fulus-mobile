@@ -22,6 +22,22 @@ void main() {
       updatedAt: DateTime.utc(2026, 1, 1),
       syncStatus: SyncStatus.settled,
     ));
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026, 1, 1),
+      ),
+    );
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value('location-1'),
+      ),
+    );
     syncQueue = SyncQueue(db);
     repository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
   });
@@ -90,15 +106,6 @@ void main() {
   group('location isolation', () {
     test('customer reads are scoped to the active location while outbox lookup remains available', () async {
       final now = DateTime.utc(2026, 10, 9, 10);
-      await db.into(db.users).insert(
-        UsersCompanion.insert(
-          localId: 'owner-user',
-          fullName: 'Owner',
-          role: AuthRole.owner,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
       await db.batch((batch) {
         batch.insertAll(db.locations, [
           LocationsCompanion.insert(
@@ -117,13 +124,8 @@ void main() {
           ),
         ]);
       });
-      await db.into(db.sessions).insert(
-        SessionsCompanion.insert(
-          id: 'current',
-          userId: 'owner-user',
-          activeLocationId: const Value('location-a'),
-        ),
-      );
+      await (db.update(db.sessions)..where((session) => session.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value('location-a')));
       await db.batch((batch) {
         batch.insertAll(db.customers, [
           CustomersCompanion.insert(
