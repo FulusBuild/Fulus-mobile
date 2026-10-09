@@ -176,8 +176,12 @@ class CustomerRepositoryImpl implements CustomerRepository {
           ..where((c) => c.serverId.equals(serverId)))
         .getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
+    final resolvedIncomingLocationId = await _resolveLocationLocalId(locationId);
+    if (locationId != null && resolvedIncomingLocationId == null) {
+      throw StateError('Customer owner location is not available locally yet.');
+    }
     final effectiveLocationId =
-        await _resolveLocationLocalId(locationId) ?? existing?.locationId;
+        resolvedIncomingLocationId ?? existing?.locationId;
     if (existing?.locationId != null &&
         effectiveLocationId != existing!.locationId) {
       throw StateError('Canonical customer ownership cannot move between locations.');
