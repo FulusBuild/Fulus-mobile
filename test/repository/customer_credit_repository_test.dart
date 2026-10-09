@@ -406,6 +406,7 @@ void main() {
           saleLocalId: const Value('sale-1'),
           createdAt: createdAt,
           updatedAt: createdAt,
+          syncStatus: SyncStatus.settled,
         ),
       );
       await db.into(db.customerLedgerEntries).insert(
@@ -417,6 +418,7 @@ void main() {
           saleLocalId: const Value('sale-1'),
           createdAt: createdAt.add(const Duration(seconds: 1)),
           updatedAt: createdAt.add(const Duration(seconds: 1)),
+          syncStatus: SyncStatus.settled,
         ),
       );
 
