@@ -348,6 +348,26 @@ void main() {
   });
 
   group('getRepaymentsForPeriod', () {
+    test('returns no repayments when there is no active session', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+      await creditRepository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 2000,
+      );
+      await (db.delete(db.sessions)..where((row) => row.id.equals('current'))).go();
+
+      final today = DateTime.now();
+      final results =
+          await creditRepository.getRepaymentsForPeriod(start: today, end: today);
+
+      expect(results, isEmpty);
+    });
+
     test('includes a repayment made today when the period covers today', () async {
       final customerId = await createTestCustomer();
       await creditRepository.recordCreditSale(
