@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
@@ -315,6 +316,15 @@ void main() {
           'updated_at': '2026-10-01T00:00:00Z',
         },
       ],
+      'suppliers': [
+        {
+          'id': 'money-supplier',
+          'name': 'Money supplier',
+          'outstanding_balance': '1234.56',
+          'created_at': '2026-10-01T00:00:00Z',
+          'updated_at': '2026-10-01T00:00:00Z',
+        },
+      ],
       'products': [
         {
           'id': 'money-product',
@@ -383,6 +393,7 @@ void main() {
 
     var product = (await db.select(db.products).get()).single;
     var customer = (await db.select(db.customers).get()).single;
+    var supplier = (await db.select(db.suppliers).get()).single;
     var sale = (await db.select(db.sales).get()).single;
     var item = (await db.select(db.saleItems).get()).single;
     var payment = (await db.select(db.salePayments).get()).single;
@@ -391,6 +402,7 @@ void main() {
     expect(product.sellingPrice, 86000);
     expect(customer.creditLimit, 15000000);
     expect(customer.outstandingBalance, 123456);
+    expect(supplier.outstandingBalance, 123456);
     expect(sale.subtotal, 86000);
     expect(sale.discount, 525);
     expect(sale.total, 85475);
@@ -407,14 +419,50 @@ void main() {
     await importer.importSnapshot(snapshot);
     product = (await db.select(db.products).get()).single;
     customer = (await db.select(db.customers).get()).single;
+    supplier = (await db.select(db.suppliers).get()).single;
     sale = (await db.select(db.sales).get()).single;
     item = (await db.select(db.saleItems).get()).single;
     payment = (await db.select(db.salePayments).get()).single;
     expect(product.sellingPrice, 86000);
     expect(customer.outstandingBalance, 123456);
+    expect(supplier.outstandingBalance, 123456);
     expect(sale.total, 85475);
     expect(item.unitPrice, 86000);
     expect(payment.amount, 85475);
+  });
+
+  test('rejects malformed supplier balance without partially replacing local data', () async {
+    await db.into(db.suppliers).insert(
+      SuppliersCompanion.insert(
+        localId: 'existing-supplier',
+        name: 'Existing supplier',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        syncStatus: SyncStatus.settled,
+        outstandingBalance: const Value(76543),
+      ),
+    );
+
+    await expectLater(
+      CloudRestoreImporter(db).importSnapshot({
+        'version': 7,
+        'locations': [],
+        'categories': [],
+        'suppliers': [
+          {
+            'id': 'bad-money-supplier',
+            'name': 'Malformed supplier',
+            'outstanding_balance': 1234,
+          },
+        ],
+      }),
+      throwsA(isA<FormatException>()),
+    );
+
+    final suppliers = await db.select(db.suppliers).get();
+    expect(suppliers, hasLength(1));
+    expect(suppliers.single.localId, 'existing-supplier');
+    expect(suppliers.single.outstandingBalance, 76543);
   });
 
   test('rejects numeric monetary wire values instead of guessing units', () async {
