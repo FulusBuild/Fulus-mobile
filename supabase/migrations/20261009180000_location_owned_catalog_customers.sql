@@ -767,10 +767,12 @@ begin
   v_old := E'  if target_operation = ''create'' and target_location_id is not null then\n' ||
     E'    perform public.require_location_access(target_business_id, target_location_id);\n' ||
     E'  end if;';
-  v_new := E'  if target_location_id is null then\n' ||
-    E'    raise exception using errcode = ''22023'', message = ''Employee location_id is required'';\n' ||
-    E'  end if;\n' ||
-    E'  perform public.require_location_access(target_business_id, target_location_id);';
+  v_new := E'  if target_operation = ''create'' then\n' ||
+    E'    if target_location_id is null then\n' ||
+    E'      raise exception using errcode = ''22023'', message = ''Employee location_id is required'';\n' ||
+    E'    end if;\n' ||
+    E'    perform public.require_location_access(target_business_id, target_location_id);\n' ||
+    E'  end if;';
   v_patched := replace(v_patched, v_old, v_new);
 
   v_old := E'    if target_location_id is not null then\n' ||
@@ -778,7 +780,10 @@ begin
     E'    elsif employee_row.location_id is not null then\n' ||
     E'      perform public.require_location_access(target_business_id, employee_row.location_id);\n' ||
     E'    end if;';
-  v_new := E'    if employee_row.location_id is not null then\n' ||
+  v_new := E'    if target_location_id is null then\n' ||
+    E'      raise exception using errcode = ''22023'', message = ''Employee location_id is required'';\n' ||
+    E'    end if;\n' ||
+    E'    if employee_row.location_id is not null then\n' ||
     E'      perform public.require_location_access(target_business_id, employee_row.location_id);\n' ||
     E'    end if;\n' ||
     E'    perform public.require_location_access(target_business_id, target_location_id);';
