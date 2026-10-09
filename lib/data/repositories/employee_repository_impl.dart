@@ -282,8 +282,20 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<EmployeeStats> getStats() async {
-    final rows = await (_db.select(_db.employees)..where((e) => e.deletedAt.isNull())).get();
-    return _engine.computeStats(rows.map((r) => r.toDomain()).toList());
+    final session = await (_db.select(_db.sessions)
+          ..where((session) => session.id.equals('current')))
+        .getSingleOrNull();
+    final query = _db.select(_db.employees)
+      ..where((employee) => employee.deletedAt.isNull());
+    if (session != null) {
+      final locationId = session.activeLocationId;
+      if (locationId == null) {
+        return _engine.computeStats(const <Employee>[]);
+      }
+      query.where((employee) => employee.locationId.equals(locationId));
+    }
+    final rows = await query.get();
+    return _engine.computeStats(rows.map((row) => row.toDomain()).toList());
   }
 
   @override
