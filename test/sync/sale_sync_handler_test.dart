@@ -117,9 +117,22 @@ void main() {
             syncStatus: SyncStatus.settled,
           ),
         );
+    await db.into(db.users).insert(UsersCompanion.insert(
+      localId: 'sale-sync-user',
+      fullName: 'Sale Sync User',
+      role: AuthRole.owner,
+      createdAt: now,
+      updatedAt: now,
+    ));
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'sale-sync-user',
+      activeLocationId: const Value(locationId),
+    ));
     await db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: productId,
+            locationId: const Value(locationId),
             name: 'Test Product',
             sku: 'SKU-1',
             costPrice: moneyFromMajor(100),
@@ -893,6 +906,7 @@ void main() {
       CustomersCompanion.insert(
         localId: customerId,
         serverId: const Value('server-customer-1'),
+        locationId: const Value(locationId),
         name: 'Test Customer',
         outstandingBalance: const Value(100),
         createdAt: now,
@@ -1032,6 +1046,7 @@ void main() {
     await db.into(db.customers).insert(
           CustomersCompanion.insert(
             localId: customerId,
+            locationId: const Value(locationId),
             name: 'Test Customer',
             createdAt: now,
             updatedAt: now,
