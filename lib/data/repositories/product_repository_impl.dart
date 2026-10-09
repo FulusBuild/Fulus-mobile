@@ -149,9 +149,24 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<void> reconcileServerState({required String serverId, required String name, required String sku, String? barcode, String? categoryId, String? supplierId, required Money costPrice, required Money sellingPrice, required int lowStockThreshold, required bool isActive, String? photoPath, String? locationId, required DateTime updatedAt, DateTime? deletedAt, required List<ProductStockSnapshot> stockLevels}) async {
     final existing = await (_db.select(_db.products)..where((p) => p.serverId.equals(serverId))).getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
-    final resolvedLocationId = await _resolveLocationLocalId(
-      locationId ?? existing?.locationId,
-    );
+    final resolvedLocationId =
+        await _resolveLocationLocalId(locationId) ?? existing?.locationId;
+    if (existing?.locationId != null &&
+        resolvedLocationId != existing!.locationId) {
+      throw StateError('Canonical product ownership cannot move between locations.');
+    }
+    if (resolvedLocationId != null) {
+      for (final stockLevel in stockLevels) {
+        final stockLocationLocalId =
+            await _resolveLocationLocalId(stockLevel.locationId);
+        if (stockLocationLocalId != null &&
+            stockLocationLocalId != resolvedLocationId) {
+          throw StateError(
+            'Product stock snapshot contains a level outside its owner location.',
+          );
+        }
+      }
+    }
     // A photo that exists only on this device has not been uploaded yet. The
     // server knows nothing about it, so its (older or null) value must not
     // erase the local reference before the upload task has run.
