@@ -146,9 +146,12 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> reconcileServerState({required String serverId, required String name, required String sku, String? barcode, String? categoryId, String? supplierId, required Money costPrice, required Money sellingPrice, required int lowStockThreshold, required bool isActive, String? photoPath, required DateTime updatedAt, DateTime? deletedAt, required List<ProductStockSnapshot> stockLevels}) async {
+  Future<void> reconcileServerState({required String serverId, required String name, required String sku, String? barcode, String? categoryId, String? supplierId, required Money costPrice, required Money sellingPrice, required int lowStockThreshold, required bool isActive, String? photoPath, String? locationId, required DateTime updatedAt, DateTime? deletedAt, required List<ProductStockSnapshot> stockLevels}) async {
     final existing = await (_db.select(_db.products)..where((p) => p.serverId.equals(serverId))).getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
+    final resolvedLocationId = await _resolveLocationLocalId(
+      locationId ?? existing?.locationId,
+    );
     // A photo that exists only on this device has not been uploaded yet. The
     // server knows nothing about it, so its (older or null) value must not
     // erase the local reference before the upload task has run.
@@ -157,9 +160,9 @@ class ProductRepositoryImpl implements ProductRepository {
     final localSupplierId = await _resolveSupplierLocalId(supplierId);
     await _db.transaction(() async {
       if (existing == null) {
-        await _db.into(_db.products).insert(ProductsCompanion.insert(localId: localId, serverId: Value(serverId), name: name, sku: sku, barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: costPrice, sellingPrice: sellingPrice, lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), createdAt: updatedAt, updatedAt: updatedAt, deletedAt: Value(deletedAt), syncStatus: SyncStatus.settled));
+        await _db.into(_db.products).insert(ProductsCompanion.insert(localId: localId, serverId: Value(serverId), locationId: Value(resolvedLocationId), name: name, barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: costPrice, sellingPrice: sellingPrice, lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), createdAt: updatedAt, updatedAt: updatedAt, deletedAt: Value(deletedAt), syncStatus: SyncStatus.settled));
       } else {
-        await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(serverId: Value(serverId), name: Value(name), sku: Value(sku), barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: Value(costPrice), sellingPrice: Value(sellingPrice), lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), deletedAt: Value(deletedAt), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled)));
+        await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(serverId: Value(serverId), locationId: Value(resolvedLocationId), name: Value(name), sku: Value(sku), barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: Value(costPrice), sellingPrice: Value(sellingPrice), lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), deletedAt: Value(deletedAt), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled)));
       }
       // stock_levels is authoritative: remove local rows that are absent from
       // the canonical aggregate, then restore exactly the server snapshot.
@@ -170,6 +173,18 @@ class ProductRepositoryImpl implements ProductRepository {
         await _db.into(_db.productStockLevels).insertOnConflictUpdate(ProductStockLevelsCompanion.insert(productLocalId: localId, locationLocalId: location.localId, currentStock: Value(stock.currentStock), updatedAt: stock.updatedAt, syncStatus: SyncStatus.settled));
       }
     });
+  }
+
+  Future<String?> _resolveLocationLocalId(String? id) async {
+    if (id == null || id.isEmpty) return null;
+    final local = await (_db.select(_db.locations)
+          ..where((location) => location.localId.equals(id)))
+        .getSingleOrNull();
+    if (local != null) return local.localId;
+    final server = await (_db.select(_db.locations)
+          ..where((location) => location.serverId.equals(id)))
+        .getSingleOrNull();
+    return server?.localId;
   }
 
   Future<String?> _resolveCategoryLocalId(String? id) async {
