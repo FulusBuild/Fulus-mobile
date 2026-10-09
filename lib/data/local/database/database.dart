@@ -229,7 +229,9 @@ class AppDatabase extends _$AppDatabase {
         );
         await customStatement(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode '
-          'ON products(barcode) WHERE deleted_at IS NULL',
+          'ON products(location_id, barcode) '
+          'WHERE deleted_at IS NULL AND barcode IS NOT NULL '
+          'AND location_id IS NOT NULL',
         );
         await customStatement(
           'CREATE INDEX IF NOT EXISTS idx_sale_items_sale_local_id '
