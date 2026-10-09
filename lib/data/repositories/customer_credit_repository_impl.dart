@@ -29,10 +29,10 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
     final session = await (_db.select(_db.sessions)
           ..where((session) => session.id.equals('current')))
         .getSingleOrNull();
-    if (session != null &&
-        (session.activeLocationId == null ||
-            row.locationId != session.activeLocationId)) {
-      throw StateError('Customer credit operations are restricted to the active location.');
+    if (session == null ||
+        session.activeLocationId == null ||
+        row.locationId != session.activeLocationId) {
+      throw StateError('Customer credit operations require the active owner location.');
     }
     return row;
   }
@@ -141,7 +141,7 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
     ])
       ..where(_db.customerLedgerEntries.customerLocalId.equals(customerLocalId))
       ..where(
-        _db.sessions.id.isNull() |
+        _db.sessions.id.equals('current') &
             _db.customers.locationId.equalsExp(_db.sessions.activeLocationId),
       )
       ..orderBy([
