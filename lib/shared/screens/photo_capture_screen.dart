@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/utils/image_compressor.dart';
 import '../widgets/widgets.dart';
 
 enum _CaptureState { checking, ready, saving, preview, unavailable }
@@ -74,12 +75,15 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
       final extension = p.extension(sourcePath).isEmpty ? '.jpg' : p.extension(sourcePath);
       final destinationPath = p.join(photosDirectory.path, '${Ulid().toUuid()}$extension');
       await File(sourcePath).copy(destinationPath);
-      if (!mounted) return destinationPath;
+      // Downscale before the photo is stored or queued for upload so a large
+      // gallery pick can never exceed the cloud bucket's size limit.
+      final stored = (await compressImageFile(File(destinationPath))).path;
+      if (!mounted) return stored;
       setState(() {
-        _previewPath = destinationPath;
+        _previewPath = stored;
         _state = _CaptureState.preview;
       });
-      return destinationPath;
+      return stored;
     } catch (_) {
       if (mounted) setState(() => _state = _CaptureState.ready);
       return null;
