@@ -45,3 +45,30 @@ Products, customers, and employee roster records belong to one location. Switchi
 - Location-scoped cloud reads and writes reject unauthorized location IDs even if a client bypasses UI filters.
 - Historical sales, returns/refunds, credit ledger, stock movements, and audit history remain readable and internally consistent.
 - No money conversion, sync cursor, idempotency, or restore-snapshot invariant is weakened.
+
+
+## PR #211 implementation status (2026-10-09)
+
+### Implemented and verified on the current PR head
+
+- Added location ownership to local and cloud product/customer records while retaining nullable ownership for unresolved legacy records.
+- Added a server-side review table that classifies ambiguous or unassigned historical products/customers without guessing an owner.
+- Added location authorization and immutable-owner guards to catalog/customer mutations, plus transaction-reference guards for sales, stock levels, inventory movements, returns, and customer ledger entries.
+- Scoped product reads, search, customer reads/credit operations, employee roster reads, and return reads/mutations to the active location. Product, sale, stock-movement, and customer-credit mutations fail closed without a valid active location.
+- Preserved durable outbox replay across location switches. Return sync explicitly uses the original queued return, while user-facing return reads remain location-scoped.
+- Scoped employee restore to the assigned location. Legacy shared/unassigned customers referenced by a location's historical sales are represented by masked placeholders; sale-linked ledger history is retained only for the sale's location.
+- Added regression coverage for active-location read/write guards, historical ledger restore isolation, and migration/authorization contracts.
+
+Current-head verification:
+- Fulus Mobile CI passed on the current PR head.
+- Supabase Migration Chain passed a clean schema rebuild and its location authorization, repayment, financial fidelity, employee restore, cloud API authorization, and database security contract tests.
+- The PR's live production sync and multi-device jobs are skipped in pull-request CI; their success must not be inferred from these green local checks.
+
+### Explicit remaining blockers before merge
+
+1. **Legacy ownership review workflow:** the database records ambiguous/unassigned rows, but a complete authorized API/UI workflow for reviewing and resolving those rows is not yet implemented. Do not assign those rows automatically.
+2. **Two-location, two-device convergence proof:** add/run an end-to-end scenario proving that a product/customer created offline in Location A remains owned by A after retry, restart, restore, and another device's sync, and that a Location B actor cannot read or mutate it. Pull-request CI has not run the production multi-device workflow.
+3. **Employee journey:** SQL restore-isolation contracts pass, but the full invitation/claim, sign-in, reinstall/restore, and role-permission journey still needs end-to-end verification.
+4. **Production rollout:** the new migration and Edge Function changes have not been deployed to production from this draft PR. Do not merge or deploy until the remaining acceptance criteria and required runtime evidence are satisfied.
+
+Keep PR #211 as a draft until these blockers are closed and the exact final head has green CI plus the required runtime evidence.
