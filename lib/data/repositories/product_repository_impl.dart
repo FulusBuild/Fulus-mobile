@@ -31,12 +31,14 @@ class ProductRepositoryImpl implements ProductRepository {
   Stream<List<ProductWithStock>> watchProducts({required String locationId}) {
     final query = _db.select(_db.products).join([
       leftOuterJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
-    ])..where(_db.products.locationId.equals(locationId))..where(_db.products.deletedAt.isNull())..where(_db.products.isActive.equals(true));
+      innerJoin(_db.sessions, _db.sessions.id.equals('current')),
+    ])..where(_db.sessions.activeLocationId.equals(locationId))..where(_db.products.locationId.equals(locationId))..where(_db.products.deletedAt.isNull())..where(_db.products.isActive.equals(true));
     return query.watch().map((rows) => rows.map(_mapRow).toList());
   }
 
   @override
   Future<ProductWithStock?> getProductById(String localId, {required String locationId}) async {
+    if (!await _isActiveLocation(locationId)) return null;
     final query = _db.select(_db.products).join([
       leftOuterJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
     ])..where(_db.products.localId.equals(localId))..where(_db.products.locationId.equals(locationId));
@@ -48,12 +50,14 @@ class ProductRepositoryImpl implements ProductRepository {
   Stream<List<ProductWithStock>> watchLowStockProducts({required String locationId}) {
     final query = _db.select(_db.products).join([
       innerJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
-    ])..where(_db.products.locationId.equals(locationId))..where(_db.products.deletedAt.isNull())..where(_db.products.isActive.equals(true))..where(_db.products.tracksStock.equals(true))..where(_db.productStockLevels.currentStock.isSmallerOrEqual(_db.products.lowStockThreshold));
+      innerJoin(_db.sessions, _db.sessions.id.equals('current')),
+    ])..where(_db.sessions.activeLocationId.equals(locationId))..where(_db.products.locationId.equals(locationId))..where(_db.products.deletedAt.isNull())..where(_db.products.isActive.equals(true))..where(_db.products.tracksStock.equals(true))..where(_db.productStockLevels.currentStock.isSmallerOrEqual(_db.products.lowStockThreshold));
     return query.watch().map((rows) => rows.map(_mapRow).toList());
   }
 
   @override
   Future<ProductWithStock?> getProductByBarcode(String barcode, {required String locationId}) async {
+    if (!await _isActiveLocation(locationId)) return null;
     final query = _db.select(_db.products).join([
       leftOuterJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
     ])..where(_db.products.locationId.equals(locationId) & _db.products.barcode.equals(barcode) & _db.products.deletedAt.isNull());
@@ -63,11 +67,19 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<ProductWithStock?> getProductBySku(String sku, {required String locationId}) async {
+    if (!await _isActiveLocation(locationId)) return null;
     final query = _db.select(_db.products).join([
       leftOuterJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
     ])..where(_db.products.locationId.equals(locationId) & _db.products.sku.equals(sku) & _db.products.deletedAt.isNull());
     final row = await query.getSingleOrNull();
     return row == null ? null : _mapRow(row);
+  }
+
+  Future<bool> _isActiveLocation(String locationId) async {
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    return session?.activeLocationId == locationId;
   }
 
   Future<void> _assertProductInActiveLocation(String? productLocationId) async {
