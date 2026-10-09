@@ -18,8 +18,28 @@ void main() {
   late SyncQueue syncQueue;
   late EmployeeRepositoryImpl repository;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.batch((batch) {
+      batch.insertAll(db.locations, [
+        LocationsCompanion.insert(
+          localId: 'location-local-1',
+          serverId: const Value('location-1'),
+          name: 'Location 1',
+          createdAt: DateTime.utc(2026, 9, 30, 10),
+          updatedAt: DateTime.utc(2026, 9, 30, 10),
+          syncStatus: SyncStatus.settled,
+        ),
+        LocationsCompanion.insert(
+          localId: 'location-local-2',
+          serverId: const Value('location-2'),
+          name: 'Location 2',
+          createdAt: DateTime.utc(2026, 9, 30, 10),
+          updatedAt: DateTime.utc(2026, 9, 30, 10),
+          syncStatus: SyncStatus.settled,
+        ),
+      ]);
+    });
     syncQueue = SyncQueue(db);
     repository = EmployeeRepositoryImpl(
       db: db,
@@ -124,6 +144,7 @@ void main() {
     expect(rows.single.cloudUserId, 'cloud-user-1');
     expect(rows.single.fullName, 'Amina Yusuf');
     expect(rows.single.syncStatus, SyncStatus.settled);
+    expect(rows.single.locationId, 'location-local-1');
   });
 
   test('reconcileServerState projects authoritative activation to the linked local login', () async {
