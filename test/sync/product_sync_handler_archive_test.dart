@@ -24,8 +24,13 @@ void main() {
   late MockProductRepository productRepository;
   late ProductSyncHandler handler;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+      localId: 'loc-1', serverId: const Value('server-location-1'),
+      name: 'Main Store', createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1), syncStatus: SyncStatus.settled,
+    ));
     api = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     productRepository = MockProductRepository();
@@ -59,6 +64,7 @@ void main() {
     await db.into(db.products).insert(
       ProductsCompanion.insert(
         localId: 'p-money-boundary',
+        locationId: const Value('loc-1'),
         name: 'Money boundary',
         sku: 'MONEY-BOUNDARY-1',
         costPrice: 12500,
@@ -107,6 +113,7 @@ void main() {
     await db.into(db.products).insert(
       ProductsCompanion.insert(
         localId: 'p-pre-sync',
+        locationId: const Value('loc-1'),
         name: 'Archived before cloud',
         sku: 'ARCHIVE-PRE-1',
         costPrice: 10,
