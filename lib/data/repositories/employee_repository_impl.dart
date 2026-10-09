@@ -327,7 +327,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     if (session == null || session.activeLocationId == null) {
       return _engine.computeStats(const <Employee>[]);
     }
-    query.where((employee) => employee.locationId.equals(session.activeLocationId));
+    query.where((employee) => employee.locationId.equals(session.activeLocationId!));
     final rows = await query.get();
     return _engine.computeStats(rows.map((row) => row.toDomain()).toList());
   }
