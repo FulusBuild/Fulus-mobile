@@ -208,15 +208,9 @@ class Sessions extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Products — mirrors ProductBase + ProductOut, verified directly
-/// against backend/app/schemas/inventory.py. Catalog fields (name, sku,
-/// barcode, pricing) are business-wide; stock is per-location, which is
-/// why current_stock does NOT live on this table at all — see
-/// ProductStockLevels below. Splitting these two concerns into two
-/// tables (rather than one Products table with a location_id, which
-/// would duplicate every catalog field per location) means only the
-/// stock count differs per location, joined in at query time rather
-/// than duplicating the whole product row per location.
+/// Products are owned by one location; stock quantity remains a separate
+/// projection in ProductStockLevels. A nullable locationId is reserved for
+/// legacy records whose ownership cannot be inferred safely during migration.
 /// @DataClassName('ProductRow') — same collision-avoidance reasoning as
 /// Locations above, against domain/entities/product.dart's own Product.
 @DataClassName('ProductRow')
