@@ -119,6 +119,12 @@ with evidence as (
   join public.sales s on s.id = le.sale_id and s.business_id = c.business_id
   join public.locations l on l.id = s.location_id and l.business_id = c.business_id
   where le.sale_id is not null
+), unscoped_ledger as (
+  select distinct c.id as customer_id, c.business_id
+  from public.customers c
+  join public.customer_ledger_entries le
+    on le.customer_id = c.id and le.business_id = c.business_id
+  where le.sale_id is null
 ), candidates as (
   select customer_id, business_id,
          array_agg(distinct location_id order by location_id) as locations
@@ -132,7 +138,11 @@ from candidates
 where c.id = candidates.customer_id
   and c.business_id = candidates.business_id
   and c.location_id is null
-  and cardinality(candidates.locations) = 1;
+  and cardinality(candidates.locations) = 1
+  and not exists (
+    select 1 from unscoped_ledger u
+    where u.customer_id = c.id and u.business_id = c.business_id
+  );
 
 with evidence as (
   select c.id as customer_id, c.business_id, s.location_id
@@ -165,12 +175,16 @@ insert into public.location_ownership_review(
 )
 select c.business_id, 'customer', c.id, coalesce(candidates.locations, '{}'::uuid[]),
        case when cardinality(coalesce(candidates.locations, '{}'::uuid[])) > 1
+                  or unscoped_ledger.customer_id is not null
             then 'ambiguous' else 'unassigned' end,
-       case when cardinality(coalesce(candidates.locations, '{}'::uuid[])) > 1
+       case when unscoped_ledger.customer_id is not null
+            then 'Historical repayment entries have no sale/location reference; ownership requires review'
+            when cardinality(coalesce(candidates.locations, '{}'::uuid[])) > 1
             then 'Historical customer transactions span multiple locations'
             else 'No reliable single-location evidence exists for this legacy customer' end
 from public.customers c
 left join candidates on candidates.customer_id = c.id and candidates.business_id = c.business_id
+left join unscoped_ledger on unscoped_ledger.customer_id = c.id and unscoped_ledger.business_id = c.business_id
 where c.location_id is null
 on conflict (entity_type, entity_id) do nothing;
 
