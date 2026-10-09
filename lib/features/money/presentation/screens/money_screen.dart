@@ -130,7 +130,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.md),
                       FutureBuilder<MoneySummary>(
                         future: _summaryFuture,
                         builder: (context, snapshot) {
@@ -142,7 +142,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                           }
                           if (!snapshot.hasData) {
                             return const FulusDelayedSkeleton(
-                              skeleton: FulusSkeletonBox(height: 118),
+                              skeleton: FulusSkeletonBox(height: 112),
                             );
                           }
                           return _MoneyQuickActions(
@@ -234,22 +234,57 @@ class _BalanceHero extends StatelessWidget {
   final String currencySymbol;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 142,
-    child: Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: const BoxDecoration(color: AppColors.primary),
-      child: Builder(builder: (context) {
-        final foreground = AppColors.onColor(AppColors.primary);
-        return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        Text('Available Balance', textAlign: TextAlign.center, style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700)),
-        const SizedBox(height: AppSpacing.sm),
-        FittedBox(alignment: Alignment.center, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 28, fontWeight: FontWeight.w800))),
-        const SizedBox(height: AppSpacing.xs),
-      ]);
-      }),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final foreground = AppColors.onColor(AppColors.primary);
+    final amount = formatMoney(balance, symbol: currencySymbol);
+    return Semantics(
+      label: 'Available balance, $amount',
+      excludeSemantics: true,
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 112),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+        ),
+        // Content is vertically centred so the card has no dead band at the
+        // bottom, and shares its corner radius with the Money In / Out cards.
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Available Balance',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: foreground.withValues(alpha: 0.85),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            FittedBox(
+              alignment: Alignment.center,
+              fit: BoxFit.scaleDown,
+              child: Text(
+                amount,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 class _BalanceHeroSkeleton extends StatelessWidget {
   const _BalanceHeroSkeleton();
@@ -302,7 +337,7 @@ class _MoneyQuickActions extends StatelessWidget {
     return Row(
       children: [
         for (var i = 0; i < actions.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          if (i > 0) const SizedBox(width: AppSpacing.md),
           Expanded(child: _MoneyActionCell(action: actions[i])),
         ],
       ],
@@ -320,7 +355,7 @@ class _MoneyActionCell extends StatelessWidget {
       semanticsLabel: action.label + ', ' + action.value,
       onPressed: action.onTap,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 128),
+        constraints: const BoxConstraints(minHeight: 112),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: action.color.withValues(alpha: 0.10),
@@ -329,8 +364,8 @@ class _MoneyActionCell extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            FulusArtIcon(action.art, size: AppIconSize.emphasis, semanticLabel: action.label),
-            const Spacer(),
+            FulusArtIcon(action.art, size: AppIconSize.large, semanticLabel: action.label),
+            const SizedBox(height: AppSpacing.md),
             Text(
               action.label,
               style: AppTypography.body.copyWith(

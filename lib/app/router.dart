@@ -807,48 +807,55 @@ class _MoreScreen extends ConsumerWidget {
         permissions.contains(Permission.manageBackup);
     final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
 
-    Widget tileGrid(List<Widget> tiles) {
-      // Flat, edge-to-edge icon-over-label grid. Cells touch with only
-      // hairline dividers between them; there are no section cards or gaps.
-      // Size cells from the available device height so More uses the screen
-      // well on short phones without becoming excessively tall on large ones.
+    // Flat, edge-to-edge icon-over-label grid. Cells touch with only
+    // hairline dividers between them; there are no section cards or gaps.
+    // Rows are sized from the height the body actually has (not the raw
+    // screen height, which ignored the status bar, header, bottom nav and
+    // system bar and left a blank band under the last row). When the rows
+    // cannot fit at their minimum height the grid scrolls instead.
+    Widget tileGrid(List<Widget> tiles, BoxConstraints constraints) {
       final textScale = MediaQuery.textScalerOf(context).scale(1);
-      final screenHeight = MediaQuery.sizeOf(context).height;
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 640 ? 3 : 2;
-          final rowCount = (tiles.length + columns - 1) ~/ columns;
-          final minCellHeight = textScale > 1.3 ? 144.0 : 112.0;
-          final cellHeight = ((screenHeight - 120) / rowCount)
-              .clamp(minCellHeight, 148.0);
-          final rows = <Widget>[
-            for (var i = 0; i < tiles.length; i += columns)
-              SizedBox(
-                height: cellHeight,
-                child: Row(
-                  children: [
-                    for (var c = 0; c < columns; c++)
-                      Expanded(
-                        child: i + c < tiles.length
-                            ? tiles[i + c]
-                            : const SizedBox.shrink(),
-                      ),
-                  ],
+      final columns = constraints.maxWidth >= 640 ? 3 : 2;
+      final rowCount = (tiles.length + columns - 1) ~/ columns;
+      final minCellHeight = textScale > 1.3 ? 144.0 : 112.0;
+      final fits = constraints.hasBoundedHeight &&
+          constraints.maxHeight / rowCount >= minCellHeight;
+
+      Widget buildRow(int start) => Row(
+            children: [
+              for (var c = 0; c < columns; c++)
+                Expanded(
+                  child: start + c < tiles.length
+                      ? tiles[start + c]
+                      : const SizedBox.shrink(),
                 ),
-              ),
-          ];
-          return Column(children: rows);
-        },
+            ],
+          );
+
+      if (fits) {
+        return Column(
+          children: [
+            for (var i = 0; i < tiles.length; i += columns)
+              Expanded(child: buildRow(i)),
+          ],
+        );
+      }
+      return SingleChildScrollView(
+        child: Column(
+          children: [
+            for (var i = 0; i < tiles.length; i += columns)
+              SizedBox(height: minCellHeight, child: buildRow(i)),
+          ],
+        ),
       );
     }
 
     return FulusScreen(
       title: 'More',
       applyPadding: false,
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          tileGrid([
+      body: LayoutBuilder(
+        builder: (context, constraints) => tileGrid(
+          [
             FulusFlatGridCell(
               iconSize: 56,
               icon: FulusIcons.customers,
@@ -928,9 +935,8 @@ class _MoreScreen extends ConsumerWidget {
               label: 'Diagnostics',
               onTap: () => context.goNamed('moreDiagnostics'),
             ),
-          ]),
-        ],
-      ),
+          ], constraints),
+        ),
     );
   }
 }

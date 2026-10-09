@@ -177,7 +177,13 @@ class _PageHeader extends StatelessWidget {
               inset,
               width >= FulusLayout.tabletBreakpoint ? AppSpacing.md : AppSpacing.xs,
             ),
-            child: stackActions
+            // Every header gets the same 56dp bar (48dp touch target + 4dp
+            // padding top/bottom) that Stock gets from its icon buttons, so
+            // title-only screens (Sell, More, ...) are not cramped against
+            // the status bar.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+              child: stackActions
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -257,6 +263,7 @@ class _PageHeader extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
             ),
           ),
         ),
