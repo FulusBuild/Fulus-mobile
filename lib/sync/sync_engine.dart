@@ -140,6 +140,7 @@ class SyncEngine {
         progress = true;
       } on SyncFailure catch (e, st) {
         if (e.kind == SyncErrorKind.dependencyNotReady) {
+          await _recordDependencyDeferral(item, e.message);
           deferred.add(item);
           continue;
         }
@@ -174,6 +175,7 @@ class SyncEngine {
       } catch (e, st) {
         final classified = SyncFailure.classify(e);
         if (classified.kind == SyncErrorKind.dependencyNotReady) {
+          await _recordDependencyDeferral(item, classified.message);
           deferred.add(item);
           continue;
         }
@@ -254,6 +256,20 @@ class SyncEngine {
         createdAt: DateTime.now(),
       ),
     );
+  }
+
+  /// Dependency deferrals do not consume retry attempts, but keeping their
+  /// reason on the durable queue row makes a pending item diagnosable. Preserve
+  /// an existing failure (and especially the [BLOCKED] marker) rather than
+  /// replacing more useful failure evidence with a transient dependency wait.
+  Future<void> _recordDependencyDeferral(
+    SyncQueueItem item,
+    String message,
+  ) async {
+    await (_db.update(_db.syncQueueItems)
+          ..where((q) => q.id.equals(item.id))
+          ..where((q) => q.lastError.isNull()))
+        .write(SyncQueueItemsCompanion(lastError: Value(message)));
   }
 
   Future<void> _removeFromQueue(String id) async {
