@@ -16,6 +16,7 @@ void main() {
   Future<void> seedProduct({String? photoPath, String? serverId}) async {
     await db.into(db.products).insert(ProductsCompanion.insert(
           localId: 'p1',
+          locationId: const Value('loc-1'),
           serverId: serverId == null ? const Value.absent() : Value(serverId),
           name: 'Product p1',
           sku: 'SKU-p1',
@@ -33,8 +34,13 @@ void main() {
 
   Future<List<SyncQueueItem>> queue() => db.select(db.syncQueueItems).get();
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+      localId: 'loc-1', name: 'Main Store',
+      createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
+      syncStatus: SyncStatus.settled,
+    ));
     repository = ProductRepositoryImpl(db: db, syncQueue: SyncQueue(db));
   });
 
