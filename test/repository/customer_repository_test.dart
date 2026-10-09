@@ -20,7 +20,7 @@ void main() {
       name: 'Test Location',
       createdAt: DateTime.utc(2026, 1, 1),
       updatedAt: DateTime.utc(2026, 1, 1),
-      syncStatus: const Value(SyncStatus.settled),
+      syncStatus: SyncStatus.settled,
     ));
     syncQueue = SyncQueue(db);
     repository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
@@ -106,14 +106,14 @@ void main() {
             name: 'Location A',
             createdAt: now,
             updatedAt: now,
-            syncStatus: const Value(SyncStatus.settled),
+            syncStatus: SyncStatus.settled,
           ),
           LocationsCompanion.insert(
             localId: 'location-b',
             name: 'Location B',
             createdAt: now,
             updatedAt: now,
-            syncStatus: const Value(SyncStatus.settled),
+            syncStatus: SyncStatus.settled,
           ),
         ]);
       });
@@ -132,7 +132,7 @@ void main() {
             name: 'Customer A',
             createdAt: now,
             updatedAt: now,
-            syncStatus: const Value(SyncStatus.settled),
+            syncStatus: SyncStatus.settled,
           ),
           CustomersCompanion.insert(
             localId: 'customer-b',
