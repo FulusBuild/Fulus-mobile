@@ -63,6 +63,7 @@ String syncEntityLabel(String entityType) => switch (entityType) {
       'expense_category' => 'expense category',
       'expense' => 'expense',
       'income_record' => 'income',
+      'product_photo' => 'product photo',
       'cash_drawer_shift' => 'cash drawer',
       _ => 'business data',
     };
