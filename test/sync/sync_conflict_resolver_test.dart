@@ -12,6 +12,7 @@ import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/sync/sync_conflict_resolver.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
