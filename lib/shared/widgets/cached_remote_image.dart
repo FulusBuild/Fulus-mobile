@@ -27,6 +27,9 @@ class RemoteImageDiskCache {
   final Map<String, Future<File?>> _inFlight = {};
   Directory? _directory;
 
+  static const int _maxCacheBytes = 100 * 1024 * 1024;
+  static const int _maxCachedFileBytes = 10 * 1024 * 1024;
+
   Future<Directory> _cacheDirectory() async {
     final existing = _directory;
     if (existing != null) return existing;
@@ -45,7 +48,10 @@ class RemoteImageDiskCache {
   Future<File?> cachedFile(String url) async {
     try {
       final file = await _fileFor(url);
-      if (await file.exists() && await file.length() > 0) return file;
+      if (await file.exists() && await file.length() > 0) {
+        await file.setLastModified(DateTime.now());
+        return file;
+      }
     } catch (_) {}
     return null;
   }
@@ -62,6 +68,36 @@ class RemoteImageDiskCache {
     );
   }
 
+  Future<void> _enforceCacheLimit({required String protectedPath}) async {
+    try {
+      final dir = await _cacheDirectory();
+      final files = <File>[];
+      await for (final entry in dir.list(followLinks: false)) {
+        if (entry is File && !entry.path.endsWith('.tmp')) files.add(entry);
+      }
+      final sized = <({File file, int bytes, DateTime modified})>[];
+      var total = 0;
+      for (final file in files) {
+        final stat = await file.stat();
+        total += stat.size;
+        sized.add((file: file, bytes: stat.size, modified: stat.modified));
+      }
+      sized.sort((a, b) => a.modified.compareTo(b.modified));
+      for (final item in sized) {
+        if (total <= _maxCacheBytes) break;
+        if (item.file.path == protectedPath) continue;
+        try {
+          await item.file.delete();
+          total -= item.bytes;
+        } catch (_) {
+          // Cache eviction is best-effort; a later write can retry it.
+        }
+      }
+    } catch (_) {
+      // A cache maintenance failure must never break product rendering or sync.
+    }
+  }
+
   Future<File?> _download(String url) async {
     try {
       final cached = await cachedFile(url);
@@ -75,6 +111,7 @@ class RemoteImageDiskCache {
       if (response.statusCode != 200 ||
           bytes == null ||
           bytes.isEmpty ||
+          bytes.length > _maxCachedFileBytes ||
           (contentType.isNotEmpty && !contentType.startsWith('image/'))) {
         return null;
       }
@@ -82,6 +119,7 @@ class RemoteImageDiskCache {
       final temp = File('${file.path}.tmp');
       await temp.writeAsBytes(bytes, flush: true);
       await temp.rename(file.path);
+      await _enforceCacheLimit(protectedPath: file.path);
       return file;
     } catch (_) {
       return null;
