@@ -784,7 +784,8 @@ begin
     E'    perform public.require_location_access(target_business_id, target_location_id);';
   v_patched := replace(v_patched, v_old, v_new);
 
-  if v_patched = v_definition then
+  if v_patched = v_definition
+     or position('if employee_row.location_id is not null then' in v_patched) = 0 then
     raise exception 'employee location ownership patch did not apply';
   end if;
   if position('Employee location_id is required' in v_patched) = 0 then
