@@ -394,6 +394,12 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
               ..where((e) => e.localId.equals(clientReference)))
             .getSingleOrNull());
     final localId = existing?.localId ?? Ulid().toString();
+    final resolvedIncomingLocationId = await _resolveLocationLocalId(locationId);
+    if (locationId != null && resolvedIncomingLocationId == null) {
+      throw StateError('Employee owner location is not available locally yet.');
+    }
+    final effectiveLocationId =
+        locationId == null ? existing?.locationId : resolvedIncomingLocationId;
     await _db.transaction(() async {
       if (existing == null) {
         await _db.into(_db.employees).insert(
@@ -410,7 +416,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
             phone: Value(phone),
             email: Value(email),
             dateHired: Value(dateHired),
-            locationId: Value(locationId),
+            locationId: Value(effectiveLocationId),
             isActive: Value(isActive),
             createdAt: Value(createdAt),
             updatedAt: Value(updatedAt),
@@ -446,6 +452,18 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         );
       }
     });
+  }
+
+  Future<String?> _resolveLocationLocalId(String? id) async {
+    if (id == null || id.isEmpty) return null;
+    final local = await (_db.select(_db.locations)
+          ..where((location) => location.localId.equals(id)))
+        .getSingleOrNull();
+    if (local != null) return local.localId;
+    final server = await (_db.select(_db.locations)
+          ..where((location) => location.serverId.equals(id)))
+        .getSingleOrNull();
+    return server?.localId;
   }
 
   @override
