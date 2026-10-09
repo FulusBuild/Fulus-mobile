@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
@@ -436,6 +436,9 @@ void main() {
       SuppliersCompanion.insert(
         localId: 'existing-supplier',
         name: 'Existing supplier',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        syncStatus: SyncStatus.settled,
         outstandingBalance: const Value(76543),
       ),
     );
