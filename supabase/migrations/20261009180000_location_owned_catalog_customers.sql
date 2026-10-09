@@ -162,6 +162,12 @@ with evidence as (
   join public.sales s on s.id = le.sale_id and s.business_id = c.business_id
   join public.locations l on l.id = s.location_id and l.business_id = c.business_id
   where le.sale_id is not null
+), unscoped_ledger as (
+  select distinct c.id as customer_id, c.business_id
+  from public.customers c
+  join public.customer_ledger_entries le
+    on le.customer_id = c.id and le.business_id = c.business_id
+  where le.sale_id is null
 ), candidates as (
   select customer_id, business_id,
          array_agg(distinct location_id order by location_id) as locations
