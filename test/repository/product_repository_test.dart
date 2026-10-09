@@ -510,6 +510,22 @@ void main() {
   });
 
   group('createProduct', () {
+    test('rejects creation when there is no active session', () async {
+      await expectLater(
+        repository.createProduct(const ProductDraft(
+          name: 'Unscoped Product',
+          sku: 'UNSCOPED-1',
+          costPrice: 100,
+          sellingPrice: 200,
+          locationId: locationId,
+        )),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await db.select(db.products).get(), isEmpty);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
     test('writes the product locally and returns immediately, without awaiting the network', () async {
       await seedLocation();
 
