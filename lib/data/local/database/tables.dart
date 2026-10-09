@@ -221,6 +221,9 @@ class Sessions extends Table {
 /// Locations above, against domain/entities/product.dart's own Product.
 @DataClassName('ProductRow')
 class Products extends Table with SyncableColumns {
+  /// Owner location for this catalog entry. Nullable only for legacy rows
+  /// whose ownership cannot be inferred safely during migration.
+  TextColumn get locationId => text().nullable().references(Locations, #localId)();
   TextColumn get name => text().withLength(min: 1, max: 150)();
   TextColumn get sku => text().withLength(min: 1, max: 64)();
   TextColumn get barcode => text().nullable()();
@@ -284,6 +287,9 @@ class ProductStockLevels extends Table {
 /// Customer.
 @DataClassName('CustomerRow')
 class Customers extends Table with SyncableColumns {
+  /// Owner location for this customer. Legacy rows remain null until an
+  /// explicit, evidence-backed reconciliation assigns their ownership.
+  TextColumn get locationId => text().nullable().references(Locations, #localId)();
   TextColumn get name => text().withLength(min: 1, max: 150)();
   TextColumn get phone => text().nullable()();
   TextColumn get email => text().nullable()();
