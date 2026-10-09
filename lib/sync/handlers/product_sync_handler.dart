@@ -73,12 +73,24 @@ class ProductSyncHandler implements SyncHandler {
       localId: product.supplierId,
       entityType: 'supplier',
     );
-    String? stockLocationId;
-    if (stock != null) {
-      stockLocationId = await _resolveLocationServerId(locationLocalId: stock.locationLocalId);
-      if (stockLocationId == null || stockLocationId.isEmpty) {
-        throw StateError('Product initial stock location has no server identity yet.');
-      }
+    final ownerLocationLocalId = product.locationId ?? stock?.locationLocalId;
+    if (ownerLocationLocalId == null || ownerLocationLocalId.isEmpty) {
+      throw StateError(
+        'Product $localId has no safely resolved owner location. '
+        'Reconcile legacy ownership before syncing this catalog row.',
+      );
+    }
+    if (stock != null && stock.locationLocalId != ownerLocationLocalId) {
+      throw StateError(
+        'Product $localId initial stock belongs to a different location '
+        'than its catalog owner.',
+      );
+    }
+    final ownerLocationServerId = await _resolveLocationServerId(
+      locationLocalId: ownerLocationLocalId,
+    );
+    if (ownerLocationServerId == null || ownerLocationServerId.isEmpty) {
+      throw StateError('Product owner location has no server identity yet.');
     }
     final payload = <String, dynamic>{
       'local_id': localId,
@@ -95,7 +107,7 @@ class ProductSyncHandler implements SyncHandler {
       'initial_stock': stock?.currentStock ?? 0,
       // The server seeds this exact location atomically with product creation.
       // Otherwise the next pull can legitimately overwrite local-first stock to 0.
-      'location_id': stockLocationId,
+      'location_id': ownerLocationServerId,
     };
     final createOperationId = operationId;
     final result = await _fulusSyncApi.submitOperation(
