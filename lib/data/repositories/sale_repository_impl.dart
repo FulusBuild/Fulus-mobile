@@ -63,10 +63,10 @@ class SaleRepositoryImpl implements SaleRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
-    if (session != null &&
-        (session.activeLocationId == null ||
-            session.activeLocationId != draft.locationId)) {
-      throw StateError('Sale location must match the active location.');
+    if (session == null ||
+        session.activeLocationId == null ||
+        session.activeLocationId != draft.locationId) {
+      throw StateError('A valid active location is required for a sale.');
     }
 
     for (final item in draft.items) {
@@ -78,12 +78,11 @@ class SaleRepositoryImpl implements SaleRepository {
       if (product == null) {
         throw StateError('Sale references an unknown product $productLocalId.');
       }
-      if (product.locationId != null &&
-          product.locationId != draft.locationId) {
-        throw StateError('Sale contains a product owned by another location.');
-      }
-      if (session != null && product.locationId == null) {
+      if (product.locationId == null) {
         throw StateError('Unassigned legacy products cannot be sold until reconciled.');
+      }
+      if (product.locationId != draft.locationId) {
+        throw StateError('Sale contains a product owned by another location.');
       }
     }
 
@@ -95,12 +94,11 @@ class SaleRepositoryImpl implements SaleRepository {
       if (customer == null) {
         throw StateError('Sale references an unknown customer $customerLocalId.');
       }
-      if (customer.locationId != null &&
-          customer.locationId != draft.locationId) {
-        throw StateError('Sale contains a customer owned by another location.');
-      }
-      if (session != null && customer.locationId == null) {
+      if (customer.locationId == null) {
         throw StateError('Unassigned legacy customers cannot be used until reconciled.');
+      }
+      if (customer.locationId != draft.locationId) {
+        throw StateError('Sale contains a customer owned by another location.');
       }
     }
   }
