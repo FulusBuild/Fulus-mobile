@@ -55,7 +55,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
       leftOuterJoin(_db.sessions, _db.sessions.id.equals('current')),
     ])
       ..where(
-        _db.sessions.id.isNull() |
+        _db.sessions.id.equals('current') &
             _db.customers.locationId.equalsExp(_db.sessions.activeLocationId),
       )
       ..where(
@@ -84,9 +84,9 @@ class CustomerRepositoryImpl implements CustomerRepository {
       final session = await (_db.select(_db.sessions)
             ..where((session) => session.id.equals('current')))
           .getSingleOrNull();
-      if (session != null &&
-          (session.activeLocationId == null ||
-              row.locationId != session.activeLocationId)) {
+      if (session == null ||
+          session.activeLocationId == null ||
+          row.locationId != session.activeLocationId) {
         return null;
       }
     }
