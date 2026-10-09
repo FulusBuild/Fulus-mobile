@@ -71,6 +71,7 @@ void main() {
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             serverId: const Value('p1'),
             name: 'Product p1',
             sku: 'SKU-p1',
@@ -101,6 +102,7 @@ void main() {
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
+            locationId: const Value(locationId),
             sku: 'SKU-p1', costPrice: 500, sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.pending,
@@ -131,6 +133,7 @@ void main() {
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
+            locationId: const Value(locationId),
             sku: 'SKU-p1', costPrice: 500, sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -170,6 +173,7 @@ void main() {
     test('watchProducts joins in currentStock for the given location', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
         localId: 'p1',
+            locationId: const Value(locationId),
         serverId: const Value('p1'),
         name: 'Product p1',
         sku: 'SKU-p1',
@@ -197,6 +201,7 @@ void main() {
     test('watchProducts treats a product with no stock-level row as zero', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Product p1',
             sku: 'SKU-p1',
             costPrice: 500,
@@ -214,6 +219,7 @@ void main() {
     test('watchProducts excludes inactive products', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Discontinued',
             sku: 'SKU-p1',
             costPrice: 500,
@@ -232,6 +238,7 @@ void main() {
     test('getProductById finds a product even if inactive', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Discontinued',
             sku: 'SKU-p1',
             costPrice: 500,
@@ -253,6 +260,7 @@ void main() {
         batch.insertAll(db.products, [
         ProductsCompanion.insert(
           localId: 'low',
+            locationId: const Value(locationId),
           serverId: const Value('low'),
           name: 'Low',
           sku: 'SKU-low',
@@ -265,6 +273,7 @@ void main() {
         ),
         ProductsCompanion.insert(
           localId: 'healthy',
+            locationId: const Value(locationId),
           serverId: const Value('healthy'),
           name: 'Healthy',
           sku: 'SKU-healthy',
@@ -307,6 +316,7 @@ void main() {
       // comment on why this is an inner join rather than a left join.
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Never stocked here',
             sku: 'SKU-p1',
             costPrice: 500,
@@ -324,6 +334,7 @@ void main() {
     test('getProductByBarcode finds a match by barcode alone', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Coca-Cola 50cl',
             sku: 'SKU-p1',
             barcode: const Value('6001234567890'),
@@ -348,6 +359,7 @@ void main() {
     test('getProductBySku finds a match by SKU alone', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Coca-Cola 50cl',
             sku: 'COKE-50CL',
             costPrice: 500,
@@ -528,6 +540,7 @@ void main() {
       await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             serverId: const Value('p1'),
             name: 'Original Name',
             sku: 'SKU-p1',
@@ -550,6 +563,7 @@ void main() {
       await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             serverId: const Value('p1'),
             name: 'Original Name',
             sku: 'SKU-p1',
@@ -580,6 +594,7 @@ void main() {
         await seedLocation();
         await db.into(db.products).insert(ProductsCompanion.insert(
               localId: 'p1',
+            locationId: const Value(locationId),
               serverId: const Value('p1'),
               name: 'Original Name',
               sku: 'SKU-p1',
@@ -657,6 +672,7 @@ void main() {
     test('does not settle when the operation identity is already missing', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'New Product',
             sku: 'NEW-1',
             costPrice: 300,
@@ -680,6 +696,7 @@ void main() {
     test('keeps the row pending when a newer mutation is queued', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'New Product',
             sku: 'NEW-1',
             costPrice: 300,
@@ -724,6 +741,7 @@ void main() {
     test('sets serverId and syncStatus on the local row', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'New Product',
             sku: 'NEW-1',
             costPrice: 300,
@@ -745,6 +763,7 @@ void main() {
       await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
         localId: id,
+            locationId: const Value(locationId),
         name: 'Product $id',
         sku: sku,
         barcode: barcode == null ? const Value.absent() : Value(barcode),
