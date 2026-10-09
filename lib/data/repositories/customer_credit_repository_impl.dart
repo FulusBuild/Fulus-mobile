@@ -156,25 +156,33 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   }
 
   @override
-  Future<List<CustomerLedgerEntry>> getRepaymentsForPeriod({required DateTime start, required DateTime end}) async {
+  Future<List<CustomerLedgerEntry>> getRepaymentsForPeriod({
+    required DateTime start,
+    required DateTime end,
+    String? locationId,
+  }) async {
     final startOfDay = DateTime(start.year, start.month, start.day);
     final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    var effectiveLocationId = locationId;
+    if (effectiveLocationId == null) {
+      final session = await (_db.select(_db.sessions)
+            ..where((row) => row.id.equals('current')))
+          .getSingleOrNull();
+      effectiveLocationId = session?.activeLocationId;
+    }
+    if (effectiveLocationId == null) return const <CustomerLedgerEntry>[];
+
     final query = _db.select(_db.customerLedgerEntries).join([
       innerJoin(
         _db.customers,
         _db.customers.localId.equalsExp(_db.customerLedgerEntries.customerLocalId),
       ),
-      leftOuterJoin(_db.sessions, _db.sessions.id.equals('current')),
     ])
       ..where(
         _db.customerLedgerEntries.entryType.equals('repayment') &
             _db.customerLedgerEntries.createdAt.isBiggerOrEqualValue(startOfDay) &
-            _db.customerLedgerEntries.createdAt.isSmallerThanValue(endExclusive),
-      )
-      ..where(
-        _db.sessions.id.equals('current') &
-            _db.sessions.activeLocationId.isNotNull() &
-            _db.customers.locationId.equalsExp(_db.sessions.activeLocationId),
+            _db.customerLedgerEntries.createdAt.isSmallerThanValue(endExclusive) &
+            _db.customers.locationId.equals(effectiveLocationId),
       )
       ..orderBy([OrderingTerm.desc(_db.customerLedgerEntries.createdAt)]);
     final rows = await query.get();
