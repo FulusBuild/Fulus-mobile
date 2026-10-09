@@ -81,6 +81,16 @@ void main() {
     expect(items.where((q) => q.entityType == 'product' && q.operation == 'update'), hasLength(1));
   });
 
+  test('setLocalOverrides clearPhoto queues a cloud update and cancels photo upload', () async {
+    await seedProduct(photoPath: cloudUrl, serverId: 'server-1');
+    await repository.setLocalOverrides(productLocalId: 'p1', clearPhoto: true);
+
+    expect((await product()).photoPath, isNull);
+    final items = await queue();
+    expect(items.where((q) => q.entityType == 'product_photo'), isEmpty);
+    expect(items.where((q) => q.entityType == 'product' && q.operation == 'update'), hasLength(1));
+  });
+
   test('a null photoPath still means "leave the photo unchanged"', () async {
     await seedProduct(photoPath: cloudUrl, serverId: 'server-1');
     await repository.updateProduct(localId: 'p1', name: 'Renamed');
