@@ -669,6 +669,34 @@ void main() {
   });
 
   group('updateProduct', () {
+    test('rejects mutation when the active session is missing', () async {
+      await seedLocation();
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: 'p1',
+        locationId: const Value(locationId),
+        name: 'Owned Product',
+        sku: 'SKU-p1',
+        costPrice: 500,
+        sellingPrice: 1000,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await (db.delete(db.sessions)..where((row) => row.id.equals('current'))).go();
+
+      await expectLater(
+        repository.updateProduct(localId: 'p1', name: 'Unauthorized Change'),
+        throwsA(isA<StateError>()),
+      );
+
+      final row = await (db.select(db.products)
+            ..where((p) => p.localId.equals('p1')))
+          .getSingle();
+      expect(row.name, 'Owned Product');
+      expect(row.syncStatus, SyncStatus.settled);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
     test('changes only the fields passed, leaving the rest untouched', () async {
       await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
