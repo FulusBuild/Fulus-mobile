@@ -256,6 +256,11 @@ class ProductRepositoryImpl implements ProductRepository {
     await _db.transaction(() async {
       await (_db.update(_db.products)..where((p) => p.localId.equals(productLocalId))).write(ProductsCompanion(tracksStock: tracksStock == null ? const Value.absent() : Value(tracksStock), unit: unit == null ? const Value.absent() : Value(unit), photoPath: clearPhoto ? const Value<String?>(null) : (photoPath == null ? const Value.absent() : Value(photoPath)), updatedAt: Value(DateTime.now())));
       await _syncPhotoTask(productLocalId, photoPath: photoPath, clearPhoto: clearPhoto);
+      if (clearPhoto) {
+        // Clearing a local photo is also a cloud mutation: without this update,
+        // canonical reconciliation could restore the previous remote URL.
+        await _syncQueue.enqueue(SyncTask.updateProduct(productLocalId));
+      }
     });
   }
 
