@@ -280,9 +280,24 @@ void main() {
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: 'prod-b',
+        locationId: const Value('loc-2'),
+        name: 'Other Store Product',
+        sku: 'CAB-USBC-B',
+        costPrice: moneyFromMajor(500),
+        sellingPrice: moneyFromMajor(1200),
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value('loc-2')));
       await repository.recordStockIn(
-        const StockInDraft(productLocalId: productLocalId, locationId: 'loc-2', quantity: 10),
+        const StockInDraft(productLocalId: 'prod-b', locationId: 'loc-2', quantity: 10),
       );
+      await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value(locationId)));
 
       final emitted = await repository.watchMovementsForLocation(locationId).first;
 
