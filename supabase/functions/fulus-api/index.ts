@@ -132,8 +132,9 @@ Deno.serve(async req => {
       "employee",
       "product",
       "customer",
+      "customer_ledger",
     ]);
-    const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>) => {
+    const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>, customerLocationByCustomerId: Map<string, string>) => {
       if (entityType === "location") {
         return accessibleLocationIds.has(entityId);
       }
@@ -159,6 +160,11 @@ Deno.serve(async req => {
       if (entityType === "return") {
         const saleId = returnSaleIdByReturnId.get(entityId);
         const locationId = saleId ? saleLocationBySaleId.get(saleId) : undefined;
+        return locationId != null && accessibleLocationIds.has(locationId);
+      }
+      if (entityType === "customer_ledger") {
+        const customerId = typeof row.customer_id === "string" ? row.customer_id : null;
+        const locationId = customerId ? customerLocationByCustomerId.get(customerId) : undefined;
         return locationId != null && accessibleLocationIds.has(locationId);
       }
       return false;
@@ -190,8 +196,18 @@ Deno.serve(async req => {
         .filter(change => String(change.entity_type ?? "") === "return")
         .map(change => String(change.entity_id))
         .filter(Boolean))];
+      const customerIds = [...new Set(batch
+        .filter(change => String(change.entity_type ?? "") === "customer_ledger")
+        .map(change => {
+          const payload = change.payload && typeof change.payload === "object"
+            ? change.payload as Record<string, unknown>
+            : null;
+          return typeof payload?.customer_id === "string" ? payload.customer_id : "";
+        })
+        .filter(Boolean))];
       const saleLocationBySaleId = new Map<string, string>();
       const returnSaleIdByReturnId = new Map<string, string>();
+      const customerLocationByCustomerId = new Map<string, string>();
 
       if (saleIds.length > 0) {
         const { data: sales, error: salesError } = await serviceDb
@@ -217,10 +233,24 @@ Deno.serve(async req => {
         }
       }
 
+      if (customerIds.length > 0) {
+        const { data: customers, error: customersError } = await serviceDb
+          .from("customers")
+          .select("id,location_id")
+          .eq("business_id", bid)
+          .in("id", customerIds);
+        if (customersError) return out({ error: { code: "SYNC_LOCATION_LOOKUP_FAILED", message: "Unable to resolve customer locations for ledger change feed" } }, 500);
+        for (const customer of customers ?? []) {
+          if (customer.location_id != null) {
+            customerLocationByCustomerId.set(String(customer.id), String(customer.location_id));
+          }
+        }
+      }
+
       for (const change of batch) {
         scanCursor = Number(change.sequence);
         const entityType = String(change.entity_type ?? "");
-        if (!locationScopedEntityTypes.has(entityType) || hasLocationAccess(entityType, String(change.entity_id), change.payload, saleLocationBySaleId, returnSaleIdByReturnId)) {
+        if (!locationScopedEntityTypes.has(entityType) || hasLocationAccess(entityType, String(change.entity_id), change.payload, saleLocationBySaleId, returnSaleIdByReturnId, customerLocationByCustomerId)) {
           rows.push(change);
           if (rows.length >= limit) break;
         }
