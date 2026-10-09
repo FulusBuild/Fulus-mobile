@@ -4,7 +4,7 @@ import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
