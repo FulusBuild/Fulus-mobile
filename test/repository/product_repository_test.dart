@@ -231,6 +231,50 @@ void main() {
       );
     });
 
+    test('SKU and barcode uniqueness is per owner location', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+        localId: 'loc-b',
+        name: 'Second Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: const Value(SyncStatus.settled),
+      ));
+      await db.batch((batch) {
+        batch.insertAll(db.products, [
+          ProductsCompanion.insert(
+            localId: 'same-sku-a',
+            locationId: const Value(locationId),
+            name: 'Same SKU A',
+            sku: 'SHARED-SKU',
+            barcode: const Value('SHARED-BARCODE'),
+            costPrice: 100,
+            sellingPrice: 200,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: const Value(SyncStatus.settled),
+          ),
+          ProductsCompanion.insert(
+            localId: 'same-sku-b',
+            locationId: const Value('loc-b'),
+            name: 'Same SKU B',
+            sku: 'SHARED-SKU',
+            barcode: const Value('SHARED-BARCODE'),
+            costPrice: 100,
+            sellingPrice: 200,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: const Value(SyncStatus.settled),
+          ),
+        ]);
+      });
+
+      final rows = await (db.select(db.products)
+            ..where((product) => product.sku.equals('SHARED-SKU')))
+          .get();
+      expect(rows, hasLength(2));
+      expect(rows.map((row) => row.locationId).toSet(), {locationId, 'loc-b'});
+    });
+
     test('watchProducts joins in currentStock for the given location', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
         localId: 'p1',
