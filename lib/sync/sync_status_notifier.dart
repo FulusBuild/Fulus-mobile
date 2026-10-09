@@ -178,7 +178,7 @@ class SyncStatusNotifier {
   }
 
   static String _boundedDiagnosticText(String? value) {
-    final normalized = (value ?? '').replaceAll(RegExp(r'\\s+'), ' ').trim();
+    final normalized = (value ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
     if (normalized.isEmpty) return '';
     return normalized.length <= 160 ? normalized : normalized.substring(0, 160);
   }
