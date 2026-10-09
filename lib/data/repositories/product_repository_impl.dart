@@ -86,14 +86,13 @@ class ProductRepositoryImpl implements ProductRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
+    if (session == null || session.activeLocationId == null) {
+      return <String>{};
+    }
     final query = _db.selectOnly(_db.products)
       ..addColumns([_db.products.sku])
-      ..where(_db.products.deletedAt.isNull());
-    if (session != null) {
-      final locationId = session.activeLocationId;
-      if (locationId == null) return <String>{};
-      query.where(_db.products.locationId.equals(locationId));
-    }
+      ..where(_db.products.deletedAt.isNull() &
+          _db.products.locationId.equals(session.activeLocationId));
     final rows = await query.get();
     return rows.map((row) => row.read(_db.products.sku)!).toSet();
   }
@@ -103,14 +102,14 @@ class ProductRepositoryImpl implements ProductRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
+    if (session == null || session.activeLocationId == null) {
+      return <String>{};
+    }
     final query = _db.selectOnly(_db.products)
       ..addColumns([_db.products.barcode])
-      ..where(_db.products.deletedAt.isNull() & _db.products.barcode.isNotNull());
-    if (session != null) {
-      final locationId = session.activeLocationId;
-      if (locationId == null) return <String>{};
-      query.where(_db.products.locationId.equals(locationId));
-    }
+      ..where(_db.products.deletedAt.isNull() &
+          _db.products.barcode.isNotNull() &
+          _db.products.locationId.equals(session.activeLocationId));
     final rows = await query.get();
     return rows.map((row) => row.read(_db.products.barcode)!).toSet();
   }
