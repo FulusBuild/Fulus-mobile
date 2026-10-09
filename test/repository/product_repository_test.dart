@@ -2,6 +2,7 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/product.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
@@ -15,13 +16,43 @@ void main() {
   const locationId = 'loc-1';
 
   Future<void> seedLocation() async {
-    await db.into(db.locations).insert(LocationsCompanion.insert(
-      localId: locationId,
-      name: 'Main Store',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-      syncStatus: SyncStatus.settled,
-    ));
+    final existingLocation = await (db.select(db.locations)
+          ..where((location) => location.localId.equals(locationId)))
+        .getSingleOrNull();
+    if (existingLocation == null) {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+        localId: locationId,
+        name: 'Main Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+    }
+    final existingUser = await (db.select(db.users)
+          ..where((user) => user.localId.equals('owner-user')))
+        .getSingleOrNull();
+    if (existingUser == null) {
+      await db.into(db.users).insert(UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ));
+    }
+    final session = await (db.select(db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session == null) {
+      await db.into(db.sessions).insert(SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value(locationId),
+      ));
+    } else {
+      await (db.update(db.sessions)..where((row) => row.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value(locationId)));
+    }
   }
 
   setUp(() {
