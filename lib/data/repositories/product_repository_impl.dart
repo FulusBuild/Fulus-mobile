@@ -74,10 +74,11 @@ class ProductRepositoryImpl implements ProductRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
-    if (session != null &&
-        (session.activeLocationId == null ||
-            productLocationId != session.activeLocationId)) {
-      throw StateError('Product is outside the active location.');
+    if (session == null ||
+        session.activeLocationId == null ||
+        productLocationId == null ||
+        productLocationId != session.activeLocationId) {
+      throw StateError('Product mutation requires verified ownership in the active location.');
     }
   }
 
