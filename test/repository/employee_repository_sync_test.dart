@@ -44,6 +44,24 @@ void main() {
         updatedAt: now,
       ),
     );
+    await db.batch((batch) {
+      batch.insertAll(db.locations, [
+        LocationsCompanion.insert(
+          localId: 'location-a',
+          name: 'Location A',
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+        LocationsCompanion.insert(
+          localId: 'location-b',
+          name: 'Location B',
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+      ]);
+    });
     await db.into(db.sessions).insert(
       SessionsCompanion.insert(
         id: 'current',
