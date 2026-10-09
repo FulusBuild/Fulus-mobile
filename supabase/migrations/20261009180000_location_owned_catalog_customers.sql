@@ -686,6 +686,40 @@ for update using (
   and (is_business_admin(business_id) or is_location_member(location_id))
 );
 
+
+drop policy if exists product_stock_levels_select_member on public.product_stock_levels;
+create policy product_stock_levels_select_member on public.product_stock_levels
+for select using (
+  exists (
+    select 1 from public.products p
+    where p.id = product_stock_levels.product_id
+      and has_permission(p.business_id, 'inventory.read')
+      and (
+        is_business_admin(p.business_id)
+        or (
+          p.location_id is not null
+          and p.location_id = product_stock_levels.location_id
+          and is_location_member(p.location_id)
+        )
+      )
+  )
+);
+
+drop policy if exists ledger_read on public.customer_ledger_entries;
+create policy ledger_read on public.customer_ledger_entries
+for select using (
+  has_permission(business_id, 'customers.read')
+  and exists (
+    select 1 from public.customers c
+    where c.id = customer_ledger_entries.customer_id
+      and c.business_id = customer_ledger_entries.business_id
+      and (
+        is_business_admin(c.business_id)
+        or (c.location_id is not null and is_location_member(c.location_id))
+      )
+  )
+);
+
 drop policy if exists customers_read on public.customers;
 create policy customers_read on public.customers
 for select using (
