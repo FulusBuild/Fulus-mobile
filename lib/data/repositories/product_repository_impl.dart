@@ -251,7 +251,10 @@ class ProductRepositoryImpl implements ProductRepository {
       throw StateError('Products can only be created in the active location.');
     }
     final existingSku = await (_db.select(_db.products)
-          ..where((p) => p.sku.equals(draft.sku) &
+          ..where((p) => customExpression<bool>(
+                'lower(sku) = ?',
+                variables: [Variable(draft.sku.toLowerCase())],
+              ) &
               p.locationId.equals(draft.locationId) &
               p.deletedAt.isNull()))
         .getSingleOrNull();
@@ -282,7 +285,13 @@ class ProductRepositoryImpl implements ProductRepository {
     if (current == null) throw StateError('Product $localId does not exist.');
     await _assertProductInActiveLocation(current.locationId);
     if (sku != null) {
-      final duplicate = await (_db.select(_db.products)..where((p) => p.sku.equals(sku) & p.locationId.equals(current.locationId) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
+      final duplicate = await (_db.select(_db.products)..where((p) => customExpression<bool>(
+                'lower(sku) = ?',
+                variables: [Variable(sku.toLowerCase())],
+              ) &
+              p.locationId.equals(current.locationId) &
+              p.localId.equals(localId).not() &
+              p.deletedAt.isNull())).getSingleOrNull();
       if (duplicate != null) throw ArgumentError.value(sku, 'sku', 'already exists');
     }
     if (barcode != null && barcode.isNotEmpty) {
