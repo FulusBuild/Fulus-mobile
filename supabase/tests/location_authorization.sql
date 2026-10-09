@@ -64,6 +64,44 @@ insert into public.location_memberships (business_id, location_id, user_id, stat
 select business_id, location_a_id, worker_id, 'active'
 from _authz_test_ids;
 
+-- Give the non-admin cashier read/manage capabilities, but only membership
+-- in Location A. RLS must still hide and refuse mutations to Location B.
+insert into public.role_permissions (role_id, permission_id)
+select r.id, p.id
+from public.roles r
+join public.permissions p on p.code in (
+  'catalog.read', 'catalog.manage', 'customers.read', 'customers.manage'
+)
+where r.business_id = (select business_id from _authz_test_ids)
+  and r.name = 'cashier'
+on conflict do nothing;
+
+insert into public.products (business_id, location_id, name, sku, cost_price, selling_price)
+select business_id, location_a_id, 'Authorization Product A', 'AUTHZ-PRODUCT-A', 0, 100
+from _authz_test_ids
+union all
+select business_id, location_b_id, 'Authorization Product B', 'AUTHZ-PRODUCT-B', 0, 100
+from _authz_test_ids;
+
+insert into public.customers (business_id, location_id, name)
+select business_id, location_a_id, 'Authorization Customer A'
+from _authz_test_ids
+union all
+select business_id, location_b_id, 'Authorization Customer B'
+from _authz_test_ids;
+
+insert into public.businesses (name)
+values ('Authorization Other Business');
+
+insert into public.roles (business_id, name, is_system)
+select id, 'owner', true from public.businesses
+where name = 'Authorization Other Business';
+
+insert into public.locations (business_id, name, code, status)
+select id, 'Other Business Location', 'AUTH-OTHER', 'active'
+from public.businesses
+where name = 'Authorization Other Business';
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub', (select worker_id::text from _authz_test_ids), true);
 
@@ -106,9 +144,49 @@ begin
 end
 $$;
 
+do $
+declare
+  product_count integer;
+  customer_count integer;
+  changed_count integer;
+begin
+  select count(*) into product_count
+  from public.products
+  where sku in ('AUTHZ-PRODUCT-A', 'AUTHZ-PRODUCT-B');
+  if product_count <> 1 or not exists (
+    select 1 from public.products where sku = 'AUTHZ-PRODUCT-A'
+  ) then
+    raise exception 'FAIL: product RLS did not isolate Location A from Location B';
+  end if;
+
+  select count(*) into customer_count
+  from public.customers
+  where name in ('Authorization Customer A', 'Authorization Customer B');
+  if customer_count <> 1 or not exists (
+    select 1 from public.customers where name = 'Authorization Customer A'
+  ) then
+    raise exception 'FAIL: customer RLS did not isolate Location A from Location B';
+  end if;
+
+  update public.products set name = 'Unauthorized Product Mutation'
+  where sku = 'AUTHZ-PRODUCT-B';
+  get diagnostics changed_count = row_count;
+  if changed_count <> 0 then
+    raise exception 'FAIL: Location A worker mutated Location B product';
+  end if;
+
+  update public.customers set name = 'Unauthorized Customer Mutation'
+  where name = 'Authorization Customer B';
+  get diagnostics changed_count = row_count;
+  if changed_count <> 0 then
+    raise exception 'FAIL: Location A worker mutated Location B customer';
+  end if;
+end
+$;
+
 select set_config('request.jwt.claim.sub', (select owner_id::text from _authz_test_ids), true);
 
-do $$
+do $
 begin
   perform public.require_location_access(
     (select business_id from _authz_test_ids),
@@ -118,6 +196,48 @@ end
 $$;
 
 reset role;
-select 'PASS: same-business non-admin is blocked from an unassigned location; owner/admin retains cross-location access' as result;
+
+-- The trigger must protect ownership even from privileged direct table writes.
+do $
+begin
+  begin
+    update public.products
+    set location_id = (select location_b_id from _authz_test_ids)
+    where sku = 'AUTHZ-PRODUCT-A';
+    raise exception 'FAIL: product location ownership transfer was accepted';
+  exception
+    when sqlstate '42501' then null;
+  end;
+
+  begin
+    update public.customers
+    set location_id = (select location_b_id from _authz_test_ids)
+    where name = 'Authorization Customer A';
+    raise exception 'FAIL: customer location ownership transfer was accepted';
+  exception
+    when sqlstate '42501' then null;
+  end;
+
+  begin
+    update public.products
+    set business_id = (select id from public.businesses where name = 'Authorization Other Business')
+    where sku = 'AUTHZ-PRODUCT-A';
+    raise exception 'FAIL: product business ownership transfer was accepted';
+  exception
+    when sqlstate '42501' then null;
+  end;
+
+  begin
+    update public.customers
+    set business_id = (select id from public.businesses where name = 'Authorization Other Business')
+    where name = 'Authorization Customer A';
+    raise exception 'FAIL: customer business ownership transfer was accepted';
+  exception
+    when sqlstate '42501' then null;
+  end;
+end
+$;
+
+select 'PASS: location access, product/customer RLS, and immutable tenant/location ownership contracts hold' as result;
 
 rollback;
