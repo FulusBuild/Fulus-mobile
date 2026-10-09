@@ -20,6 +20,7 @@ extension ProductToCompanion on Product {
       updatedAt: updatedAt,
       syncStatus: SyncStatus.pending,
       serverId: Value(serverId),
+      locationId: Value(locationId),
       barcode: Value(barcode),
       categoryId: Value(categoryId),
       supplierId: Value(supplierId),
@@ -34,6 +35,7 @@ extension ProductToCompanion on Product {
     return ProductCreateDto(
       name: name,
       sku: sku,
+      locationId: locationId,
       barcode: barcode,
       categoryId: categoryId,
       supplierId: supplierId,
@@ -69,6 +71,7 @@ extension ProductRowToDomain on ProductRow {
     return Product(
       localId: localId,
       serverId: serverId,
+      locationId: locationId,
       name: name,
       sku: sku,
       barcode: barcode,
@@ -103,6 +106,7 @@ extension ProductResponseDtoToCompanion on ProductResponseDto {
     return ProductsCompanion.insert(
       localId: id,
       serverId: Value(id),
+      locationId: Value(locationId),
       name: name,
       sku: sku,
       barcode: Value(barcode),
