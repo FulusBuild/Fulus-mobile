@@ -163,14 +163,14 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   }) async {
     final startOfDay = DateTime(start.year, start.month, start.day);
     final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
-    var effectiveLocationId = locationId;
-    if (effectiveLocationId == null) {
-      final session = await (_db.select(_db.sessions)
-            ..where((row) => row.id.equals('current')))
-          .getSingleOrNull();
-      effectiveLocationId = session?.activeLocationId;
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    final activeLocationId = session?.activeLocationId;
+    if (activeLocationId == null || (locationId != null && locationId != activeLocationId)) {
+      return const <CustomerLedgerEntry>[];
     }
-    if (effectiveLocationId == null) return const <CustomerLedgerEntry>[];
+    final effectiveLocationId = activeLocationId;
 
     final query = _db.select(_db.customerLedgerEntries).join([
       innerJoin(
