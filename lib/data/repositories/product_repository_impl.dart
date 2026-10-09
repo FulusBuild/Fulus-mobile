@@ -120,6 +120,9 @@ class ProductRepositoryImpl implements ProductRepository {
     await _db.transaction(() async {
       final product = await (_db.select(_db.products)..where((p) => p.localId.equals(productLocalId))).getSingleOrNull();
       if (product == null) throw StateError('reconcileStockLevel called for product $productLocalId, which this device has no local Products row for.');
+      if (product.locationId != null && product.locationId != locationId) {
+        throw StateError('Stock level location does not match product owner location.');
+      }
       if (operationId != null) {
         final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
         if (current == null) return;
