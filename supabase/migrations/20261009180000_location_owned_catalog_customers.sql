@@ -29,15 +29,18 @@ with evidence as (
   select p.id as product_id, p.business_id, ps.location_id
   from public.products p
   join public.product_stock_levels ps on ps.product_id = p.id
+  join public.locations l on l.id = ps.location_id and l.business_id = p.business_id
   union
   select p.id, p.business_id, im.location_id
   from public.products p
   join public.inventory_movements im on im.product_id = p.id
+  join public.locations l on l.id = im.location_id and l.business_id = p.business_id
   union
   select p.id, p.business_id, s.location_id
   from public.products p
   join public.sale_items si on si.product_id = p.id
-  join public.sales s on s.id = si.sale_id
+  join public.sales s on s.id = si.sale_id and s.business_id = p.business_id
+  join public.locations l on l.id = s.location_id and l.business_id = p.business_id
 ), candidates as (
   select product_id, business_id,
          array_agg(distinct location_id order by location_id) as locations
@@ -95,16 +98,19 @@ with evidence as (
   select c.id as customer_id, c.business_id, s.location_id
   from public.customers c
   join public.sales s on s.customer_id = c.id and s.business_id = c.business_id
+  join public.locations l on l.id = s.location_id and l.business_id = c.business_id
   union
   select c.id, c.business_id, s.location_id
   from public.customers c
   join public.returns r on r.customer_id = c.id and r.business_id = c.business_id
   join public.sales s on s.id = r.sale_id and s.business_id = c.business_id
+  join public.locations l on l.id = s.location_id and l.business_id = c.business_id
   union
   select c.id, c.business_id, s.location_id
   from public.customers c
   join public.customer_ledger_entries le on le.customer_id = c.id and le.business_id = c.business_id
   join public.sales s on s.id = le.sale_id and s.business_id = c.business_id
+  join public.locations l on l.id = s.location_id and l.business_id = c.business_id
   where le.sale_id is not null
 ), candidates as (
   select customer_id, business_id,
