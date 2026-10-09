@@ -40,7 +40,7 @@ void main() {
     await db.into(db.locations).insert(LocationsCompanion.insert(
       localId: 'loc-1', serverId: const Value('server-location-1'), name: 'Main Store',
       createdAt: DateTime.utc(2026, 1, 1), updatedAt: DateTime.utc(2026, 1, 1),
-      syncStatus: const Value(SyncStatus.settled),
+      syncStatus: SyncStatus.settled,
     ));
     handler = CustomerSyncHandler(
       fulusSyncApi: fulusSyncApi,
