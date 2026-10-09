@@ -176,7 +176,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
           ..where((c) => c.serverId.equals(serverId)))
         .getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
-    final effectiveLocationId = locationId ?? existing?.locationId;
+    final effectiveLocationId =
+        await _resolveLocationLocalId(locationId) ?? existing?.locationId;
 
     await _db.transaction(() async {
       if (existing == null) {
@@ -217,6 +218,18 @@ class CustomerRepositoryImpl implements CustomerRepository {
         );
       }
     });
+  }
+
+  Future<String?> _resolveLocationLocalId(String? id) async {
+    if (id == null || id.isEmpty) return null;
+    final local = await (_db.select(_db.locations)
+          ..where((location) => location.localId.equals(id)))
+        .getSingleOrNull();
+    if (local != null) return local.localId;
+    final server = await (_db.select(_db.locations)
+          ..where((location) => location.serverId.equals(id)))
+        .getSingleOrNull();
+    return server?.localId;
   }
 
   @override
