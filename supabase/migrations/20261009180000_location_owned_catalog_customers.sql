@@ -493,6 +493,107 @@ grant execute on function public.fulus_api_update_customer(
   uuid, uuid, uuid, text, uuid, uuid, text, text, text, text, text, numeric, boolean, bigint, text
 ) to service_role;
 
+
+-- Ownership can be filled for a legacy null row after explicit review, but
+-- once assigned it cannot be silently transferred by a normal update.
+create or replace function public.guard_location_owned_record()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  if tg_op = 'UPDATE' and old.location_id is not null
+     and new.location_id is distinct from old.location_id then
+    raise exception using errcode = '42501',
+      message = 'Location ownership cannot be changed after assignment';
+  end if;
+
+  if new.location_id is not null
+     and (tg_op = 'INSERT' or new.location_id is distinct from old.location_id)
+     and not exists (
+       select 1 from public.locations l
+       where l.id = new.location_id
+         and l.business_id = new.business_id
+         and l.status = 'active'
+     ) then
+    raise exception using errcode = '22023',
+      message = 'Location must be active and belong to the record business';
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists products_location_owner_guard on public.products;
+create trigger products_location_owner_guard
+before insert or update of location_id, business_id on public.products
+for each row execute function public.guard_location_owned_record();
+
+drop trigger if exists customers_location_owner_guard on public.customers;
+create trigger customers_location_owner_guard
+before insert or update of location_id, business_id on public.customers
+for each row execute function public.guard_location_owned_record();
+
+drop policy if exists products_select_member on public.products;
+create policy products_select_member on public.products
+for select using (
+  has_permission(business_id, 'catalog.read')
+  and (
+    is_business_admin(business_id)
+    or (location_id is not null and is_location_member(location_id))
+  )
+);
+
+drop policy if exists products_manage_catalog on public.products;
+create policy products_manage_catalog on public.products
+for insert with check (
+  has_permission(business_id, 'catalog.manage')
+  and location_id is not null
+  and (is_business_admin(business_id) or is_location_member(location_id))
+);
+
+drop policy if exists products_update_catalog on public.products;
+create policy products_update_catalog on public.products
+for update using (
+  has_permission(business_id, 'catalog.manage')
+  and (
+    is_business_admin(business_id)
+    or (location_id is not null and is_location_member(location_id))
+  )
+) with check (
+  has_permission(business_id, 'catalog.manage')
+  and location_id is not null
+  and (is_business_admin(business_id) or is_location_member(location_id))
+);
+
+drop policy if exists customers_read on public.customers;
+create policy customers_read on public.customers
+for select using (
+  has_permission(business_id, 'customers.read')
+  and (
+    is_business_admin(business_id)
+    or (location_id is not null and is_location_member(location_id))
+  )
+);
+
+drop policy if exists employees_read_access on public.employees;
+create policy employees_read_access on public.employees
+for select using (
+  (
+    (
+      has_permission(business_id, 'employees.read')
+      or has_permission(business_id, 'employees.manage')
+    )
+    and (
+      is_business_admin(business_id)
+      or (location_id is not null and is_location_member(location_id))
+    )
+  )
+  or ((select auth.uid()) = auth_user_id)
+);
+
+revoke all on function public.guard_location_owned_record() from public, anon, authenticated;
+
 -- Existing employees already have location_id; this index supports scoped
 -- roster reads without changing employee identity/membership relationships.
 create index if not exists employees_business_location_updated_idx
