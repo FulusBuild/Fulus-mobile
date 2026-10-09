@@ -131,7 +131,7 @@ class _ProductDetailBody extends ConsumerWidget {
                               child: AspectRatio(
                                 aspectRatio: wide ? 3.2 : 2.1,
                                 child: (product.photoPath!.startsWith('http://') || product.photoPath!.startsWith('https://'))
-                                  ? Image.network(
+                                  ? CachedRemoteImage(
                                       product.photoPath!,
                                       fit: BoxFit.cover,
                                       errorBuilder: (context, error, stackTrace) => Container(
