@@ -130,6 +130,8 @@ Deno.serve(async req => {
       "stock_movement",
       "return",
       "employee",
+      "product",
+      "customer",
     ]);
     const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>) => {
       if (entityType === "location") {
@@ -392,11 +394,29 @@ Deno.serve(async req => {
     if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
 
     if (action === "catalog_list") {
-      const { data, error } = await serviceDb
+      const locationId = entity === "products"
+        ? (typeof b.location_id === "string" ? b.location_id : null)
+        : null;
+      if (entity === "products" && !locationId) {
+        return out({ error: { code: "LOCATION_REQUIRED", message: "location_id is required for product catalog reads" } }, 400);
+      }
+      if (locationId) {
+        const { error: locationError } = await serviceDb.rpc("fulus_api_require_location_access", {
+          target_user_id: uid,
+          target_business_id: bid,
+          target_location_id: locationId,
+        });
+        if (locationError) {
+          return out({ error: { code: "LOCATION_FORBIDDEN", message: "Location is not available to this account" } }, 403);
+        }
+      }
+      let query = serviceDb
         .from(entity)
         .select("*")
         .eq("business_id", bid)
-        .is("deleted_at", null)
+        .is("deleted_at", null);
+      if (locationId) query = query.eq("location_id", locationId);
+      const { data, error } = await query
         .order("updated_at", { ascending: false })
         .limit(Math.min(Math.max(Number(b.limit ?? 100), 1), 500));
       if (error) return out({ error: { code: "CATALOG_READ_FAILED", message: "Unable to read catalog" } }, 500);
@@ -504,13 +524,15 @@ Deno.serve(async req => {
       }));
     } else if (action === "customer_update") {
       const customerId = typeof rawPayload.server_id === "string" ? rawPayload.server_id : null;
-      if (!customerId) return out({ error: { code: "INVALID_CUSTOMER_UPDATE", message: "server_id is required" } }, 400);
+      const customerLocationId = typeof rawPayload.location_id === "string" ? rawPayload.location_id : null;
+      if (!customerId || !customerLocationId) return out({ error: { code: "INVALID_CUSTOMER_UPDATE", message: "server_id and location_id are required" } }, 400);
       ({ data, error } = await serviceDb.rpc("fulus_api_update_customer", {
         target_user_id: uid,
         target_business_id: bid,
         target_device_id: d.id,
         target_operation_id: oid,
         target_customer_id: customerId,
+        target_location_id: customerLocationId,
         target_name: typeof rawPayload.name === "string" ? rawPayload.name : "",
         target_phone: typeof rawPayload.phone === "string" ? rawPayload.phone : null,
         target_email: typeof rawPayload.email === "string" ? rawPayload.email : null,
@@ -587,6 +609,7 @@ Deno.serve(async req => {
       phone: typeof b.phone === "string" ? b.phone : null,
       email: typeof b.email === "string" ? b.email : null,
       address: typeof b.address === "string" ? b.address : null,
+      location_id: typeof b.location_id === "string" ? b.location_id : null,
       credit_limit: Number(b.credit_limit ?? 0),
       notes: typeof b.notes === "string" ? b.notes : null,
     };
@@ -597,9 +620,13 @@ Deno.serve(async req => {
     const requestHash = Array.from(new Uint8Array(hashBytes))
       .map(x => x.toString(16).padStart(2, "0"))
       .join("");
+    if (typeof b.location_id !== "string" || b.location_id.length === 0) {
+      return out({ error: { code: "LOCATION_REQUIRED", message: "location_id is required for customer creation" } }, 400);
+    }
     ({ data, error } = await serviceDb.rpc("fulus_api_create_customer", {
       target_user_id: uid,
       target_business_id: bid,
+      target_location_id: b.location_id,
       target_name: b.name,
       target_phone: typeof b.phone === "string" ? b.phone : null,
       target_email: typeof b.email === "string" ? b.email : null,
