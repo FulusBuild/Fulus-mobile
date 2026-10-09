@@ -29,7 +29,10 @@ class CustomerSyncHandler implements SyncHandler {
       );
     }
 
-    final customer = await _customerRepository.getCustomerById(item.entityLocalId);
+    final customer = await _customerRepository.getCustomerById(
+      item.entityLocalId,
+      forSync: true,
+    );
     if (customer == null) {
       throw StateError('No local customer found for ${item.entityLocalId}.');
     }
@@ -59,6 +62,7 @@ class CustomerSyncHandler implements SyncHandler {
         'operation_id': item.id,
         'client_reference': customer.localId,
         'name': customer.name,
+        'location_id': customer.locationId,
         'phone': customer.phone,
         'email': customer.email,
         'address': customer.address,
@@ -96,6 +100,7 @@ class CustomerSyncHandler implements SyncHandler {
           'client_reference': customer.localId,
           'server_id': serverId,
           'name': customer.name,
+          'location_id': customer.locationId,
           'phone': customer.phone,
           'email': customer.email,
           'address': customer.address,
