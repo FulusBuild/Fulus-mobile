@@ -118,7 +118,7 @@ class CustomerSyncHandler implements SyncHandler {
           'client_reference': customer.localId,
           'server_id': serverId,
           'name': customer.name,
-          'location_id': customer.locationId,
+          'location_id': ownerLocationServerId,
           'phone': customer.phone,
           'email': customer.email,
           'address': customer.address,
@@ -152,7 +152,7 @@ class CustomerSyncHandler implements SyncHandler {
       localId: customer.localId,
       serverId: serverId,
       duplicateWarning: data['duplicate_warning'] as String?,
-    operationId: item.id,
+      operationId: item.id,
     );
   }
 }
