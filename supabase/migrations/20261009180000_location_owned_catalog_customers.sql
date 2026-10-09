@@ -526,12 +526,66 @@ begin
   );
   v_patched := v_definition;
 
-  v_old := E'      FROM public.products t\n      WHERE t.business_id = p_business_id\n    ), ''[]''::jsonb),\n    ''categories''';
-  v_new := E'      FROM public.products t\n      WHERE t.business_id = p_business_id\n        AND t.location_id = v_location_id\n    ), ''[]''::jsonb),\n    ''categories''';
+  v_old := E'      SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id)\n      FROM public.products t\n      WHERE t.business_id = p_business_id\n    ), ''[]''::jsonb),\n    ''categories''';
+  v_new := E'      SELECT jsonb_agg(scoped.row_json ORDER BY scoped.row_json->>''id'')\n' ||
+    E'      FROM (\n' ||
+    E'        SELECT to_jsonb(t) AS row_json\n' ||
+    E'        FROM public.products t\n' ||
+    E'        WHERE t.business_id = p_business_id\n' ||
+    E'          AND t.location_id = v_location_id\n' ||
+    E'        UNION ALL\n' ||
+    E'        SELECT to_jsonb(p) || pg_catalog.jsonb_build_object(\n' ||
+    E'          ''name'', ''Historical product'', ''sku'', ''historical-'' || p.id::text,\n' ||
+    E'          ''barcode'', null, ''category_id'', null, ''supplier_id'', null,\n' ||
+    E'          ''cost_price'', 0, ''selling_price'', 0, ''low_stock_threshold'', 0,\n' ||
+    E'          ''photo_path'', null, ''location_id'', null, ''deleted_at'', pg_catalog.now(),\n' ||
+    E'          ''is_active'', false\n' ||
+    E'        )\n' ||
+    E'        FROM public.products p\n' ||
+    E'        WHERE p.business_id = p_business_id\n' ||
+    E'          AND p.location_id IS DISTINCT FROM v_location_id\n' ||
+    E'          AND p.id IN (\n' ||
+    E'            SELECT si.product_id FROM public.sale_items si\n' ||
+    E'            JOIN public.sales s ON s.id = si.sale_id\n' ||
+    E'            WHERE s.business_id = p_business_id AND s.location_id = v_location_id\n' ||
+    E'              AND si.product_id IS NOT NULL\n' ||
+    E'            UNION\n' ||
+    E'            SELECT im.product_id FROM public.inventory_movements im\n' ||
+    E'            WHERE im.business_id = p_business_id AND im.location_id = v_location_id\n' ||
+    E'          )\n' ||
+    E'      ) scoped\n' ||
+    E'    ), ''[]''::jsonb),\n' ||
+    E'    ''categories''';
   v_patched := replace(v_patched, v_old, v_new);
 
-  v_old := E'      FROM public.customers t\n      WHERE t.business_id = p_business_id\n    ), ''[]''::jsonb),\n\n    -- Operational history';
-  v_new := E'      FROM public.customers t\n      WHERE t.business_id = p_business_id\n        AND t.location_id = v_location_id\n    ), ''[]''::jsonb),\n\n    -- Operational history';
+  v_old := E'      SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id)\n      FROM public.customers t\n      WHERE t.business_id = p_business_id\n    ), ''[]''::jsonb),\n\n    -- Operational history';
+  v_new := E'      SELECT jsonb_agg(scoped.row_json ORDER BY scoped.row_json->>''id'')\n' ||
+    E'      FROM (\n' ||
+    E'        SELECT to_jsonb(t) AS row_json\n' ||
+    E'        FROM public.customers t\n' ||
+    E'        WHERE t.business_id = p_business_id AND t.location_id = v_location_id\n' ||
+    E'        UNION ALL\n' ||
+    E'        SELECT to_jsonb(c) || pg_catalog.jsonb_build_object(\n' ||
+    E'          ''name'', ''Historical customer'', ''phone'', null, ''email'', null,\n' ||
+    E'          ''address'', null, ''notes'', null, ''location_id'', null,\n' ||
+    E'          ''deleted_at'', pg_catalog.now(), ''is_active'', false,\n' ||
+    E'          ''credit_limit'', 0, ''outstanding_balance'', 0\n' ||
+    E'        )\n' ||
+    E'        FROM public.customers c\n' ||
+    E'        WHERE c.business_id = p_business_id\n' ||
+    E'          AND c.location_id IS DISTINCT FROM v_location_id\n' ||
+    E'          AND c.id IN (\n' ||
+    E'            SELECT s.customer_id FROM public.sales s\n' ||
+    E'            WHERE s.business_id = p_business_id AND s.location_id = v_location_id\n' ||
+    E'              AND s.customer_id IS NOT NULL\n' ||
+    E'            UNION\n' ||
+    E'            SELECT r.customer_id FROM public.returns r\n' ||
+    E'            JOIN public.sales s ON s.id = r.sale_id\n' ||
+    E'            WHERE s.business_id = p_business_id AND s.location_id = v_location_id\n' ||
+    E'              AND r.customer_id IS NOT NULL\n' ||
+    E'          )\n' ||
+    E'      ) scoped\n' ||
+    E'    ), ''[]''::jsonb),\n\n    -- Operational history';
   v_patched := replace(v_patched, v_old, v_new);
 
   v_old := E'        WHERE psl_product.business_id = p_business_id\n      )';
