@@ -59,12 +59,13 @@ void main() {
     required String name,
     String sku = 'SKU-0',
     String? barcode,
+    String locationId = 'loc-1',
     DateTime? deletedAt,
   }) {
     return db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: localId,
-            locationId: const Value('loc-1'),
+            locationId: Value(locationId),
             name: name,
             sku: sku,
             barcode: Value(barcode),
@@ -82,12 +83,13 @@ void main() {
     required String localId,
     required String name,
     String? phone,
+    String locationId = 'loc-1',
     DateTime? deletedAt,
   }) {
     return db.into(db.customers).insert(
           CustomersCompanion.insert(
             localId: localId,
-            locationId: const Value('loc-1'),
+            locationId: Value(locationId),
             name: name,
             phone: Value(phone),
             createdAt: DateTime(2026, 1, 1),
@@ -121,6 +123,32 @@ void main() {
           ),
         );
   }
+
+  test('search excludes products and customers owned by other locations', () async {
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Second Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await seedProduct(
+      localId: 'private-product',
+      name: 'Private Location Product',
+      locationId: 'loc-2',
+    );
+    await seedCustomer(
+      localId: 'private-customer',
+      name: 'Private Location Customer',
+      locationId: 'loc-2',
+    );
+
+    final results = await repository.search('Private Location');
+    expect(results.products, isEmpty);
+    expect(results.customers, isEmpty);
+  });
 
   test('empty query returns empty results without querying the database', () async {
     final results = await repository.search('   ');
