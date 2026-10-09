@@ -86,7 +86,22 @@ class ProductPhotoSyncHandler implements SyncHandler {
     // otherwise a newer photo task (or the removal) owns the outcome.
     await _db.transaction(() async {
       final latest = await _findRow(localId);
-      if (latest == null || latest.deletedAt != null || latest.photoPath != path) {
+      if (latest == null || latest.deletedAt != null) {
+        return;
+      }
+      if (latest.photoPath != path) {
+        // A replacement may have been selected while this upload was running.
+        // The repository cannot replace the in-flight queue row because it is
+        // still present, so retire this row and guarantee a fresh upload task.
+        await (_db.delete(_db.syncQueueItems)
+              ..where((q) => q.id.equals(item.id)))
+            .go();
+        if (isPendingLocalPhotoPath(latest.photoPath)) {
+          await _productRepository.setLocalOverrides(
+            productLocalId: localId,
+            photoPath: latest.photoPath,
+          );
+        }
         return;
       }
       await _productRepository.updateProduct(localId: localId, photoPath: url);
