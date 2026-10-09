@@ -105,7 +105,7 @@ void main() {
       locationId: const Value('location-local-1'),
       createdAt: now,
       updatedAt: now,
-      syncStatus: SyncStatus.settled,
+      syncStatus: const Value(SyncStatus.settled),
     ));
 
     await expectLater(
