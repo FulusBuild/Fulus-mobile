@@ -59,6 +59,7 @@ class FulusProductCanonicalReconciler {
       lowStockThreshold: _integer(product['low_stock_threshold']),
       isActive: product['is_active'] == true,
       photoPath: _nullableString(product['photo_path']),
+      locationId: _nullableString(product['location_id']),
       updatedAt: updatedAt,
       deletedAt: _nullableDate(product['deleted_at']),
       stockLevels: stockLevels,
