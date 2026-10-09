@@ -95,8 +95,8 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       dateHired: draft.dateHired,
       locationId: session?.activeLocationId ?? draft.locationId,
     );
-    if (session != null && effectiveDraft.locationId == null) {
-      throw StateError('Employee roster ownership requires a location.');
+    if (effectiveDraft.locationId == null) {
+      throw StateError('Employee roster ownership requires an explicit location.');
     }
     final now = DateTime.now();
     final entity = effectiveDraft.toEntity(id: Ulid().toString(), now: now);
