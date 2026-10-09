@@ -4,10 +4,16 @@ import '../../domain/repositories/product_repository.dart';
 import 'fulus_sync_api.dart';
 
 class FulusProductCanonicalReconciler {
-  FulusProductCanonicalReconciler({required ProductRepository repository})
-      : _repository = repository;
+  FulusProductCanonicalReconciler({
+    required ProductRepository repository,
+    this.onRemotePhoto,
+  }) : _repository = repository;
 
   final ProductRepository _repository;
+
+  /// Called with each cloud photo URL after the product is applied locally, so
+  /// the image can be cached for offline use. Failures here never affect sync.
+  final void Function(String url)? onRemotePhoto;
 
   Future<void> apply(FulusCanonicalEntityResponse response) async {
     if (response.entityType != 'product') {
@@ -57,6 +63,15 @@ class FulusProductCanonicalReconciler {
       deletedAt: _nullableDate(product['deleted_at']),
       stockLevels: stockLevels,
     );
+
+    final photoUrl = _nullableString(product['photo_path']);
+    if (photoUrl != null && photoUrl.startsWith('http')) {
+      try {
+        onRemotePhoto?.call(photoUrl);
+      } catch (_) {
+        // Caching is best-effort and must never fail a canonical apply.
+      }
+    }
   }
 
   ProductStockSnapshot _mapStock(Map<String, dynamic> json) {
