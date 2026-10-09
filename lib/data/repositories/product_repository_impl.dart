@@ -70,11 +70,15 @@ class ProductRepositoryImpl implements ProductRepository {
     return row == null ? null : _mapRow(row);
   }
 
-  Future<String?> _activeLocationForReads() async {
+  Future<void> _assertProductInActiveLocation(String? productLocationId) async {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
-    return session?.activeLocationId;
+    if (session != null &&
+        (session.activeLocationId == null ||
+            productLocationId != session.activeLocationId)) {
+      throw StateError('Product is outside the active location.');
+    }
   }
 
   @override
@@ -232,12 +236,13 @@ class ProductRepositoryImpl implements ProductRepository {
     if (costPrice != null && costPrice < 0) throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
     final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
     if (current == null) throw StateError('Product $localId does not exist.');
+    await _assertProductInActiveLocation(current.locationId);
     if (sku != null) {
-      final duplicate = await (_db.select(_db.products)..where((p) => p.sku.equals(sku) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
+      final duplicate = await (_db.select(_db.products)..where((p) => p.sku.equals(sku) & p.locationId.equals(current.locationId) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
       if (duplicate != null) throw ArgumentError.value(sku, 'sku', 'already exists');
     }
     if (barcode != null && barcode.isNotEmpty) {
-      final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
+      final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.locationId.equals(current.locationId) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
       if (duplicate != null) throw ArgumentError.value(barcode, 'barcode', 'already exists');
     }
     await _db.transaction(() async {
@@ -252,6 +257,7 @@ class ProductRepositoryImpl implements ProductRepository {
     final now = DateTime.now();
     final row = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
     if (row == null) throw StateError('Product $localId does not exist.');
+    await _assertProductInActiveLocation(row.locationId);
     await _db.transaction(() async {
       await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(deletedAt: Value(now), isActive: const Value(false), updatedAt: Value(now), syncStatus: const Value(SyncStatus.pending)));
       await _syncQueue.enqueue(SyncTask.updateProduct(localId));
@@ -296,6 +302,11 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<void> setLocalOverrides({required String productLocalId, bool? tracksStock, String? unit, String? photoPath, bool clearPhoto = false}) async {
+    final row = await (_db.select(_db.products)
+          ..where((product) => product.localId.equals(productLocalId)))
+        .getSingleOrNull();
+    if (row == null) throw StateError('Product $productLocalId does not exist.');
+    await _assertProductInActiveLocation(row.locationId);
     await _db.transaction(() async {
       await (_db.update(_db.products)..where((p) => p.localId.equals(productLocalId))).write(ProductsCompanion(tracksStock: tracksStock == null ? const Value.absent() : Value(tracksStock), unit: unit == null ? const Value.absent() : Value(unit), photoPath: clearPhoto ? const Value<String?>(null) : (photoPath == null ? const Value.absent() : Value(photoPath)), updatedAt: Value(DateTime.now())));
       await _syncPhotoTask(productLocalId, photoPath: photoPath, clearPhoto: clearPhoto);
