@@ -88,6 +88,7 @@ void main() {
         )).thenAnswer((_) async {});
     when(() => repository.setLocalOverrides(
           productLocalId: any(named: 'productLocalId'),
+          photoPath: any(named: 'photoPath'),
           clearPhoto: any(named: 'clearPhoto'),
         )).thenAnswer((_) async {});
 
@@ -180,6 +181,11 @@ void main() {
           localId: any(named: 'localId'),
           photoPath: any(named: 'photoPath'),
         ));
+    verify(() => repository.setLocalOverrides(
+          productLocalId: 'p1',
+          photoPath: '/data/photos/newer.jpg',
+        )).called(1);
+    expect(await db.select(db.syncQueueItems).get(), isEmpty);
   });
 
   test('a rejected upload surfaces its typed failure for the engine to classify', () async {
