@@ -146,7 +146,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       );
       await _syncQueue.enqueue(SyncTask.updateEmployee(id));
     });
-    return (await getEmployeeById(id, includeInactive: true))!;
+    return updated;
   }
 
   @override
