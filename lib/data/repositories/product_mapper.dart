@@ -101,12 +101,12 @@ extension ProductResponseDtoToCompanion on ProductResponseDto {
   /// always settled — this data only ever gets written here as a direct
   /// consequence of a successful server response, never speculatively
   /// ahead of one.
-  ProductsCompanion toDriftCompanion() {
+  ProductsCompanion toDriftCompanion({String? locationLocalId}) {
     final now = DateTime.now();
     return ProductsCompanion.insert(
       localId: id,
       serverId: Value(id),
-      locationId: Value(locationId),
+      locationId: Value(locationLocalId),
       name: name,
       sku: sku,
       barcode: Value(barcode),
