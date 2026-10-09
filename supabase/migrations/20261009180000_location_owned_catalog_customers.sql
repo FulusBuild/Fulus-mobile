@@ -605,7 +605,9 @@ begin
        length(v_patched) - length(replace(v_patched, 'AND t.location_id = v_location_id', ''))
      ) / length('AND t.location_id = v_location_id') < 3
      or position('AND psl_product.location_id = v_location_id' in v_patched) = 0
-     or position('AND t.customer_id IN' in v_patched) = 0 then
+     or position('AND t.customer_id IN' in v_patched) = 0
+     or position('Historical product' in v_patched) = 0
+     or position('Historical customer' in v_patched) = 0 then
     raise exception 'employee restore location ownership patch did not apply completely';
   end if;
   execute v_patched;
