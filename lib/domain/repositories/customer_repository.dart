@@ -20,7 +20,9 @@ abstract class CustomerRepository {
   /// customer is reachable to restore.
   Stream<List<Customer>> watchCustomers({bool archivedOnly = false});
 
-  Future<Customer?> getCustomerById(String localId);
+  /// Normal reads are scoped to the active location. [forSync] is only for
+  /// draining a durable outbox operation created before a location switch.
+  Future<Customer?> getCustomerById(String localId, {bool forSync = false});
 
   /// Feature (customer management): edits an existing customer's
   /// details — name/phone/email/address/notes/creditLimit. The mutation is
