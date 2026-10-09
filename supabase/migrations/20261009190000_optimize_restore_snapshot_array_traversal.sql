@@ -39,29 +39,32 @@ begin
     pg_catalog.jsonb_object_agg(
       section.key,
       case
-        when pg_catalog.jsonb_typeof(section.value) = 'array'
-          and exists (
-            select 1
-            from pg_catalog.jsonb_array_elements(section.value) as probe(value)
-            where pg_catalog.jsonb_typeof(probe.value) = 'object'
-              and probe.value ?| v_money_keys
-          )
-        then (
-          select coalesce(
-            pg_catalog.jsonb_agg(
-              case
-                when pg_catalog.jsonb_typeof(element.value) = 'object'
-                  and element.value ?| v_money_keys
-                then public._fulus_money_wire_row_jsonb(element.value)
-                else element.value
-              end
-              order by element.ordinality
-            ),
-            '[]'::jsonb
-          )
-          from pg_catalog.jsonb_array_elements(section.value)
-            with ordinality as element(value, ordinality)
-        )
+        when pg_catalog.jsonb_typeof(section.value) = 'array' then
+          case
+            when exists (
+              select 1
+              from pg_catalog.jsonb_array_elements(section.value) as probe(value)
+              where pg_catalog.jsonb_typeof(probe.value) = 'object'
+                and probe.value ?| v_money_keys
+            )
+            then (
+              select coalesce(
+                pg_catalog.jsonb_agg(
+                  case
+                    when pg_catalog.jsonb_typeof(element.value) = 'object'
+                      and element.value ?| v_money_keys
+                    then public._fulus_money_wire_row_jsonb(element.value)
+                    else element.value
+                  end
+                  order by element.ordinality
+                ),
+                '[]'::jsonb
+              )
+              from pg_catalog.jsonb_array_elements(section.value)
+                with ordinality as element(value, ordinality)
+            )
+            else section.value
+          end
         else section.value
       end
     ),
