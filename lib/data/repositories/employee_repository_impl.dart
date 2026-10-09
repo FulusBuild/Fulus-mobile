@@ -443,7 +443,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
             phone: Value(phone),
             email: Value(email),
             dateHired: Value(dateHired),
-            locationId: Value(locationId),
+            locationId: Value(effectiveLocationId),
             isActive: Value(isActive),
             deletedAt: Value(isActive ? null : updatedAt),
             updatedAt: Value(updatedAt),
