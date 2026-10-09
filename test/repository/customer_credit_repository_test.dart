@@ -3,6 +3,7 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/customer_ledger_entry.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
@@ -27,6 +28,14 @@ void main() {
     // first.
     await seedSale(db, localId: 'sale-1');
     await seedSale(db, localId: 'sale-2');
+    await seedUser(db, localId: 'owner-user', role: AuthRole.owner);
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value('loc-1'),
+      ),
+    );
   });
 
   tearDown(() async {
@@ -35,7 +44,7 @@ void main() {
 
   Future<String> createTestCustomer() async {
     final customer = await customerRepository.createCustomer(
-      const CustomerDraft(name: 'Ngozi Eze'),
+      const CustomerDraft(name: 'Ngozi Eze', locationId: 'loc-1'),
     );
     return customer.localId;
   }
