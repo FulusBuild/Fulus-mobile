@@ -4,6 +4,7 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/stock_movement_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/stock_movement.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import '../helpers/db_seed_helpers.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart' hide isNull;
@@ -34,8 +35,15 @@ void main() {
           updatedAt: DateTime(2026, 1, 1),
           syncStatus: SyncStatus.settled,
         ));
+    await seedUser(db, localId: 'user-1');
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'user-1',
+      activeLocationId: const Value(locationId),
+    ));
     await db.into(db.products).insert(ProductsCompanion.insert(
           localId: productLocalId,
+          locationId: const Value(locationId),
           name: 'USB-C Cable',
           sku: 'CAB-USBC',
           costPrice: moneyFromMajor(500.0),
