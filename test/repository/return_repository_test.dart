@@ -231,6 +231,7 @@ void main() {
     await db.into(db.customers).insert(
       CustomersCompanion.insert(
         localId: customerId,
+        locationId: const Value(locationId),
         name: 'Credit Split Customer',
         outstandingBalance: Value(moneyFromMajor(500)),
         createdAt: now,
