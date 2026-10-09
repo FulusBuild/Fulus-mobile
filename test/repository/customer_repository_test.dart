@@ -13,8 +13,15 @@ void main() {
   late SyncQueue syncQueue;
   late CustomerRepositoryImpl repository;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+      localId: 'location-1',
+      name: 'Test Location',
+      createdAt: DateTime.utc(2026, 1, 1),
+      updatedAt: DateTime.utc(2026, 1, 1),
+      syncStatus: const Value(SyncStatus.settled),
+    ));
     syncQueue = SyncQueue(db);
     repository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
   });
@@ -26,7 +33,7 @@ void main() {
   group('createCustomer', () {
     test('writes the customer locally with zero starting balance', () async {
       final result = await repository.createCustomer(
-        const CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678'),
+        const CustomerDraft(name: 'Chidinma Okafor', locationId: 'location-1', phone: '+2348012345678'),
       );
 
       expect(result.name, 'Chidinma Okafor');
@@ -40,7 +47,7 @@ void main() {
 
     test('enqueues a stock-and-customer-priority sync task', () async {
       final result = await repository.createCustomer(
-        const CustomerDraft(name: 'Walk-in Customer'),
+        const CustomerDraft(name: 'Walk-in Customer', locationId: 'location-1'),
       );
 
       final queued = await db.select(db.syncQueueItems).get();
@@ -54,8 +61,8 @@ void main() {
 
   group('watchCustomers', () {
     test('emits created customers ordered by name', () async {
-      await repository.createCustomer(const CustomerDraft(name: 'Zainab'));
-      await repository.createCustomer(const CustomerDraft(name: 'Amina'));
+      await repository.createCustomer(const CustomerDraft(name: 'Zainab', locationId: 'location-1'));
+      await repository.createCustomer(const CustomerDraft(name: 'Amina', locationId: 'location-1'));
 
       final emitted = await repository.watchCustomers().first;
 
@@ -66,7 +73,7 @@ void main() {
   group('getCustomerById', () {
     test('returns the matching customer', () async {
       final created = await repository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: 'location-1'),
       );
 
       final fetched = await repository.getCustomerById(created.localId);
