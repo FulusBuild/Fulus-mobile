@@ -164,6 +164,18 @@ void main() {
   }
 
   group('createSale', () {
+    test('fails closed when no active session exists', () async {
+      await (db.delete(db.sessions)..where((s) => s.id.equals('current'))).go();
+
+      await expectLater(
+        repository.createSale(draftWithOneItem()),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await db.select(db.sales).get(), isEmpty);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
     test('writes the sale and its item locally', () async {
       final result = await repository.createSale(draftWithOneItem());
 
