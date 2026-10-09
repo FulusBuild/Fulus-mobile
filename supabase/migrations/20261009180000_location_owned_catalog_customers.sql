@@ -629,6 +629,45 @@ begin
 end;
 $employee_patch$;
 
+
+-- Customer repayment has no client-supplied location argument; derive the
+-- authoritative customer owner on the server and authorize that location.
+do $repayment_patch$
+declare
+  v_definition text;
+  v_patched text;
+  v_old text;
+  v_new text;
+begin
+  v_definition := pg_catalog.pg_get_functiondef(
+    'public.fulus_api_record_customer_repayment(uuid,uuid,uuid,numeric,text,text,text,uuid)'::regprocedure
+  );
+  v_patched := v_definition;
+
+  v_old := 'declare idem public.idempotency_keys%rowtype; request_hash text; result jsonb;';
+  v_new := 'declare idem public.idempotency_keys%rowtype; request_hash text; result jsonb; customer_location_id uuid;';
+  v_patched := replace(v_patched, v_old, v_new);
+
+  v_old := E' perform set_config(''request.jwt.claim.sub'',target_user_id::text,true);\n result:=public.record_customer_repayment';
+  v_new := E' perform set_config(''request.jwt.claim.sub'',target_user_id::text,true);\n' ||
+    E' select c.location_id into customer_location_id from public.customers c\n' ||
+    E' where c.id=target_customer_id and c.business_id=target_business_id;\n' ||
+    E' if customer_location_id is null then\n' ||
+    E'   raise exception using errcode=''42501'',message=''Customer location ownership is unresolved'';\n' ||
+    E' end if;\n' ||
+    E' perform public.require_location_access(target_business_id,customer_location_id);\n' ||
+    E' result:=public.record_customer_repayment';
+  v_patched := replace(v_patched, v_old, v_new);
+
+  if v_patched = v_definition
+     or position('customer_location_id uuid' in v_patched) = 0
+     or position('require_location_access(target_business_id,customer_location_id)' in v_patched) = 0 then
+    raise exception 'customer repayment location authorization patch did not apply';
+  end if;
+  execute v_patched;
+end;
+$repayment_patch$;
+
 -- Database-level guards protect mutation paths that bypass the mobile UI.
 -- Legacy rows with unresolved ownership are intentionally not valid for new
 -- transactional references; existing historical rows are not rewritten.
