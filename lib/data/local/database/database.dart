@@ -213,9 +213,9 @@ class AppDatabase extends _$AppDatabase {
   /// business cursor. The cursor and blocked change therefore survive process
   /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
-  static const int schemaVersionForRestoreValidation = 24;
+  static const int schemaVersionForRestoreValidation = 25;
 
   @override
   MigrationStrategy get migration {
@@ -680,6 +680,15 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(syncCursors, syncCursors.blockedAttemptCount);
           await m.addColumn(syncCursors, syncCursors.blockedErrorCode);
           await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
+        }
+
+        if (from < 25) {
+          // Location ownership is additive. Do not guess ownership for legacy
+          // catalog/customer rows: leave location_id NULL for explicit
+          // reconciliation rather than silently assigning records to whichever
+          // location happens to be active on upgrade.
+          await m.addColumn(products, products.locationId);
+          await m.addColumn(customers, customers.locationId);
         }
 
         if (from < 11) {
