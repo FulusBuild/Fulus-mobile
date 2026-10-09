@@ -39,7 +39,6 @@ class Product {
   final Money costPrice;
   @MoneyJsonConverter()
   final Money sellingPrice;
-  final String? locationId;
   final int lowStockThreshold;
   final bool isActive;
   final bool tracksStock;
@@ -121,6 +120,7 @@ class ProductCreateDto {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
+  final String? locationId;
   @MoneyJsonConverter()
   final Money costPrice;
   @MoneyJsonConverter()
