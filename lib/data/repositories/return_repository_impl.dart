@@ -435,12 +435,17 @@ class ReturnRepositoryImpl implements ReturnRepository {
   }
 
   @override
-  Future<ReturnRequest?> getReturnById(String localId) async {
+  Future<ReturnRequest?> getReturnById(
+    String localId, {
+    bool forSync = false,
+  }) async {
     final row = await (_db.select(_db.returnRequests)
           ..where((r) => r.localId.equals(localId)))
         .getSingleOrNull();
     if (row == null) return null;
-    if (!await _isSaleInActiveLocation(row.originalSaleLocalId)) return null;
+    if (!forSync && !await _isSaleInActiveLocation(row.originalSaleLocalId)) {
+      return null;
+    }
     final items = await _itemsForReturn(localId);
     return row.toDomain(items: items);
   }
