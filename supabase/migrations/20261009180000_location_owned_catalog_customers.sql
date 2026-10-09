@@ -510,6 +510,51 @@ grant execute on function public.fulus_api_update_customer(
 ) to service_role;
 
 
+
+-- Employee restore must not bootstrap other locations' products, customers,
+-- or their ledger history. Patch the existing snapshot builder in-place so
+-- its unrelated schema sections and authorization invariants remain intact.
+do $employee_restore_patch$
+declare
+  v_definition text;
+  v_patched text;
+  v_old text;
+  v_new text;
+begin
+  v_definition := pg_catalog.pg_get_functiondef(
+    'public.build_fulus_employee_restore_snapshot(uuid,uuid)'::regprocedure
+  );
+  v_patched := v_definition;
+
+  v_old := E'      FROM public.products t\n      WHERE t.business_id = p_business_id\n    ), ''[]''::jsonb),\n    ''categories''';
+  v_new := E'      FROM public.products t\n      WHERE t.business_id = p_business_id\n        AND t.location_id = v_location_id\n    ), ''[]''::jsonb),\n    ''categories''';
+  v_patched := replace(v_patched, v_old, v_new);
+
+  v_old := E'      FROM public.customers t\n      WHERE t.business_id = p_business_id\n    ), ''[]''::jsonb),\n\n    -- Operational history';
+  v_new := E'      FROM public.customers t\n      WHERE t.business_id = p_business_id\n        AND t.location_id = v_location_id\n    ), ''[]''::jsonb),\n\n    -- Operational history';
+  v_patched := replace(v_patched, v_old, v_new);
+
+  v_old := E'        WHERE psl_product.business_id = p_business_id\n      )';
+  v_new := E'        WHERE psl_product.business_id = p_business_id\n          AND psl_product.location_id = v_location_id\n      )';
+  v_patched := replace(v_patched, v_old, v_new);
+
+  v_old := E'      FROM public.customer_ledger_entries t\n      WHERE t.business_id = p_business_id\n    ), ''[]''::jsonb),';
+  v_new := E'      FROM public.customer_ledger_entries t\n      WHERE t.business_id = p_business_id\n        AND t.customer_id IN (\n          SELECT c.id FROM public.customers c\n          WHERE c.business_id = p_business_id\n            AND c.location_id = v_location_id\n        )\n    ), ''[]''::jsonb),';
+  v_patched := replace(v_patched, v_old, v_new);
+
+  v_old := E'      FROM public.employees t\n      WHERE t.business_id = p_business_id\n        AND t.auth_user_id = p_user_id\n        AND t.is_active = true';
+  v_new := E'      FROM public.employees t\n      WHERE t.business_id = p_business_id\n        AND t.auth_user_id = p_user_id\n        AND t.location_id = v_location_id\n        AND t.is_active = true';
+  v_patched := replace(v_patched, v_old, v_new);
+
+  if v_patched = v_definition
+     or position('AND t.location_id = v_location_id' in v_patched) = 0
+     or position('AND t.customer_id IN' in v_patched) = 0 then
+    raise exception 'employee restore location ownership patch did not apply';
+  end if;
+  execute v_patched;
+end;
+$employee_restore_patch$;
+
 -- Ownership can be filled for a legacy null row after explicit review, but
 -- once assigned it cannot be silently transferred by a normal update.
 create or replace function public.guard_location_owned_record()
