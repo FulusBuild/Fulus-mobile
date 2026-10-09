@@ -368,6 +368,51 @@ void main() {
       expect(results, isEmpty);
     });
 
+    test('does not let an explicit location override the active location', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+      await creditRepository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 2000,
+      );
+
+      final today = DateTime.now();
+      final results = await creditRepository.getRepaymentsForPeriod(
+        start: today,
+        end: today,
+        locationId: 'loc-2',
+      );
+
+      expect(results, isEmpty);
+    });
+
+    test('does not accept an explicit location when the session is absent', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+      await creditRepository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 2000,
+      );
+      await (db.delete(db.sessions)..where((row) => row.id.equals('current'))).go();
+
+      final today = DateTime.now();
+      final results = await creditRepository.getRepaymentsForPeriod(
+        start: today,
+        end: today,
+        locationId: 'loc-1',
+      );
+
+      expect(results, isEmpty);
+    });
+
     test('includes a repayment made today when the period covers today', () async {
       final customerId = await createTestCustomer();
       await creditRepository.recordCreditSale(
