@@ -252,7 +252,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
-  Future<Employee?> getEmployeeById(String id, {bool includeInactive = false}) async {
+  Future<Employee?> getEmployeeById(
+    String id, {
+    bool includeInactive = false,
+    bool forSync = false,
+  }) async {
     // Filtered the same as every other read in this file by default —
     // without this, a deactivated employee's id would still resolve
     // here, and updateEmployee() (which calls this to load the
@@ -269,13 +273,15 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     }
     final row = await query.getSingleOrNull();
     if (row == null) return null;
-    final session = await (_db.select(_db.sessions)
-          ..where((session) => session.id.equals('current')))
-        .getSingleOrNull();
-    if (session != null &&
-        (session.activeLocationId == null ||
-            row.locationId != session.activeLocationId)) {
-      return null;
+    if (!forSync) {
+      final session = await (_db.select(_db.sessions)
+            ..where((session) => session.id.equals('current')))
+          .getSingleOrNull();
+      if (session != null &&
+          (session.activeLocationId == null ||
+              row.locationId != session.activeLocationId)) {
+        return null;
+      }
     }
     return row.toDomain();
   }
