@@ -49,6 +49,15 @@ void main() {
     );
   });
 
+  test('enforces case-insensitive SKU uniqueness', () async {
+    await db.into(db.products).insert(product(localId: 'p1', sku: 'Rice50'));
+
+    await expectLater(
+      db.into(db.products).insert(product(localId: 'p2', sku: 'RICE50')),
+      throwsA(anything),
+    );
+  });
+
   test('rejects a second active product with the same barcode', () async {
     await db.into(db.products).insert(product(localId: 'p1', sku: 'A', barcode: '6001234567890'));
 
