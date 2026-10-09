@@ -178,6 +178,10 @@ class CustomerRepositoryImpl implements CustomerRepository {
     final localId = existing?.localId ?? Ulid().toString();
     final effectiveLocationId =
         await _resolveLocationLocalId(locationId) ?? existing?.locationId;
+    if (existing?.locationId != null &&
+        effectiveLocationId != existing!.locationId) {
+      throw StateError('Canonical customer ownership cannot move between locations.');
+    }
 
     await _db.transaction(() async {
       if (existing == null) {
