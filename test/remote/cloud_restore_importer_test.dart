@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
@@ -428,6 +429,37 @@ void main() {
     expect(sale.total, 85475);
     expect(item.unitPrice, 86000);
     expect(payment.amount, 85475);
+  });
+
+  test('rejects malformed supplier balance without partially replacing local data', () async {
+    await db.into(db.suppliers).insert(
+      SuppliersCompanion.insert(
+        localId: 'existing-supplier',
+        name: 'Existing supplier',
+        outstandingBalance: const Value(76543),
+      ),
+    );
+
+    await expectLater(
+      CloudRestoreImporter(db).importSnapshot({
+        'version': 7,
+        'locations': [],
+        'categories': [],
+        'suppliers': [
+          {
+            'id': 'bad-money-supplier',
+            'name': 'Malformed supplier',
+            'outstanding_balance': 1234,
+          },
+        ],
+      }),
+      throwsA(isA<FormatException>()),
+    );
+
+    final suppliers = await db.select(db.suppliers).get();
+    expect(suppliers, hasLength(1));
+    expect(suppliers.single.localId, 'existing-supplier');
+    expect(suppliers.single.outstandingBalance, 76543);
   });
 
   test('rejects numeric monetary wire values instead of guessing units', () async {
