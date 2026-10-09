@@ -47,6 +47,7 @@ abstract class ProductRepository {
     required int lowStockThreshold,
     required bool isActive,
     String? photoPath,
+    String? locationId,
     required DateTime updatedAt,
     DateTime? deletedAt,
     required List<ProductStockSnapshot> stockLevels,
