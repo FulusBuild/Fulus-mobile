@@ -55,13 +55,11 @@ void main() {
     }
   }
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
-    repository = ProductRepositoryImpl(
-      db: db,
-      syncQueue: syncQueue,
-    );
+    repository = ProductRepositoryImpl(db: db, syncQueue: syncQueue);
+    await seedLocation();
   });
 
   tearDown(() async {
