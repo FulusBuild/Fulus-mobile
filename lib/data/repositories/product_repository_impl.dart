@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../../core/money/money.dart';
+import '../../core/utils/photo_path.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/product.dart';
@@ -115,13 +116,17 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<void> reconcileServerState({required String serverId, required String name, required String sku, String? barcode, String? categoryId, String? supplierId, required Money costPrice, required Money sellingPrice, required int lowStockThreshold, required bool isActive, String? photoPath, required DateTime updatedAt, DateTime? deletedAt, required List<ProductStockSnapshot> stockLevels}) async {
     final existing = await (_db.select(_db.products)..where((p) => p.serverId.equals(serverId))).getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
+    // A photo that exists only on this device has not been uploaded yet. The
+    // server knows nothing about it, so its (older or null) value must not
+    // erase the local reference before the upload task has run.
+    final String? effectivePhotoPath = isPendingLocalPhotoPath(existing?.photoPath) ? existing!.photoPath : photoPath;
     final localCategoryId = await _resolveCategoryLocalId(categoryId);
     final localSupplierId = await _resolveSupplierLocalId(supplierId);
     await _db.transaction(() async {
       if (existing == null) {
-        await _db.into(_db.products).insert(ProductsCompanion.insert(localId: localId, serverId: Value(serverId), name: name, sku: sku, barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: costPrice, sellingPrice: sellingPrice, lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(photoPath), createdAt: updatedAt, updatedAt: updatedAt, deletedAt: Value(deletedAt), syncStatus: SyncStatus.settled));
+        await _db.into(_db.products).insert(ProductsCompanion.insert(localId: localId, serverId: Value(serverId), name: name, sku: sku, barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: costPrice, sellingPrice: sellingPrice, lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), createdAt: updatedAt, updatedAt: updatedAt, deletedAt: Value(deletedAt), syncStatus: SyncStatus.settled));
       } else {
-        await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(serverId: Value(serverId), name: Value(name), sku: Value(sku), barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: Value(costPrice), sellingPrice: Value(sellingPrice), lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(photoPath), deletedAt: Value(deletedAt), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled)));
+        await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(serverId: Value(serverId), name: Value(name), sku: Value(sku), barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: Value(costPrice), sellingPrice: Value(sellingPrice), lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), deletedAt: Value(deletedAt), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled)));
       }
       // stock_levels is authoritative: remove local rows that are absent from
       // the canonical aggregate, then restore exactly the server snapshot.
@@ -179,7 +184,7 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> updateProduct({required String localId, String? name, String? sku, String? barcode, String? categoryId, String? supplierId, Money? costPrice, Money? sellingPrice, int? lowStockThreshold, bool? isActive, String? photoPath}) async {
+  Future<void> updateProduct({required String localId, String? name, String? sku, String? barcode, String? categoryId, String? supplierId, Money? costPrice, Money? sellingPrice, int? lowStockThreshold, bool? isActive, String? photoPath, bool clearPhoto = false}) async {
     if (sellingPrice != null && sellingPrice <= 0) throw ArgumentError.value(sellingPrice, 'sellingPrice', 'must be > 0');
     if (costPrice != null && costPrice < 0) throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
     final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
@@ -193,8 +198,9 @@ class ProductRepositoryImpl implements ProductRepository {
       if (duplicate != null) throw ArgumentError.value(barcode, 'barcode', 'already exists');
     }
     await _db.transaction(() async {
-      await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(name: name == null ? const Value.absent() : Value(name), sku: sku == null ? const Value.absent() : Value(sku), barcode: barcode == null ? const Value.absent() : Value(barcode), categoryId: categoryId == null ? const Value.absent() : Value(categoryId), supplierId: supplierId == null ? const Value.absent() : Value(supplierId), costPrice: costPrice == null ? const Value.absent() : Value(costPrice), sellingPrice: sellingPrice == null ? const Value.absent() : Value(sellingPrice), lowStockThreshold: lowStockThreshold == null ? const Value.absent() : Value(lowStockThreshold), isActive: isActive == null ? const Value.absent() : Value(isActive), photoPath: photoPath == null ? const Value.absent() : Value(photoPath), syncStatus: Value(SyncStatus.pending), updatedAt: Value(DateTime.now())));
+      await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(name: name == null ? const Value.absent() : Value(name), sku: sku == null ? const Value.absent() : Value(sku), barcode: barcode == null ? const Value.absent() : Value(barcode), categoryId: categoryId == null ? const Value.absent() : Value(categoryId), supplierId: supplierId == null ? const Value.absent() : Value(supplierId), costPrice: costPrice == null ? const Value.absent() : Value(costPrice), sellingPrice: sellingPrice == null ? const Value.absent() : Value(sellingPrice), lowStockThreshold: lowStockThreshold == null ? const Value.absent() : Value(lowStockThreshold), isActive: isActive == null ? const Value.absent() : Value(isActive), photoPath: clearPhoto ? const Value<String?>(null) : (photoPath == null ? const Value.absent() : Value(photoPath)), syncStatus: Value(SyncStatus.pending), updatedAt: Value(DateTime.now())));
       await _syncQueue.enqueue(SyncTask.updateProduct(localId));
+      await _syncPhotoTask(localId, photoPath: photoPath, clearPhoto: clearPhoto);
     });
   }
 
@@ -246,7 +252,27 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> setLocalOverrides({required String productLocalId, bool? tracksStock, String? unit, String? photoPath}) async {
-    await (_db.update(_db.products)..where((p) => p.localId.equals(productLocalId))).write(ProductsCompanion(tracksStock: tracksStock == null ? const Value.absent() : Value(tracksStock), unit: unit == null ? const Value.absent() : Value(unit), photoPath: photoPath == null ? const Value.absent() : Value(photoPath), updatedAt: Value(DateTime.now())));
+  Future<void> setLocalOverrides({required String productLocalId, bool? tracksStock, String? unit, String? photoPath, bool clearPhoto = false}) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.products)..where((p) => p.localId.equals(productLocalId))).write(ProductsCompanion(tracksStock: tracksStock == null ? const Value.absent() : Value(tracksStock), unit: unit == null ? const Value.absent() : Value(unit), photoPath: clearPhoto ? const Value<String?>(null) : (photoPath == null ? const Value.absent() : Value(photoPath)), updatedAt: Value(DateTime.now())));
+      await _syncPhotoTask(productLocalId, photoPath: photoPath, clearPhoto: clearPhoto);
+    });
+  }
+
+  /// Keeps the photo upload queue consistent with the product row, inside the
+  /// caller's transaction: a device-local photo queues exactly one upload, and
+  /// removing a photo cancels any upload that has not run yet. A cloud URL needs
+  /// no upload.
+  Future<void> _syncPhotoTask(String localId, {String? photoPath, required bool clearPhoto}) async {
+    if (clearPhoto) {
+      await (_db.delete(_db.syncQueueItems)
+            ..where((q) => q.entityType.equals('product_photo'))
+            ..where((q) => q.entityLocalId.equals(localId)))
+          .go();
+      return;
+    }
+    if (isPendingLocalPhotoPath(photoPath)) {
+      await _syncQueue.enqueue(SyncTask.uploadProductPhoto(localId));
+    }
   }
 }
