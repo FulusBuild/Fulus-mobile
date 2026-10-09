@@ -224,7 +224,7 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
         await customStatement(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_sku '
-          'ON products(location_id, sku) '
+          'ON products(location_id, lower(sku)) '
           'WHERE deleted_at IS NULL AND location_id IS NOT NULL',
         );
         await customStatement(
