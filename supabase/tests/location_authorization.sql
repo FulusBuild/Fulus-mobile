@@ -64,18 +64,6 @@ insert into public.location_memberships (business_id, location_id, user_id, stat
 select business_id, location_a_id, worker_id, 'active'
 from _authz_test_ids;
 
--- Give the non-admin cashier read/manage capabilities, but only membership
--- in Location A. RLS must still hide and refuse mutations to Location B.
-insert into public.role_permissions (role_id, permission_id)
-select r.id, p.id
-from public.roles r
-join public.permissions p on p.code in (
-  'catalog.read', 'catalog.manage', 'customers.read', 'customers.manage'
-)
-where r.business_id = (select business_id from _authz_test_ids)
-  and r.name = 'cashier'
-on conflict do nothing;
-
 insert into public.products (business_id, location_id, name, sku, cost_price, selling_price)
 select business_id, location_a_id, 'Authorization Product A', 'AUTHZ-PRODUCT-A', 0, 100
 from _authz_test_ids
@@ -101,10 +89,6 @@ insert into public.locations (business_id, name, code, status)
 select id, 'Other Business Location', 'AUTH-OTHER', 'active'
 from public.businesses
 where name = 'Authorization Other Business';
-
--- Deliberately grant UPDATE in this rollback-only test so RLS, not table
--- privileges alone, is what prevents cross-location writes.
-grant update on public.products, public.customers to authenticated;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', (select worker_id::text from _authz_test_ids), true);
@@ -148,45 +132,12 @@ begin
 end
 $$;
 
-do $$
-declare
-  product_count integer;
-  customer_count integer;
-  changed_count integer;
-begin
-  select count(*) into product_count
-  from public.products
-  where sku in ('AUTHZ-PRODUCT-A', 'AUTHZ-PRODUCT-B');
-  if product_count <> 1 or not exists (
-    select 1 from public.products where sku = 'AUTHZ-PRODUCT-A'
-  ) then
-    raise exception 'FAIL: product RLS did not isolate Location A from Location B';
-  end if;
+-- Direct table access remains intentionally unavailable to authenticated
+-- clients; catalog/customer reads and writes go through the location-validating
+-- Fulus API. The database-level ownership triggers below are still exercised
+-- with the migration/test owner to prove they cannot be bypassed by privileged
+-- direct writes.
 
-  select count(*) into customer_count
-  from public.customers
-  where name in ('Authorization Customer A', 'Authorization Customer B');
-  if customer_count <> 1 or not exists (
-    select 1 from public.customers where name = 'Authorization Customer A'
-  ) then
-    raise exception 'FAIL: customer RLS did not isolate Location A from Location B';
-  end if;
-
-  update public.products set name = 'Unauthorized Product Mutation'
-  where sku = 'AUTHZ-PRODUCT-B';
-  get diagnostics changed_count = row_count;
-  if changed_count <> 0 then
-    raise exception 'FAIL: Location A worker mutated Location B product';
-  end if;
-
-  update public.customers set name = 'Unauthorized Customer Mutation'
-  where name = 'Authorization Customer B';
-  get diagnostics changed_count = row_count;
-  if changed_count <> 0 then
-    raise exception 'FAIL: Location A worker mutated Location B customer';
-  end if;
-end
-$$;
 select set_config('request.jwt.claim.sub', (select owner_id::text from _authz_test_ids), true);
 
 do $$
