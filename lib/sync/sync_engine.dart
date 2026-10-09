@@ -266,10 +266,26 @@ class SyncEngine {
     SyncQueueItem item,
     String message,
   ) async {
+    final previousError = item.lastError;
+    // Permanent attention markers are the canonical state for blocked items;
+    // never replace them with a transient dependency-wait reason.
+    if (previousError != null &&
+        (previousError.startsWith('[BLOCKED]') ||
+            previousError.startsWith('[CONFLICT]'))) {
+      return;
+    }
+
+    final deferral = 'Dependency deferred: $message';
+    final updatedError = previousError == null || previousError.isEmpty
+        ? message
+        : previousError.contains(deferral)
+            ? previousError
+            : '$previousError\\n$deferral';
+
     await (_db.update(_db.syncQueueItems)
           ..where((q) => q.id.equals(item.id))
-          ..where((q) => q.lastError.isNull()))
-        .write(SyncQueueItemsCompanion(lastError: Value(message)));
+          ..where((q) => q.lastError.equals(previousError)))
+        .write(SyncQueueItemsCompanion(lastError: Value(updatedError)));
   }
 
   Future<void> _removeFromQueue(String id) async {
