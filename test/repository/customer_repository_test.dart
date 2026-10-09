@@ -168,6 +168,29 @@ void main() {
         (await repository.getCustomerById('customer-b', forSync: true))?.localId,
         'customer-b',
       );
+
+      await expectLater(
+        repository.updateCustomer(
+          'customer-b',
+          const CustomerDraft(name: 'Cross-location edit', locationId: 'location-b'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        repository.archiveCustomer('customer-b'),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        repository.restoreCustomer('customer-b'),
+        throwsA(isA<StateError>()),
+      );
+
+      final unchanged = await (db.select(db.customers)
+            ..where((row) => row.localId.equals('customer-b')))
+          .getSingle();
+      expect(unchanged.name, 'Customer B');
+      expect(unchanged.deletedAt, isNull);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
     });
   });
 
