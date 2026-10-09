@@ -149,8 +149,12 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<void> reconcileServerState({required String serverId, required String name, required String sku, String? barcode, String? categoryId, String? supplierId, required Money costPrice, required Money sellingPrice, required int lowStockThreshold, required bool isActive, String? photoPath, String? locationId, required DateTime updatedAt, DateTime? deletedAt, required List<ProductStockSnapshot> stockLevels}) async {
     final existing = await (_db.select(_db.products)..where((p) => p.serverId.equals(serverId))).getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
+    final resolvedIncomingLocationId = await _resolveLocationLocalId(locationId);
+    if (locationId != null && resolvedIncomingLocationId == null) {
+      throw StateError('Product owner location is not available locally yet.');
+    }
     final resolvedLocationId =
-        await _resolveLocationLocalId(locationId) ?? existing?.locationId;
+        resolvedIncomingLocationId ?? existing?.locationId;
     if (existing?.locationId != null &&
         resolvedLocationId != existing!.locationId) {
       throw StateError('Canonical product ownership cannot move between locations.');
