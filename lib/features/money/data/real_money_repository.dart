@@ -160,6 +160,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         : _customerCreditRepository.getRepaymentsForPeriod(
             start: start,
             end: end,
+            locationId: locationId,
           );
     final paymentsFuture = cashierUserId != null
         ? Future.value(const <SupplierLedgerEntry>[])
@@ -569,6 +570,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final repaymentsFuture = _customerCreditRepository.getRepaymentsForPeriod(
       start: _epoch,
       end: end,
+      locationId: locationId,
     );
     final paymentsFuture = _supplierCreditRepository.getPaymentsForPeriod(
       start: _epoch,
