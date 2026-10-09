@@ -36,3 +36,16 @@ begin
   execute v_patched;
 end;
 $ownership_immutability_patch$;
+
+
+-- These security-definer predicates are referenced by RLS policies. They use
+-- auth.uid() internally and return only a boolean for the caller's own access,
+-- so authenticated clients need EXECUTE permission for policy evaluation.
+revoke all on function public.is_business_admin(uuid) from public, anon, authenticated;
+grant execute on function public.is_business_admin(uuid) to authenticated, service_role;
+
+revoke all on function public.is_location_member(uuid) from public, anon, authenticated;
+grant execute on function public.is_location_member(uuid) to authenticated, service_role;
+
+revoke all on function public.has_permission(uuid, text) from public, anon, authenticated;
+grant execute on function public.has_permission(uuid, text) to authenticated, service_role;
