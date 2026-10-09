@@ -640,6 +640,47 @@ begin
     raise exception using errcode = '22023',
       message = 'Location must be active and belong to the record business';
   end if;
+
+  if tg_op = 'UPDATE' and old.location_id is null and new.location_id is not null then
+    if tg_table_name = 'products' then
+      if exists (
+        select 1 from public.product_stock_levels psl
+        where psl.product_id = new.id
+          and psl.location_id is distinct from new.location_id
+      ) or exists (
+        select 1 from public.inventory_movements im
+        where im.product_id = new.id
+          and im.location_id is distinct from new.location_id
+      ) or exists (
+        select 1 from public.sale_items si
+        join public.sales s on s.id = si.sale_id
+        where si.product_id = new.id
+          and s.location_id is distinct from new.location_id
+      ) then
+        raise exception using errcode = '23514',
+          message = 'Product history must be reconciled before assigning a single owner location';
+      end if;
+    elsif tg_table_name = 'customers' then
+      if exists (
+        select 1 from public.sales s
+        where s.customer_id = new.id
+          and s.location_id is distinct from new.location_id
+      ) or exists (
+        select 1 from public.returns r
+        join public.sales s on s.id = r.sale_id
+        where r.customer_id = new.id
+          and s.location_id is distinct from new.location_id
+      ) or exists (
+        select 1 from public.customer_ledger_entries le
+        join public.sales s on s.id = le.sale_id
+        where le.customer_id = new.id
+          and s.location_id is distinct from new.location_id
+      ) then
+        raise exception using errcode = '23514',
+          message = 'Customer history must be reconciled before assigning a single owner location';
+      end if;
+    end if;
+  end if;
   return new;
 end;
 $function$;
