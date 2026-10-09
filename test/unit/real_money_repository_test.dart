@@ -208,6 +208,7 @@ void main() {
     when(() => customerCreditRepository.getRepaymentsForPeriod(
           start: any(named: 'start'),
           end: any(named: 'end'),
+          locationId: any(named: 'locationId'),
         )).thenAnswer((_) async => [testRepayment]);
     when(() => supplierCreditRepository.getPaymentsForPeriod(
           start: any(named: 'start'),
