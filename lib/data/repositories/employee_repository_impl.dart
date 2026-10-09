@@ -52,6 +52,20 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     }
   }
 
+  Future<void> _assertEmployeeInActiveLocation(String? employeeLocationId) async {
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    // No session row is possible only in pre-session/local test contexts.
+    // Once a session exists, a missing active location or a mismatch is a
+    // hard isolation failure, not a reason to show the business-wide roster.
+    if (session != null &&
+        (session.activeLocationId == null ||
+            employeeLocationId != session.activeLocationId)) {
+      throw StateError('Employee is outside the active location.');
+    }
+  }
+
   // ── Roster ──────────────────────────────────────────────────────────────
 
   @override
@@ -120,6 +134,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       if (row == null) {
         throw StateError('Employee $id not found.');
       }
+      await _assertEmployeeInActiveLocation(row.locationId);
       final currentUserId = _authRepository.currentUser?.id;
       if (currentUserId != null &&
           (row.authUserId == currentUserId || row.cloudUserId == currentUserId)) {
@@ -164,6 +179,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       if (row == null) {
         throw StateError('Employee $id not found.');
       }
+      await _assertEmployeeInActiveLocation(row.locationId);
       await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(true),
@@ -185,32 +201,54 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
-  Stream<List<Employee>> watchEmployees({String? searchQuery, String? department, bool? isActive}) {
-    final query = _db.select(_db.employees);
+  Stream<List<Employee>> watchEmployees({
+    String? searchQuery,
+    String? department,
+    bool? isActive,
+  }) {
+    final query = _db.select(_db.employees).join([
+      leftOuterJoin(
+        _db.sessions,
+        _db.sessions.id.equals('current'),
+      ),
+    ])
+      ..where(
+        _db.sessions.id.isNull() |
+            _db.employees.locationId.equalsExp(_db.sessions.activeLocationId),
+      );
+
     // Active/default roster views hide soft-deleted rows. The explicit
     // inactive view must do the opposite so deactivated employees remain
     // recoverable for reactivation and audit history.
     if (isActive == false) {
-      query.where((e) => e.isActive.equals(false));
+      query.where(_db.employees.isActive.equals(false));
     } else {
-      query.where((e) => e.deletedAt.isNull());
+      query.where(_db.employees.deletedAt.isNull());
       if (isActive == true) {
-        query.where((e) => e.isActive.equals(true));
+        query.where(_db.employees.isActive.equals(true));
       }
     }
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
       final like = '%${searchQuery.trim()}%';
-      query.where((e) =>
-          e.fullName.like(like) | e.email.like(like) | e.department.like(like) | e.position.like(like));
+      query.where(
+        _db.employees.fullName.like(like) |
+            _db.employees.email.like(like) |
+            _db.employees.department.like(like) |
+            _db.employees.position.like(like),
+      );
     }
     if (department != null) {
-      query.where((e) => e.department.like('%$department%'));
+      query.where(_db.employees.department.like('%$department%'));
     }
     if (isActive != null) {
-      query.where((e) => e.isActive.equals(isActive));
+      query.where(_db.employees.isActive.equals(isActive));
     }
-    query.orderBy([(e) => OrderingTerm.asc(e.fullName)]);
-    return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
+    query.orderBy([OrderingTerm.asc(_db.employees.fullName)]);
+    return query.watch().map(
+          (rows) => rows
+              .map((row) => row.readTable(_db.employees).toDomain())
+              .toList(),
+        );
   }
 
   @override
@@ -230,7 +268,16 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       query.where((e) => e.deletedAt.isNull());
     }
     final row = await query.getSingleOrNull();
-    return row?.toDomain();
+    if (row == null) return null;
+    final session = await (_db.select(_db.sessions)
+          ..where((session) => session.id.equals('current')))
+        .getSingleOrNull();
+    if (session != null &&
+        (session.activeLocationId == null ||
+            row.locationId != session.activeLocationId)) {
+      return null;
+    }
+    return row.toDomain();
   }
 
   @override
