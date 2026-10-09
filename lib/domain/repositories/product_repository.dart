@@ -24,6 +24,8 @@ abstract class ProductRepository {
     int? lowStockThreshold,
     bool? isActive,
     String? photoPath,
+    // Explicitly removes the photo. A null [photoPath] means "leave unchanged".
+    bool clearPhoto = false,
   });
   Future<void> archiveProduct(String localId);
   Future<void> markSynced({required String localId, required String serverId, String? operationId});
@@ -55,5 +57,6 @@ abstract class ProductRepository {
     bool? tracksStock,
     String? unit,
     String? photoPath,
+    bool clearPhoto = false,
   });
 }
