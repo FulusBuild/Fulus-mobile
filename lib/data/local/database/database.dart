@@ -549,15 +549,6 @@ class AppDatabase extends _$AppDatabase {
             'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
           );
         }
-        if (from < 25) {
-          // Location ownership is additive. Do not guess ownership for legacy
-          // catalog/customer rows: leave location_id NULL for explicit
-          // reconciliation rather than silently assigning records to whichever
-          // location happens to be active on upgrade.
-          await m.addColumn(products, products.locationId);
-          await m.addColumn(customers, customers.locationId);
-        }
-
         if (from < 17) {
           // Financial migration: every monetary SQLite REAL column is now an
           // INTEGER minor-unit column. Existing values are converted exactly
@@ -705,6 +696,16 @@ class AppDatabase extends _$AppDatabase {
             'ON sale_items(sale_local_id)',
           );
         }
+
+        if (from < 25) {
+          // Location ownership is additive. Do not guess ownership for legacy
+          // catalog/customer rows: leave location_id NULL for explicit
+          // reconciliation rather than silently assigning records to whichever
+          // location happens to be active on upgrade.
+          await m.addColumn(products, products.locationId);
+          await m.addColumn(customers, customers.locationId);
+        }
+
       },
       beforeOpen: (details) async {
         // Foreign keys are OFF by default in sqlite3 unless explicitly
