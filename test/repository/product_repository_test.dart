@@ -196,6 +196,18 @@ void main() {
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
+      await db.into(db.users).insert(UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ));
+      await db.into(db.sessions).insert(SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value(locationId),
+      ));
     });
 
     test('product catalog is isolated by owner location, not stock projection', () async {
@@ -257,6 +269,8 @@ void main() {
         await repository.getProductById('product-b', locationId: locationId),
         isNull,
       );
+      expect(await repository.getProductById('product-b', locationId: 'loc-b'), isNull);
+      expect(await repository.watchProducts(locationId: 'loc-b').first, isEmpty);
     });
 
     test('SKU and barcode uniqueness is per owner location', () async {
