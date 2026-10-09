@@ -424,11 +424,11 @@ Deno.serve(async req => {
     if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
 
     if (action === "catalog_list") {
-      const locationId = entity === "products"
+      const locationId = entity === "products" || entity === "customers"
         ? (typeof b.location_id === "string" ? b.location_id : null)
         : null;
-      if (entity === "products" && !locationId) {
-        return out({ error: { code: "LOCATION_REQUIRED", message: "location_id is required for product catalog reads" } }, 400);
+      if ((entity === "products" || entity === "customers") && !locationId) {
+        return out({ error: { code: "LOCATION_REQUIRED", message: "location_id is required for location-owned catalog reads" } }, 400);
       }
       if (locationId) {
         const { error: locationError } = await serviceDb.rpc("fulus_api_require_location_access", {
