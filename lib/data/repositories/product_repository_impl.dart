@@ -31,7 +31,7 @@ class ProductRepositoryImpl implements ProductRepository {
   Stream<List<ProductWithStock>> watchProducts({required String locationId}) {
     final query = _db.select(_db.products).join([
       leftOuterJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
-    ])..where(_db.products.deletedAt.isNull())..where(_db.products.isActive.equals(true));
+    ])..where(_db.products.locationId.equals(locationId))..where(_db.products.deletedAt.isNull())..where(_db.products.isActive.equals(true));
     return query.watch().map((rows) => rows.map(_mapRow).toList());
   }
 
@@ -39,7 +39,7 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<ProductWithStock?> getProductById(String localId, {required String locationId}) async {
     final query = _db.select(_db.products).join([
       leftOuterJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
-    ])..where(_db.products.localId.equals(localId));
+    ])..where(_db.products.localId.equals(localId))..where(_db.products.locationId.equals(locationId));
     final row = await query.getSingleOrNull();
     return row == null ? null : _mapRow(row);
   }
@@ -48,7 +48,7 @@ class ProductRepositoryImpl implements ProductRepository {
   Stream<List<ProductWithStock>> watchLowStockProducts({required String locationId}) {
     final query = _db.select(_db.products).join([
       innerJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
-    ])..where(_db.products.deletedAt.isNull())..where(_db.products.isActive.equals(true))..where(_db.products.tracksStock.equals(true))..where(_db.productStockLevels.currentStock.isSmallerOrEqual(_db.products.lowStockThreshold));
+    ])..where(_db.products.locationId.equals(locationId))..where(_db.products.deletedAt.isNull())..where(_db.products.isActive.equals(true))..where(_db.products.tracksStock.equals(true))..where(_db.productStockLevels.currentStock.isSmallerOrEqual(_db.products.lowStockThreshold));
     return query.watch().map((rows) => rows.map(_mapRow).toList());
   }
 
@@ -56,7 +56,7 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<ProductWithStock?> getProductByBarcode(String barcode, {required String locationId}) async {
     final query = _db.select(_db.products).join([
       leftOuterJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
-    ])..where(_db.products.barcode.equals(barcode) & _db.products.deletedAt.isNull());
+    ])..where(_db.products.locationId.equals(locationId) & _db.products.barcode.equals(barcode) & _db.products.deletedAt.isNull());
     final row = await query.getSingleOrNull();
     return row == null ? null : _mapRow(row);
   }
@@ -65,21 +65,50 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<ProductWithStock?> getProductBySku(String sku, {required String locationId}) async {
     final query = _db.select(_db.products).join([
       leftOuterJoin(_db.productStockLevels, _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) & _db.productStockLevels.locationLocalId.equals(locationId)),
-    ])..where(_db.products.sku.equals(sku) & _db.products.deletedAt.isNull());
+    ])..where(_db.products.locationId.equals(locationId) & _db.products.sku.equals(sku) & _db.products.deletedAt.isNull());
     final row = await query.getSingleOrNull();
     return row == null ? null : _mapRow(row);
   }
 
+  Future<String?> _activeLocationForReads() async {
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    return session?.activeLocationId;
+  }
+
   @override
   Future<Set<String>> getAllSkus() async {
-    final rows = await (_db.selectOnly(_db.products)..addColumns([_db.products.sku])..where(_db.products.deletedAt.isNull())).get();
-    return rows.map((r) => r.read(_db.products.sku)!).toSet();
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    final query = _db.selectOnly(_db.products)
+      ..addColumns([_db.products.sku])
+      ..where(_db.products.deletedAt.isNull());
+    if (session != null) {
+      final locationId = session.activeLocationId;
+      if (locationId == null) return <String>{};
+      query.where(_db.products.locationId.equals(locationId));
+    }
+    final rows = await query.get();
+    return rows.map((row) => row.read(_db.products.sku)!).toSet();
   }
 
   @override
   Future<Set<String>> getAllBarcodes() async {
-    final rows = await (_db.selectOnly(_db.products)..addColumns([_db.products.barcode])..where(_db.products.deletedAt.isNull() & _db.products.barcode.isNotNull())).get();
-    return rows.map((r) => r.read(_db.products.barcode)!).toSet();
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    final query = _db.selectOnly(_db.products)
+      ..addColumns([_db.products.barcode])
+      ..where(_db.products.deletedAt.isNull() & _db.products.barcode.isNotNull());
+    if (session != null) {
+      final locationId = session.activeLocationId;
+      if (locationId == null) return <String>{};
+      query.where(_db.products.locationId.equals(locationId));
+    }
+    final rows = await query.get();
+    return rows.map((row) => row.read(_db.products.barcode)!).toSet();
   }
 
   @override
@@ -167,10 +196,24 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<Product> createProduct(ProductDraft draft) async {
     if (draft.sellingPrice <= 0) throw ArgumentError.value(draft.sellingPrice, 'sellingPrice', 'must be > 0');
     if (draft.costPrice < 0) throw ArgumentError.value(draft.costPrice, 'costPrice', 'must be >= 0');
-    final existingSku = await (_db.select(_db.products)..where((p) => p.sku.equals(draft.sku) & p.deletedAt.isNull())).getSingleOrNull();
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session != null && session.activeLocationId != draft.locationId) {
+      throw StateError('Products can only be created in the active location.');
+    }
+    final existingSku = await (_db.select(_db.products)
+          ..where((p) => p.sku.equals(draft.sku) &
+              p.locationId.equals(draft.locationId) &
+              p.deletedAt.isNull()))
+        .getSingleOrNull();
     if (existingSku != null) throw ArgumentError.value(draft.sku, 'sku', 'already exists');
     if (draft.barcode != null && draft.barcode!.isNotEmpty) {
-      final existingBarcode = await (_db.select(_db.products)..where((p) => p.barcode.equals(draft.barcode!) & p.deletedAt.isNull())).getSingleOrNull();
+      final existingBarcode = await (_db.select(_db.products)
+            ..where((p) => p.barcode.equals(draft.barcode!) &
+                p.locationId.equals(draft.locationId) &
+                p.deletedAt.isNull()))
+          .getSingleOrNull();
       if (existingBarcode != null) throw ArgumentError.value(draft.barcode, 'barcode', 'already exists');
     }
     final localId = Ulid().toString();
