@@ -163,9 +163,19 @@ Deno.serve(async req => {
         return locationId != null && accessibleLocationIds.has(locationId);
       }
       if (entityType === "customer_ledger") {
+        // A ledger row tied to a sale inherits that sale's location. This
+        // preserves local historical ledger references for legacy shared or
+        // unassigned customers without exposing ledger entries from other
+        // locations. Repayment-only rows fall back to the customer's explicit
+        // owner location and fail closed when ownership is unresolved.
+        const saleId = typeof row.sale_id === "string" ? row.sale_id : null;
+        const saleLocationId = saleId ? saleLocationBySaleId.get(saleId) : undefined;
+        if (saleLocationId != null) {
+          return accessibleLocationIds.has(saleLocationId);
+        }
         const customerId = typeof row.customer_id === "string" ? row.customer_id : null;
-        const locationId = customerId ? customerLocationByCustomerId.get(customerId) : undefined;
-        return locationId != null && accessibleLocationIds.has(locationId);
+        const customerLocationId = customerId ? customerLocationByCustomerId.get(customerId) : undefined;
+        return customerLocationId != null && accessibleLocationIds.has(customerLocationId);
       }
       return false;
     };
@@ -188,10 +198,17 @@ Deno.serve(async req => {
       const batch = changes ?? [];
       if (batch.length === 0) break;
 
-      const saleIds = [...new Set(batch
-        .filter(change => String(change.entity_type ?? "") === "sale")
-        .map(change => String(change.entity_id))
-        .filter(Boolean))];
+      const saleIds = [...new Set(batch.flatMap(change => {
+        const entityType = String(change.entity_type ?? "");
+        if (entityType === "sale") return [String(change.entity_id)];
+        if (entityType === "customer_ledger") {
+          const payload = change.payload && typeof change.payload === "object"
+            ? change.payload as Record<string, unknown>
+            : null;
+          return typeof payload?.sale_id === "string" ? [payload.sale_id] : [];
+        }
+        return [];
+      }).filter(Boolean))];
       const returnIds = [...new Set(batch
         .filter(change => String(change.entity_type ?? "") === "return")
         .map(change => String(change.entity_id))
