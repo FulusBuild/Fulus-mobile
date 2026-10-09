@@ -413,6 +413,31 @@ void main() {
     expect(await allQueueItems(), isEmpty);
   });
 
+  test('persists dependency deferral reason without consuming retry attempts', () async {
+    await seedItem(
+      id: 'waiting-item',
+      entityLocalId: 'waiting-product-photo',
+      enqueuedAt: DateTime.now(),
+      priority: 2,
+    );
+
+    final handler = _ScriptedHandler((_) async {
+      throw const SyncFailure(
+        kind: SyncErrorKind.dependencyNotReady,
+        message: 'Fulus cloud authorization is required for product photo sync.',
+      );
+    });
+    final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    await engine.runOnce();
+
+    final pending = await allQueueItems();
+    expect(pending, hasLength(1));
+    expect(pending.single.lastError,
+        'Fulus cloud authorization is required for product photo sync.');
+    expect(pending.single.syncAttempts, 0);
+  });
+
   group('retry backoff', () {
     test('an item that failed moments ago is skipped on an automatic run', () async {
       final now = DateTime.now();
