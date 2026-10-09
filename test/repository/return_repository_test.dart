@@ -292,6 +292,28 @@ void main() {
   });
 
   group('createReturn', () {
+    test('queued return remains readable for sync after switching locations', () async {
+      final sale = await purchase();
+      final request = await returnRepository.createReturn(
+        originalSaleLocalId: sale.localId,
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
+        returnReason: 'Pending return',
+        refundMethod: 'cash',
+        autoApprove: false,
+      );
+      await seedLocation(db, localId: 'loc-2');
+      await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value('loc-2')));
+
+      expect(await returnRepository.getReturnById(request.localId), isNull);
+      expect(
+        await returnRepository.getReturnById(request.localId, forSync: true),
+        isNotNull,
+      );
+    });
+
     test('fails closed when there is no active location session', () async {
       final sale = await purchase();
       await (db.delete(db.sessions)..where((s) => s.id.equals('current'))).go();
