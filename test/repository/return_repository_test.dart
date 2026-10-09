@@ -564,7 +564,7 @@ void main() {
     test('does not touch the credit balance when the sale was already '
         'fully paid', () async {
       final customer = await customerRepository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: locationId),
       );
       final sale = await purchase(customerId: customer.localId); // fully paid
 
@@ -659,7 +659,7 @@ void main() {
     test('reduces an outstanding credit balance the same way a completed '
         'return does', () async {
       final customer = await customerRepository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: locationId),
       );
       final sale = await purchase(customerId: customer.localId, amountPaid: moneyFromMajor(3000));
 
