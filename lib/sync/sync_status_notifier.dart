@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/errors/failure.dart';
@@ -175,6 +177,12 @@ class SyncStatusNotifier {
 
   }
 
+  static String _boundedDiagnosticText(String? value) {
+    final normalized = (value ?? '').replaceAll(RegExp(r'\\s+'), ' ').trim();
+    if (normalized.isEmpty) return '';
+    return normalized.length <= 160 ? normalized : normalized.substring(0, 160);
+  }
+
   DateTime? _readDate(String? raw) => raw == null ? null : DateTime.tryParse(raw);
 
   /// Evaluated once per call, not itself reactive to SyncConfig changing
@@ -260,6 +268,38 @@ class SyncStatusNotifier {
     final lastPull = _readDate(_preferences.getString(_pullKey(businessId)));
     final recoveryState = _preferences.getString(_recoveryKey(businessId)) ?? 'idle';
     final recoveryDuration = _preferences.getInt(_recoveryDurationKey(businessId));
+    final conflicts = await (_db.select(_db.syncConflictRecords)
+          ..where((conflict) => conflict.resolvedAt.isNull()))
+        .get();
+
+    // Summary counts alone cannot identify why a device never reaches a
+    // settled outbox. Include bounded, identifier-free item metadata so a
+    // diagnostic export can distinguish a rejected upload from dependency
+    // deferral, a stale business write, or an unresolved conflict. Do not
+    // export local row IDs, actor IDs, or conflict messages (which may carry
+    // user-entered business data).
+    final diagnosticItems = items.toList()
+      ..sort((a, b) {
+        final attempts = b.syncAttempts.compareTo(a.syncAttempts);
+        return attempts != 0 ? attempts : a.enqueuedAt.compareTo(b.enqueuedAt);
+      });
+    final itemDetails = diagnosticItems.take(8).map((item) => {
+          'entity_type': item.entityType,
+          'operation': item.operation,
+          'priority': item.priority,
+          'attempts': item.syncAttempts,
+          'age_seconds': now.difference(item.enqueuedAt).inSeconds,
+          'last_attempted_at': item.lastAttemptedAt?.toUtc().toIso8601String(),
+          'last_error': _boundedDiagnosticText(item.lastError),
+        }).toList();
+    final conflictDetails = conflicts
+        .toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final conflictSummary = conflictDetails.take(8).map((conflict) => {
+          'entity_type': conflict.entityType,
+          'code': conflict.code,
+          'age_seconds': now.difference(conflict.createdAt).inSeconds,
+        }).toList();
 
     await logger.captureInfo(
       category: DiagnosticCategory.synchronization,
@@ -268,9 +308,12 @@ class SyncStatusNotifier {
       technicalContext: {
         'pending_count': items.length.toString(),
         'attention_count': attention.toString(),
+        'unresolved_conflict_count': conflicts.length.toString(),
         'oldest_pending_age_seconds': oldest == null ? '0' : now.difference(oldest).inSeconds.toString(),
         'max_attempts': items.isEmpty ? '0' : items.map((item) => item.syncAttempts).reduce((a, b) => a > b ? a : b).toString(),
         'blocked_count': blocked == null ? '0' : '1',
+        'pending_items_json': jsonEncode(itemDetails),
+        'unresolved_conflicts_json': jsonEncode(conflictSummary),
         'last_successful_push_at': lastPush?.toUtc().toIso8601String() ?? '',
         'last_successful_pull_at': lastPull?.toUtc().toIso8601String() ?? '',
         'last_restore_result': recoveryState,
