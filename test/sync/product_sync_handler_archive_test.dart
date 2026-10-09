@@ -12,12 +12,12 @@ import 'package:fulus_mobile/domain/repositories/product_repository.dart';
 import 'package:fulus_mobile/sync/handlers/product_sync_handler.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
+
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
+
 class MockProductRepository extends Mock implements ProductRepository {}
 
 void main() {
-  setUpAll(() {
-  });
   late AppDatabase db;
   late MockFulusSyncApi api;
   late MockFulusConnectionState connectionState;
@@ -49,10 +49,6 @@ void main() {
           localId: any(named: 'localId'),
           serverId: any(named: 'serverId'),
           operationId: any(named: 'operationId'),
-        )).thenAnswer((_) async {});
-    when(() => productRepository.setLocalOverrides(
-          productLocalId: any(named: 'productLocalId'),
-          photoPath: any(named: 'photoPath'),
         )).thenAnswer((_) async {});
   });
 
