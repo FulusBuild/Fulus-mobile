@@ -83,9 +83,18 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         draft.locationId != session!.activeLocationId) {
       throw StateError('Employees can only be created in the active location.');
     }
-    final effectiveDraft = session?.activeLocationId == null
-        ? draft
-        : draft.copyWith(locationId: session!.activeLocationId);
+    final effectiveDraft = EmployeeDraft(
+      fullName: draft.fullName,
+      authUserId: draft.authUserId,
+      role: draft.role,
+      department: draft.department,
+      position: draft.position,
+      salary: draft.salary,
+      phone: draft.phone,
+      email: draft.email,
+      dateHired: draft.dateHired,
+      locationId: session?.activeLocationId ?? draft.locationId,
+    );
     if (session != null && effectiveDraft.locationId == null) {
       throw StateError('Employee roster ownership requires a location.');
     }
