@@ -58,13 +58,11 @@ class SearchRepositoryImpl implements SearchRepository {
       pattern,
       limitPerModule,
       locationId: locationId,
-      hasSession: session != null,
     );
     final sales = await _searchSales(
       pattern,
       limitPerModule,
       locationId: locationId,
-      hasSession: session != null,
     );
 
     return SearchResults(
@@ -106,8 +104,7 @@ class SearchRepositoryImpl implements SearchRepository {
   Future<List<SearchResultItem>> _searchProducts(
     String pattern,
     int limit, {
-    String? locationId,
-    required bool hasSession,
+    required String locationId,
   }) async {
     final q = _db.select(_db.products)
       ..where(
@@ -135,8 +132,7 @@ class SearchRepositoryImpl implements SearchRepository {
   Future<List<SearchResultItem>> _searchSales(
     String pattern,
     int limit, {
-    String? locationId,
-    required bool hasSession,
+    required String locationId,
   }) async {
     // "Excluding cancelled," per search_service.py — this schema has no
     // separate status/is_cancelled column on Sales (verified directly in
