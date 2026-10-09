@@ -46,6 +46,7 @@ void main() {
     required DateTime enqueuedAt,
     int syncAttempts = 0,
     DateTime? lastAttemptedAt,
+    String? lastError,
   }) async {
     await db.into(db.syncQueueItems).insert(
           SyncQueueItemsCompanion.insert(
@@ -57,6 +58,7 @@ void main() {
             enqueuedAt: enqueuedAt,
             syncAttempts: Value(syncAttempts),
             lastAttemptedAt: Value(lastAttemptedAt),
+            lastError: Value(lastError),
           ),
         );
   }
