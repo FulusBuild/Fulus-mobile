@@ -172,7 +172,8 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
             _db.customerLedgerEntries.createdAt.isSmallerThanValue(endExclusive),
       )
       ..where(
-        _db.sessions.id.isNull() |
+        _db.sessions.id.equals('current') &
+            _db.sessions.activeLocationId.isNotNull() &
             _db.customers.locationId.equalsExp(_db.sessions.activeLocationId),
       )
       ..orderBy([OrderingTerm.desc(_db.customerLedgerEntries.createdAt)]);
