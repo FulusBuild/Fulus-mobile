@@ -72,8 +72,25 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   Future<Employee> createEmployee(EmployeeDraft draft) async {
     await _requireManageEmployees();
     _engine.validateDraft(draft);
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session != null && session.activeLocationId == null) {
+      throw StateError('Select an active location before creating an employee.');
+    }
+    if (session?.activeLocationId != null &&
+        draft.locationId != null &&
+        draft.locationId != session!.activeLocationId) {
+      throw StateError('Employees can only be created in the active location.');
+    }
+    final effectiveDraft = session?.activeLocationId == null
+        ? draft
+        : draft.copyWith(locationId: session!.activeLocationId);
+    if (session != null && effectiveDraft.locationId == null) {
+      throw StateError('Employee roster ownership requires a location.');
+    }
     final now = DateTime.now();
-    final entity = draft.toEntity(id: Ulid().toString(), now: now);
+    final entity = effectiveDraft.toEntity(id: Ulid().toString(), now: now);
     await _db.transaction(() async {
       await _db.into(_db.employees).insert(entity.toCompanion());
       await _syncQueue.enqueue(SyncTask.createEmployee(entity.id));
