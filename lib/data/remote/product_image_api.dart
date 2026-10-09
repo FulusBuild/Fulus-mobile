@@ -39,7 +39,8 @@ class ProductImageApi {
     }
 
     var source = file;
-    if (await source.length() > _recompressAboveBytes) {
+    if (await source.length() > _recompressAboveBytes &&
+        !source.path.endsWith('.optimized.jpg')) {
       source = await compressImageFile(source);
     }
     final bytes = await source.readAsBytes();
