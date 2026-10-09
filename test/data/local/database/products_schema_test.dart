@@ -7,8 +7,13 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 void main() {
   late AppDatabase db;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+      localId: 'loc-1', name: 'Main Store',
+      createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
+      syncStatus: SyncStatus.settled,
+    ));
   });
 
   tearDown(() => db.close());
@@ -22,6 +27,7 @@ void main() {
     final now = DateTime(2026, 1, 1);
     return ProductsCompanion.insert(
       localId: localId,
+      locationId: const Value('loc-1'),
       name: 'Product $localId',
       sku: sku,
       barcode: Value(barcode),
