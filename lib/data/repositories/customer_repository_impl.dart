@@ -22,7 +22,13 @@ class CustomerRepositoryImpl implements CustomerRepository {
   @override
   Future<Customer> createCustomer(CustomerDraft draft) async {
     final localId = Ulid().toString();
-    final customer = draft.toCustomerEntity(localId: localId);
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    final customer = draft.toCustomerEntity(
+      localId: localId,
+      locationIdOverride: draft.locationId ?? session?.activeLocationId,
+    );
 
     await _db.transaction(() async {
       await _db.into(_db.customers).insert(customer.toDriftCompanion());
