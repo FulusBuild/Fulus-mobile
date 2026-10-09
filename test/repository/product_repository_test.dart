@@ -170,6 +170,67 @@ void main() {
           ));
     });
 
+    test('product catalog is isolated by owner location, not stock projection', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+        localId: 'loc-b',
+        name: 'Second Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await db.batch((batch) {
+        batch.insertAll(db.products, [
+          ProductsCompanion.insert(
+            localId: 'product-a',
+            locationId: const Value(locationId),
+            name: 'Location A Product',
+            sku: 'SKU-A',
+            costPrice: 100,
+            sellingPrice: 200,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+          ProductsCompanion.insert(
+            localId: 'product-b',
+            locationId: const Value('loc-b'),
+            name: 'Location B Product',
+            sku: 'SKU-B',
+            costPrice: 100,
+            sellingPrice: 200,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+        ]);
+      });
+      await db.batch((batch) {
+        batch.insertAll(db.productStockLevels, [
+          ProductStockLevelsCompanion.insert(
+            productLocalId: 'product-a',
+            locationLocalId: locationId,
+            currentStock: const Value(5),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+          ProductStockLevelsCompanion.insert(
+            productLocalId: 'product-b',
+            locationLocalId: 'loc-b',
+            currentStock: const Value(8),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+        ]);
+      });
+
+      final visible = await repository.watchProducts(locationId: locationId).first;
+      expect(visible.map((row) => row.product.localId), ['product-a']);
+      expect(
+        await repository.getProductById('product-b', locationId: locationId),
+        isNull,
+      );
+    });
+
     test('watchProducts joins in currentStock for the given location', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
         localId: 'p1',
