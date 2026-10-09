@@ -121,6 +121,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         'An employee login email cannot be changed after the employee is created.',
       );
     }
+    if (draft.locationId != null && draft.locationId != existing.locationId) {
+      throw StateError(
+        'Employee location transfer requires an explicit authorized transfer flow.',
+      );
+    }
     final updated = existing.copyWith(
       fullName: draft.fullName.trim(),
       role: draft.role,
@@ -130,7 +135,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       phone: draft.phone,
       email: draft.email,
       dateHired: draft.dateHired,
-      locationId: draft.locationId,
+      locationId: existing.locationId,
       updatedAt: DateTime.now(),
     );
     await _db.transaction(() async {
