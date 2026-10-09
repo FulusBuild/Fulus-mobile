@@ -30,7 +30,6 @@ class Customer {
   final String? serverId;
   final String? locationId;
   final String name;
-  final String? locationId;
   final String? phone;
   final String? email;
   final String? address;
