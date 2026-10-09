@@ -280,7 +280,7 @@ class SyncEngine {
         ? message
         : previousError.contains(deferral)
             ? previousError
-            : '$previousError\\n$deferral';
+            : '$previousError\n$deferral';
 
     await (_db.update(_db.syncQueueItems)
           ..where((q) => q.id.equals(item.id))
