@@ -99,14 +99,14 @@ void main() {
             name: 'Location A',
             createdAt: now,
             updatedAt: now,
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ),
           LocationsCompanion.insert(
             localId: 'location-b',
             name: 'Location B',
             createdAt: now,
             updatedAt: now,
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ),
         ]);
       });
@@ -125,7 +125,7 @@ void main() {
             name: 'Customer A',
             createdAt: now,
             updatedAt: now,
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ),
           CustomersCompanion.insert(
             localId: 'customer-b',
