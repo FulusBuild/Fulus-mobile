@@ -81,12 +81,17 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     await seedLocation(db, localId: locationId);
     await seedUser(db, localId: 'user-cashier-1');
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current', userId: 'user-cashier-1',
+      activeLocationId: const Value(locationId),
+    ));
 
     final now = DateTime(2026, 1, 1);
     for (final id in [productAId, productBId]) {
       await db.into(db.products).insert(
             ProductsCompanion.insert(
               localId: id,
+              locationId: const Value(locationId),
               name: id,
               sku: 'SKU-$id',
               costPrice: moneyFromMajor(400),
@@ -538,7 +543,7 @@ void main() {
     test('reduces an outstanding credit balance by the refund amount, '
         'capped at what is actually still owed', () async {
       final customer = await customerRepository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: locationId),
       );
       // 8000 total, 3000 paid up front — 5000 still owed on credit.
       final sale = await purchase(customerId: customer.localId, amountPaid: moneyFromMajor(3000));
