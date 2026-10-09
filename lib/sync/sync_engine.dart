@@ -282,10 +282,14 @@ class SyncEngine {
             ? previousError
             : '$previousError\n$deferral';
 
-    await (_db.update(_db.syncQueueItems)
-          ..where((q) => q.id.equals(item.id))
-          ..where((q) => q.lastError.equals(previousError)))
-        .write(SyncQueueItemsCompanion(lastError: Value(updatedError)));
+    final update = _db.update(_db.syncQueueItems)
+      ..where((q) => q.id.equals(item.id));
+    if (previousError == null) {
+      update.where((q) => q.lastError.isNull());
+    } else {
+      update.where((q) => q.lastError.equals(previousError));
+    }
+    await update.write(SyncQueueItemsCompanion(lastError: Value(updatedError)));
   }
 
   Future<void> _removeFromQueue(String id) async {
