@@ -140,7 +140,7 @@ void main() {
             name: 'Customer B',
             createdAt: now,
             updatedAt: now,
-            syncStatus: SyncStatus.pending,
+            syncStatus: const Value(SyncStatus.pending),
           ),
         ]);
       });
@@ -158,7 +158,7 @@ void main() {
   group('markSynced', () {
     test('sets serverId and syncStatus on the local row', () async {
       final created = await repository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: 'location-1'),
       );
 
       await repository.markSynced(localId: created.localId, serverId: 'server-1');
