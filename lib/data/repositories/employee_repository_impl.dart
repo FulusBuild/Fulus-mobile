@@ -56,13 +56,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
-    // No session row is possible only in pre-session/local test contexts.
-    // Once a session exists, a missing active location or a mismatch is a
-    // hard isolation failure, not a reason to show the business-wide roster.
-    if (session != null &&
-        (session.activeLocationId == null ||
-            employeeLocationId != session.activeLocationId)) {
-      throw StateError('Employee is outside the active location.');
+    if (session == null ||
+        session.activeLocationId == null ||
+        employeeLocationId == null ||
+        employeeLocationId != session.activeLocationId) {
+      throw StateError('Employee mutation requires verified ownership in the active location.');
     }
   }
 
@@ -75,12 +73,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
-    if (session != null && session.activeLocationId == null) {
+    if (session == null || session.activeLocationId == null) {
       throw StateError('Select an active location before creating an employee.');
     }
-    if (session?.activeLocationId != null &&
-        draft.locationId != null &&
-        draft.locationId != session!.activeLocationId) {
+    if (draft.locationId != null &&
+        draft.locationId != session.activeLocationId) {
       throw StateError('Employees can only be created in the active location.');
     }
     final effectiveDraft = EmployeeDraft(
@@ -93,7 +90,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       phone: draft.phone,
       email: draft.email,
       dateHired: draft.dateHired,
-      locationId: session?.activeLocationId ?? draft.locationId,
+      locationId: session.activeLocationId,
     );
     if (effectiveDraft.locationId == null) {
       throw StateError('Employee roster ownership requires an explicit location.');
