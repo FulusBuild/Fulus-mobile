@@ -144,7 +144,7 @@ begin
 end
 $$;
 
-do $
+do $$
 declare
   product_count integer;
   customer_count integer;
@@ -182,11 +182,10 @@ begin
     raise exception 'FAIL: Location A worker mutated Location B customer';
   end if;
 end
-$;
-
+$$;
 select set_config('request.jwt.claim.sub', (select owner_id::text from _authz_test_ids), true);
 
-do $
+do $$
 begin
   perform public.require_location_access(
     (select business_id from _authz_test_ids),
@@ -198,7 +197,7 @@ $$;
 reset role;
 
 -- The trigger must protect ownership even from privileged direct table writes.
-do $
+do $$
 begin
   begin
     update public.products
@@ -236,8 +235,7 @@ begin
     when sqlstate '42501' then null;
   end;
 end
-$;
-
+$$;
 select 'PASS: location access, product/customer RLS, and immutable tenant/location ownership contracts hold' as result;
 
 rollback;
