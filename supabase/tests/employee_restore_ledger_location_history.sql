@@ -82,11 +82,11 @@ insert into public.sales (
   id, business_id, location_id, customer_id, client_reference, invoice_number,
   subtotal, discount, tax, total, amount_paid
 )
-select sale_a_id, business_id, location_a_id, null,
+select sale_a_id, business_id, location_a_id, null::uuid,
        'ledger-scope-sale-a', 'LEDGER-SCOPE-A', 100, 0, 0, 100, 0
 from _employee_ledger_scope_ids
 union all
-select sale_b_id, business_id, location_b_id, null,
+select sale_b_id, business_id, location_b_id, null::uuid,
        'ledger-scope-sale-b', 'LEDGER-SCOPE-B', 100, 0, 0, 100, 0
 from _employee_ledger_scope_ids;
 
