@@ -203,7 +203,11 @@ class ProductRepositoryImpl implements ProductRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
-    if (session != null && session.activeLocationId != draft.locationId) {
+    if (session != null && session.activeLocationId == null) {
+      throw StateError('Select an active location before creating a product.');
+    }
+    if (session?.activeLocationId != null &&
+        session!.activeLocationId != draft.locationId) {
       throw StateError('Products can only be created in the active location.');
     }
     final existingSku = await (_db.select(_db.products)
