@@ -26,6 +26,14 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
     if (row == null) {
       throw ArgumentError.value(localId, 'customerLocalId', 'no such customer');
     }
+    final session = await (_db.select(_db.sessions)
+          ..where((session) => session.id.equals('current')))
+        .getSingleOrNull();
+    if (session != null &&
+        (session.activeLocationId == null ||
+            row.locationId != session.activeLocationId)) {
+      throw StateError('Customer credit operations are restricted to the active location.');
+    }
     return row;
   }
 
@@ -124,21 +132,54 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
 
   @override
   Stream<List<CustomerLedgerEntry>> watchLedger(String customerLocalId) {
-    final query = _db.select(_db.customerLedgerEntries)
-      ..where((e) => e.customerLocalId.equals(customerLocalId))
-      ..orderBy([(e) => OrderingTerm.desc(e.createdAt), (e) => OrderingTerm.desc(e.localId)]);
-    return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
+    final query = _db.select(_db.customerLedgerEntries).join([
+      innerJoin(
+        _db.customers,
+        _db.customers.localId.equalsExp(_db.customerLedgerEntries.customerLocalId),
+      ),
+      leftOuterJoin(_db.sessions, _db.sessions.id.equals('current')),
+    ])
+      ..where(_db.customerLedgerEntries.customerLocalId.equals(customerLocalId))
+      ..where(
+        _db.sessions.id.isNull() |
+            _db.customers.locationId.equalsExp(_db.sessions.activeLocationId),
+      )
+      ..orderBy([
+        OrderingTerm.desc(_db.customerLedgerEntries.createdAt),
+        OrderingTerm.desc(_db.customerLedgerEntries.localId),
+      ]);
+    return query.watch().map(
+          (rows) => rows
+              .map((row) => row.readTable(_db.customerLedgerEntries).toDomain())
+              .toList(),
+        );
   }
 
   @override
   Future<List<CustomerLedgerEntry>> getRepaymentsForPeriod({required DateTime start, required DateTime end}) async {
     final startOfDay = DateTime(start.year, start.month, start.day);
     final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
-    final rows = await (_db.select(_db.customerLedgerEntries)
-          ..where((e) => e.entryType.equals('repayment') & e.createdAt.isBiggerOrEqualValue(startOfDay) & e.createdAt.isSmallerThanValue(endExclusive))
-          ..orderBy([(e) => OrderingTerm.desc(e.createdAt)]))
-        .get();
-    return rows.map((r) => r.toDomain()).toList();
+    final query = _db.select(_db.customerLedgerEntries).join([
+      innerJoin(
+        _db.customers,
+        _db.customers.localId.equalsExp(_db.customerLedgerEntries.customerLocalId),
+      ),
+      leftOuterJoin(_db.sessions, _db.sessions.id.equals('current')),
+    ])
+      ..where(
+        _db.customerLedgerEntries.entryType.equals('repayment') &
+            _db.customerLedgerEntries.createdAt.isBiggerOrEqualValue(startOfDay) &
+            _db.customerLedgerEntries.createdAt.isSmallerThanValue(endExclusive),
+      )
+      ..where(
+        _db.sessions.id.isNull() |
+            _db.customers.locationId.equalsExp(_db.sessions.activeLocationId),
+      )
+      ..orderBy([OrderingTerm.desc(_db.customerLedgerEntries.createdAt)]);
+    final rows = await query.get();
+    return rows
+        .map((row) => row.readTable(_db.customerLedgerEntries).toDomain())
+        .toList();
   }
 
   @override
