@@ -53,6 +53,7 @@ abstract class CustomerRepository {
     String? notes,
     required Money outstandingBalance,
     String? duplicateWarning,
+    String? locationId,
     required DateTime updatedAt,
     DateTime? deletedAt,
   });
