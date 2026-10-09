@@ -140,7 +140,7 @@ void main() {
             name: 'Customer B',
             createdAt: now,
             updatedAt: now,
-            syncStatus: const Value(SyncStatus.pending),
+            syncStatus: SyncStatus.pending,
           ),
         ]);
       });
