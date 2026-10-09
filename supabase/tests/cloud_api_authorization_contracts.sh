@@ -10,6 +10,10 @@ grep -F '.eq("registered_by",u.user.id)' "$reporting" >/dev/null
 grep -F "public.has_permission(target_business_id, 'inventory.adjust')" "$inventory_migration" >/dev/null
 grep -F 'DIAGNOSTIC_EVENT_TOO_LARGE' "$diagnostics" >/dev/null
 grep -F '.eq("registered_by", ud.user.id)' "$diagnostics" >/dev/null
+# Location-filtered sync must resolve a ledger entry's sale location when
+# customer ownership is legacy/shared, then fall back to explicit customer owner.
+grep -F 'payload?.sale_id === "string" ? [payload.sale_id] : []' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F 'const saleLocationId = saleId ? saleLocationBySaleId.get(saleId) : undefined;' supabase/functions/fulus-api/index.ts >/dev/null
 
 echo "PASS: cloud API authorization contracts are present"
 
