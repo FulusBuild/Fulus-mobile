@@ -49,7 +49,10 @@ enum FulusArt {
   refund('refund'),
   voidSale('void_sale'),
   restore('restore'),
-  calendar('calendar');
+  calendar('calendar'),
+  pin('pin'),
+  appLock('app_lock'),
+  logout('logout');
 
   const FulusArt(this.file);
   final String file;

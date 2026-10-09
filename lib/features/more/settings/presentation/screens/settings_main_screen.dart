@@ -27,12 +27,16 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final columns = constraints.maxWidth >= 560 && textScale <= 1.15 ? 2 : 1;
+        // Two columns on phones (tiles are icon + label only), and a lone
+        // tile (Cloud, Logout) spans the full row instead of leaving half
+        // of it empty.
+        final wantsTwo = constraints.maxWidth >= 300 && textScale <= 1.3;
+        final columns = wantsTwo && children.length > 1 ? 2 : 1;
         final tileExtent = textScale <= 1.15
-            ? 136.0
+            ? 112.0
             : textScale <= 1.5
-                ? 176.0
-                : 216.0;
+                ? 152.0
+                : 192.0;
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
@@ -56,12 +60,17 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
 
     return FulusScreen(
       title: 'Settings',
-            body: LayoutBuilder(
+      // The list owns its own padding. The default FulusScreen padding added
+      // an extra 32dp under the last tile on top of the list's own bottom
+      // padding, which was the blank band below Logout.
+      applyPadding: false,
+      body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
-          final inset = wide ? AppSpacing.lg : AppSpacing.xs;
+          final inset = fulusHorizontalInset(context) +
+              (wide ? AppSpacing.lg : AppSpacing.xs);
           return ListView(
-            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.lg),
             children: [
               if (canManageSettings) ...[
                 FulusSectionHeader(
@@ -151,6 +160,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               _tileGrid([
                 FulusFlatGridCell(
                   icon: FulusIcons.lock,
+                  art: FulusArt.pin,
                   label: 'PIN',
                   onTap: () => _openChangePinSheet(context),
                 ),
@@ -165,11 +175,11 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               _tileGrid([
                 FulusFlatGridCell(
                   icon: FulusIcons.logout,
+                  art: FulusArt.logout,
                   label: 'Logout',
                   onTap: () => _logout(context, ref),
                 ),
               ]),
-              const SizedBox(height: AppSpacing.xxl),
             ],
           );
         },
@@ -234,6 +244,7 @@ class _AppLockStatusTileState extends ConsumerState<_AppLockStatusTile> {
       builder: (context, snap) {
         return FulusFlatGridCell(
           icon: FulusIcons.lock,
+          art: FulusArt.appLock,
           label: 'Lock',
           onTap: () async {
             await showModalBottomSheet<void>(
