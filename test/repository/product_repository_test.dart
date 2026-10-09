@@ -55,11 +55,10 @@ void main() {
     }
   }
 
-  setUp(() async {
+  setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
     repository = ProductRepositoryImpl(db: db, syncQueue: syncQueue);
-    await seedLocation();
   });
 
   tearDown(() async {
@@ -804,6 +803,7 @@ void main() {
 
   group('markSynced', () {
     test('does not settle when the operation identity is already missing', () async {
+      await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
             locationId: const Value(locationId),
@@ -828,6 +828,7 @@ void main() {
     });
 
     test('keeps the row pending when a newer mutation is queued', () async {
+      await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
             locationId: const Value(locationId),
@@ -873,6 +874,7 @@ void main() {
     });
 
     test('sets serverId and syncStatus on the local row', () async {
+      await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
             locationId: const Value(locationId),
