@@ -292,6 +292,25 @@ void main() {
   });
 
   group('createReturn', () {
+    test('fails closed when there is no active location session', () async {
+      final sale = await purchase();
+      await (db.delete(db.sessions)..where((s) => s.id.equals('current'))).go();
+
+      await expectLater(
+        returnRepository.createReturn(
+          originalSaleLocalId: sale.localId,
+          items: const [
+            ReturnItemRequest(productLocalId: productAId, quantity: 1),
+          ],
+          returnReason: 'Test return',
+          refundMethod: 'cash',
+          autoApprove: true,
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await db.select(db.returnRequests).get(), isEmpty);
+    });
     test('computes the refund amount from the sale\'s own unit price',
         () async {
       final sale = await purchase();
