@@ -25,17 +25,16 @@ class CustomerRepositoryImpl implements CustomerRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
-    if (session != null && session.activeLocationId == null) {
+    if (session == null || session.activeLocationId == null) {
       throw StateError('Select an active location before creating a customer.');
     }
-    if (session?.activeLocationId != null &&
-        draft.locationId != null &&
-        draft.locationId != session!.activeLocationId) {
+    if (draft.locationId != null &&
+        draft.locationId != session.activeLocationId) {
       throw StateError('Customers can only be created in the active location.');
     }
     final customer = draft.toCustomerEntity(
       localId: localId,
-      locationIdOverride: session?.activeLocationId ?? draft.locationId,
+      locationIdOverride: session.activeLocationId,
     );
     if (customer.locationId == null) {
       throw StateError('Customer ownership requires an explicit location.');
