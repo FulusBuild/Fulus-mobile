@@ -43,8 +43,8 @@ void main() {
   test('rejects a second active product with the same sku', () async {
     await db.into(db.products).insert(product(localId: 'p1', sku: 'RICE50'));
 
-    expect(
-      () => db.into(db.products).insert(product(localId: 'p2', sku: 'RICE50')),
+    await expectLater(
+      db.into(db.products).insert(product(localId: 'p2', sku: 'RICE50')),
       throwsA(anything),
     );
   });
@@ -52,8 +52,8 @@ void main() {
   test('rejects a second active product with the same barcode', () async {
     await db.into(db.products).insert(product(localId: 'p1', sku: 'A', barcode: '6001234567890'));
 
-    expect(
-      () => db.into(db.products).insert(product(localId: 'p2', sku: 'B', barcode: '6001234567890')),
+    await expectLater(
+      db.into(db.products).insert(product(localId: 'p2', sku: 'B', barcode: '6001234567890')),
       throwsA(anything),
     );
   });
