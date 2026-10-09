@@ -44,10 +44,10 @@ class SearchRepositoryImpl implements SearchRepository {
     final session = await (_db.select(_db.sessions)
           ..where((row) => row.id.equals('current')))
         .getSingleOrNull();
-    if (session != null && session.activeLocationId == null) {
+    if (session == null || session.activeLocationId == null) {
       return SearchResults.empty(query);
     }
-    final locationId = session?.activeLocationId;
+    final locationId = session.activeLocationId;
 
     final customers = await _searchCustomers(
       pattern,
