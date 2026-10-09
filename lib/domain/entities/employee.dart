@@ -80,10 +80,8 @@ class Employee {
   final String? email;
   final DateTime? dateHired;
 
-  /// Nullable, matching backend migration 0022's own choice to leave
-  /// Employee.location_id optional where Sale/Expense/Income/
-  /// StockMovement/Shift require it (Architecture Section 7a) — a
-  /// single-shop business never needs to set this.
+  /// Location owning this roster record. Null is reserved for legacy rows
+  /// awaiting explicit reconciliation; active roster records require a location.
   final String? locationId;
   final bool isActive;
   final DateTime createdAt;
