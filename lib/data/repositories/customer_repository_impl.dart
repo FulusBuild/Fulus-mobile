@@ -37,8 +37,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
       localId: localId,
       locationIdOverride: session?.activeLocationId ?? draft.locationId,
     );
-    if (session != null && customer.locationId == null) {
-      throw StateError('Customer ownership requires an active location.');
+    if (customer.locationId == null) {
+      throw StateError('Customer ownership requires an explicit location.');
     }
 
     await _db.transaction(() async {
