@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
@@ -47,7 +46,9 @@ Future<File> compressImageFile(
       _compressBytes,
       _CompressRequest(original, maxDimension, quality),
     );
-    if (compressed == null || compressed.isEmpty || compressed.length >= original.length) {
+    if (compressed == null ||
+        compressed.isEmpty ||
+        compressed.length >= original.length) {
       return source;
     }
     final target = File('${p.withoutExtension(source.path)}.optimized.jpg');
