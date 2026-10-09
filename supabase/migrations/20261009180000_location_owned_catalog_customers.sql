@@ -22,6 +22,10 @@ create table if not exists public.location_ownership_review (
   unique (entity_type, entity_id)
 );
 
+alter table public.location_ownership_review enable row level security;
+revoke all on public.location_ownership_review from public, anon, authenticated;
+grant select, insert, update, delete on public.location_ownership_review to service_role;
+
 -- Only auto-assign when every observed location reference agrees. References
 -- include stock, movements and historical sales. A product used in multiple
 -- locations remains unassigned for explicit review.
