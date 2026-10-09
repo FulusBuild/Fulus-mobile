@@ -207,18 +207,14 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
     final supplierPaymentsOutflow =
         supplierPaymentRows.fold<Money>(0, (sum, e) => sum + e.amount);
 
-    // The confirmed fix — see CashFlowReport.customerRepaymentsInflow's
-    // own doc comment for the full history of this gap. Business-wide,
-    // not location-filtered (getRepaymentsForPeriod has no locationId
-    // parameter — see that method's own doc comment for why).
-    // Deliberately still passed the RAW dateTo, not rangeEnd — this
-    // method already computes its own end-of-day boundary internally
-    // from the date components it's given (see
-    // CustomerCreditRepositoryImpl.getRepaymentsForPeriod), so it was
-    // never affected by the bug this method just fixed for itself.
+    // Customer repayments are attributed to the owning customer location,
+    // matching the explicit location used for sales, income, and expenses.
+    // Pass raw dateTo because the repository applies its own inclusive
+    // calendar-day boundary.
     final repayments = await _customerCreditRepository.getRepaymentsForPeriod(
       start: dateFrom,
       end: dateTo,
+      locationId: locationId,
     );
     final customerRepaymentsInflow =
         repayments.fold<Money>(0, (sum, r) => sum + r.amount);
