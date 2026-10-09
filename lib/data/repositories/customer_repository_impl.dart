@@ -40,23 +40,58 @@ class CustomerRepositoryImpl implements CustomerRepository {
 
   @override
   Stream<List<Customer>> watchCustomers({bool archivedOnly = false}) {
-    final query = _db.select(_db.customers)
-      ..where((c) => archivedOnly ? c.deletedAt.isNotNull() : c.deletedAt.isNull())
-      ..orderBy([(c) => OrderingTerm.asc(c.name)]);
-    return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
+    final query = _db.select(_db.customers).join([
+      leftOuterJoin(_db.sessions, _db.sessions.id.equals('current')),
+    ])
+      ..where(
+        _db.sessions.id.isNull() |
+            _db.customers.locationId.equalsExp(_db.sessions.activeLocationId),
+      )
+      ..where(
+        archivedOnly
+            ? _db.customers.deletedAt.isNotNull()
+            : _db.customers.deletedAt.isNull(),
+      )
+      ..orderBy([OrderingTerm.asc(_db.customers.name)]);
+    return query.watch().map(
+          (rows) => rows
+              .map((row) => row.readTable(_db.customers).toDomain())
+              .toList(),
+        );
   }
 
   @override
-  Future<Customer?> getCustomerById(String localId) async {
+  Future<Customer?> getCustomerById(
+    String localId, {
+    bool forSync = false,
+  }) async {
     final row = await (_db.select(_db.customers)
           ..where((c) => c.localId.equals(localId)))
         .getSingleOrNull();
-    return row?.toDomain();
+    if (row == null) return null;
+    if (!forSync) {
+      final session = await (_db.select(_db.sessions)
+            ..where((session) => session.id.equals('current')))
+          .getSingleOrNull();
+      if (session != null &&
+          (session.activeLocationId == null ||
+              row.locationId != session.activeLocationId)) {
+        return null;
+      }
+    }
+    return row.toDomain();
   }
 
   @override
   Future<Customer> updateCustomer(String localId, CustomerDraft draft) async {
-    final updated = draft.toCustomerEntity(localId: localId);
+    final existing = await getCustomerById(localId);
+    if (existing == null) {
+      throw StateError('Customer $localId is outside the active location or does not exist.');
+    }
+    final updated = draft.toCustomerEntity(
+      localId: localId,
+      locationIdOverride: existing.locationId,
+    );
     await _db.transaction(() async {
       await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
         CustomersCompanion(
@@ -78,6 +113,9 @@ class CustomerRepositoryImpl implements CustomerRepository {
 
   @override
   Future<void> archiveCustomer(String localId) async {
+    if (await getCustomerById(localId) == null) {
+      throw StateError('Customer $localId is outside the active location or does not exist.');
+    }
     final now = DateTime.now();
     await _db.transaction(() async {
       await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
@@ -93,6 +131,9 @@ class CustomerRepositoryImpl implements CustomerRepository {
 
   @override
   Future<void> restoreCustomer(String localId) async {
+    if (await getCustomerById(localId) == null) {
+      throw StateError('Customer $localId is outside the active location or does not exist.');
+    }
     final now = DateTime.now();
     await _db.transaction(() async {
       await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
@@ -116,6 +157,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
     String? notes,
     required Money outstandingBalance,
     String? duplicateWarning,
+    String? locationId,
     required DateTime updatedAt,
     DateTime? deletedAt,
   }) async {
@@ -130,6 +172,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
               CustomersCompanion.insert(
                 localId: localId,
                 serverId: Value(serverId),
+                locationId: Value(locationId),
                 name: name,
                 phone: Value(phone),
                 email: Value(email),
@@ -147,6 +190,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
         await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
           CustomersCompanion(
             serverId: Value(serverId),
+            locationId: Value(locationId),
             name: Value(name),
             phone: Value(phone),
             email: Value(email),
