@@ -730,6 +730,80 @@ for select using (
   )
 );
 
+
+drop policy if exists sales_read on public.sales;
+create policy sales_read on public.sales
+for select using (
+  has_permission(business_id, 'sales.read')
+  and (
+    is_business_admin(business_id)
+    or (location_id is not null and is_location_member(location_id))
+  )
+);
+
+drop policy if exists sale_items_read on public.sale_items;
+create policy sale_items_read on public.sale_items
+for select using (
+  exists (
+    select 1 from public.sales s
+    where s.id = sale_items.sale_id
+      and has_permission(s.business_id, 'sales.read')
+      and (
+        is_business_admin(s.business_id)
+        or (s.location_id is not null and is_location_member(s.location_id))
+      )
+  )
+);
+
+drop policy if exists returns_read on public.returns;
+create policy returns_read on public.returns
+for select using (
+  has_permission(business_id, 'sales.read')
+  and exists (
+    select 1 from public.sales s
+    where s.id = returns.sale_id
+      and (
+        is_business_admin(s.business_id)
+        or (s.location_id is not null and is_location_member(s.location_id))
+      )
+  )
+);
+
+drop policy if exists return_items_read on public.return_items;
+create policy return_items_read on public.return_items
+for select using (
+  exists (
+    select 1
+    from public.returns r
+    join public.sales s on s.id = r.sale_id
+    where r.id = return_items.return_id
+      and has_permission(r.business_id, 'sales.read')
+      and (
+        is_business_admin(s.business_id)
+        or (s.location_id is not null and is_location_member(s.location_id))
+      )
+  )
+);
+
+drop policy if exists inventory_movements_select_member on public.inventory_movements;
+create policy inventory_movements_select_member on public.inventory_movements
+for select using (
+  has_permission(business_id, 'inventory.read')
+  and (
+    is_business_admin(business_id)
+    or (
+      location_id is not null
+      and is_location_member(location_id)
+      and exists (
+        select 1 from public.products p
+        where p.id = inventory_movements.product_id
+          and p.business_id = inventory_movements.business_id
+          and p.location_id = inventory_movements.location_id
+      )
+    )
+  )
+);
+
 drop policy if exists employees_read_access on public.employees;
 create policy employees_read_access on public.employees
 for select using (
