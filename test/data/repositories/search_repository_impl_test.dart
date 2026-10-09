@@ -2,6 +2,7 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/search_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/search_result.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +32,22 @@ void main() {
             syncStatus: SyncStatus.settled,
           ),
         );
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+    );
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value('loc-1'),
+      ),
+    );
   });
 
   tearDown(() async {
@@ -47,6 +64,7 @@ void main() {
     return db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: localId,
+            locationId: const Value('loc-1'),
             name: name,
             sku: sku,
             barcode: Value(barcode),
@@ -69,6 +87,7 @@ void main() {
     return db.into(db.customers).insert(
           CustomersCompanion.insert(
             localId: localId,
+            locationId: const Value('loc-1'),
             name: name,
             phone: Value(phone),
             createdAt: DateTime(2026, 1, 1),
