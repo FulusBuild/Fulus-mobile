@@ -244,7 +244,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       ),
     ])
       ..where(
-        _db.sessions.id.isNull() |
+        _db.sessions.id.equals('current') &
             _db.employees.locationId.equalsExp(_db.sessions.activeLocationId),
       );
 
@@ -308,9 +308,9 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final session = await (_db.select(_db.sessions)
             ..where((session) => session.id.equals('current')))
           .getSingleOrNull();
-      if (session != null &&
-          (session.activeLocationId == null ||
-              row.locationId != session.activeLocationId)) {
+      if (session == null ||
+          session.activeLocationId == null ||
+          row.locationId != session.activeLocationId) {
         return null;
       }
     }
@@ -324,13 +324,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         .getSingleOrNull();
     final query = _db.select(_db.employees)
       ..where((employee) => employee.deletedAt.isNull());
-    if (session != null) {
-      final locationId = session.activeLocationId;
-      if (locationId == null) {
-        return _engine.computeStats(const <Employee>[]);
-      }
-      query.where((employee) => employee.locationId.equals(locationId));
+    if (session == null || session.activeLocationId == null) {
+      return _engine.computeStats(const <Employee>[]);
     }
+    query.where((employee) => employee.locationId.equals(session.activeLocationId));
     final rows = await query.get();
     return _engine.computeStats(rows.map((row) => row.toDomain()).toList());
   }
