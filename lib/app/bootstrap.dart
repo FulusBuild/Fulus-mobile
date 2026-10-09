@@ -42,6 +42,7 @@ import '../data/local/employee_identity_projection_store.dart';
 import '../data/remote/fulus_stock_movement_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/product_image_api.dart';
+import '../shared/widgets/cached_remote_image.dart';
 import '../data/remote/fulus_supplier_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_coordinator.dart';
 import '../sync/handlers/employee_sync_handler.dart';
@@ -106,6 +107,7 @@ import '../sync/handlers/expense_category_sync_handler.dart';
 import '../sync/handlers/expense_sync_handler.dart';
 import '../sync/handlers/income_sync_handler.dart';
 import '../sync/handlers/location_sync_handler.dart';
+import '../sync/handlers/product_photo_sync_handler.dart';
 import '../sync/handlers/product_sync_handler.dart';
 import '../sync/handlers/return_sync_handler.dart';
 import '../sync/handlers/sale_sync_handler.dart';
@@ -287,7 +289,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseSyncHandler = ExpenseSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseRepository: expenseRepository, executionLease: syncExecutionLease);
   final incomeSyncHandler = IncomeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, incomeRecordRepository: incomeRecordRepository, locationRepository: locationRepository);
   final stockMovementSyncHandler = StockMovementSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
-  final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, productImageApi: productImageApi);
+  final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
+  final productPhotoSyncHandler = ProductPhotoSyncHandler(db: database, productRepository: productRepository, fulusConnectionState: fulusConnectionState, productImageApi: productImageApi);
 
   final canonicalReconciler = FulusCanonicalTypedReconciler(
     api: fulusSyncApi,
@@ -305,7 +308,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       'expense': FulusExpenseCanonicalReconciler(repository: expenseRepository).apply,
       'income_record': FulusIncomeCanonicalReconciler(repository: incomeRecordRepository).apply,
       'stock_movement': FulusStockMovementCanonicalReconciler(repository: stockMovementRepository).apply,
-      'product': FulusProductCanonicalReconciler(repository: productRepository).apply,
+      'product': FulusProductCanonicalReconciler(
+        repository: productRepository,
+        // Fetch new cloud photos to disk so they still show offline.
+        onRemotePhoto: (url) => unawaited(RemoteImageDiskCache.instance.prefetch(url)),
+      ).apply,
     },
   );
   final syncCoordinator = FulusSyncCoordinator(
@@ -427,6 +434,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       'income_record': incomeSyncHandler,
       'stock_movement': stockMovementSyncHandler,
       'product': productSyncHandler,
+      'product_photo': productPhotoSyncHandler,
     },
     maxAttemptsBeforeAttentionNeeded: defaultSyncAttentionThreshold,
     diagnosticLogger: diagnosticLogger,

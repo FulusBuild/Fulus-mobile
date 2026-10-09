@@ -35,3 +35,4 @@ export 'fulus_skeleton.dart';
 export 'fulus_snackbar.dart';
 export 'fulus_text_field.dart';
 export 'pin_keypad.dart';
+export 'cached_remote_image.dart';

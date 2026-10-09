@@ -95,7 +95,7 @@ class _Thumbnail extends StatelessWidget {
         child: photoPath == null
             ? Text(initial, style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)))
             : (photoPath!.startsWith('http://') || photoPath!.startsWith('https://'))
-                ? Image.network(
+                ? CachedRemoteImage(
                     photoPath!,
                     width: double.infinity,
                     height: double.infinity,

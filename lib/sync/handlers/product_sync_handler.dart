@@ -1,14 +1,11 @@
 import '../../core/money/money.dart';
-import 'dart:io';
-
-import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
-import '../../data/remote/product_image_api.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../data/repositories/product_mapper.dart';
+import '../../core/utils/photo_path.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../sync_handler.dart';
 
@@ -23,18 +20,15 @@ class ProductSyncHandler implements SyncHandler {
     required AppDatabase db,
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
-    required ProductImageApi productImageApi,
   })  : _productRepository = productRepository,
         _db = db,
         _fulusSyncApi = fulusSyncApi,
-        _fulusConnectionState = fulusConnectionState,
-        _productImageApi = productImageApi;
+        _fulusConnectionState = fulusConnectionState;
 
   final ProductRepository _productRepository;
   final AppDatabase _db;
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
-  final ProductImageApi _productImageApi;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
@@ -58,31 +52,8 @@ class ProductSyncHandler implements SyncHandler {
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
     }
-    var photoPath = product.photoPath;
-    var retryPhotoUploadAfterCreate = false;
-    if (product.deletedAt == null &&
-        photoPath != null &&
-        !photoPath.startsWith('http://') &&
-        !photoPath.startsWith('https://')) {
-      try {
-        photoPath = await _productImageApi.upload(
-          file: File(photoPath),
-          businessId: businessId,
-          productLocalId: localId,
-        );
-        await _productRepository.setLocalOverrides(
-          productLocalId: localId,
-          photoPath: photoPath,
-        );
-      } on DioException {
-        // A catalog photo is ancillary to product identity and opening stock.
-        // Do not let a Storage 4xx/5xx prevent the authoritative product.create
-        // operation from running. Keep the local path and queue a normal product
-        // update after create so the image upload can be retried independently.
-        photoPath = null;
-        retryPhotoUploadAfterCreate = true;
-      }
-    }
+    // A device-local photo is uploaded by its own low-priority queue item.
+    final photoPath = isRemotePhotoPath(product.photoPath) ? product.photoPath : null;
 
     // Product creation carries one initial stock/location pair. If stock was
     // also recorded in another location before the product create replayed,
@@ -159,15 +130,6 @@ class ProductSyncHandler implements SyncHandler {
     }
 
     await _productRepository.markSynced(localId: localId, serverId: serverId, operationId: operationId);
-    if (retryPhotoUploadAfterCreate && product.photoPath != null) {
-      // updateProduct preserves the device-local path and enqueues a separate
-      // update mutation. A repeated Storage failure can no longer hold up the
-      // product's server identity or sales that depend on it.
-      await _productRepository.updateProduct(
-        localId: localId,
-        photoPath: product.photoPath,
-      );
-    }
   }
 
   Future<void> _syncUpdate(String localId, {required String operationId, int? baseCursor}) async {
@@ -185,19 +147,6 @@ class ProductSyncHandler implements SyncHandler {
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
     }
-    var photoPath = product.photoPath;
-    if (photoPath != null && !photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
-      photoPath = await _productImageApi.upload(
-        file: File(photoPath),
-        businessId: businessId,
-        productLocalId: localId,
-      );
-      await _productRepository.setLocalOverrides(
-        productLocalId: localId,
-        photoPath: photoPath,
-      );
-    }
-
     if (product.deletedAt != null) {
       final result = await _fulusSyncApi.submitOperation(
         businessId: businessId,
@@ -228,11 +177,17 @@ class ProductSyncHandler implements SyncHandler {
     final payload = <String, dynamic>{
       'server_id': serverId,
       ...product.toUpdateDto().toJson(),
-      'photo_path': photoPath,
       'category_id': categoryId,
       'supplier_id': supplierId,
       if (baseCursor != null) 'base_cursor': baseCursor,
     };
+    // Omitted photo_path preserves the current cloud photo while a local file
+    // is waiting to upload. An explicit null clears a removed photo.
+    if (isPendingLocalPhotoPath(product.photoPath)) {
+      payload.remove('photo_path');
+    } else {
+      payload['photo_path'] = product.photoPath;
+    }
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: 'product.update',

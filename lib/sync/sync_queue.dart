@@ -107,6 +107,13 @@ class SyncTask {
         entityType: 'product', entityLocalId: localId, operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
       );
+  /// Uploads a product's device-local photo, then queues a normal product
+  /// update that carries the cloud URL. Kept as its own low-priority item so a
+  /// slow or rejected upload can never hold up product data or sales.
+  factory SyncTask.uploadProductPhoto(String localId) => SyncTask(
+        entityType: 'product_photo', entityLocalId: localId, operation: 'upload',
+        priority: SyncPriority.photosAndBulkImport,
+      );
 
   final String entityType;
   final String entityLocalId;
