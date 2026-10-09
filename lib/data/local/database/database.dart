@@ -224,7 +224,8 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
         await customStatement(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_sku '
-          'ON products(sku) WHERE deleted_at IS NULL',
+          'ON products(location_id, sku) '
+          'WHERE deleted_at IS NULL AND location_id IS NOT NULL',
         );
         await customStatement(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode '
@@ -704,6 +705,23 @@ class AppDatabase extends _$AppDatabase {
           // location happens to be active on upgrade.
           await m.addColumn(products, products.locationId);
           await m.addColumn(customers, customers.locationId);
+
+          // v6's unique SKU/barcode indexes were business-wide. Rebuild them
+          // around explicit owner location; unassigned legacy rows stay out
+          // of these indexes until safely reconciled.
+          await customStatement('DROP INDEX IF EXISTS idx_products_sku');
+          await customStatement('DROP INDEX IF EXISTS idx_products_barcode');
+          await customStatement(
+            'CREATE UNIQUE INDEX idx_products_sku '
+            'ON products(location_id, sku) '
+            'WHERE deleted_at IS NULL AND location_id IS NOT NULL',
+          );
+          await customStatement(
+            'CREATE UNIQUE INDEX idx_products_barcode '
+            'ON products(location_id, barcode) '
+            'WHERE deleted_at IS NULL AND barcode IS NOT NULL '
+            'AND location_id IS NOT NULL',
+          );
         }
 
       },
