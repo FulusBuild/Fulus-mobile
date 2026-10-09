@@ -222,7 +222,9 @@ class ProductResponseDto {
     return Product(
       localId: id,
       serverId: id,
-      locationId: locationId,
+      // DTO locationId is a cloud ID; the repository resolves it to a local
+      // location before persistence.
+      locationId: null,
       name: name,
       sku: sku,
       barcode: barcode,
