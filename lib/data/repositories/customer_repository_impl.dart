@@ -176,6 +176,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
           ..where((c) => c.serverId.equals(serverId)))
         .getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
+    final effectiveLocationId = locationId ?? existing?.locationId;
 
     await _db.transaction(() async {
       if (existing == null) {
@@ -183,7 +184,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
               CustomersCompanion.insert(
                 localId: localId,
                 serverId: Value(serverId),
-                locationId: Value(locationId),
+                locationId: Value(effectiveLocationId),
                 name: name,
                 phone: Value(phone),
                 email: Value(email),
@@ -201,7 +202,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
         await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
           CustomersCompanion(
             serverId: Value(serverId),
-            locationId: Value(locationId),
+            locationId: Value(effectiveLocationId),
             name: Value(name),
             phone: Value(phone),
             email: Value(email),
