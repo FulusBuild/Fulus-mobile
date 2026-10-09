@@ -32,8 +32,9 @@ Uint8List? _compressBytes(_CompressRequest request) {
 /// Downscales and re-encodes [source] as JPEG when that makes it smaller.
 ///
 /// Returns [source] unchanged when it cannot be decoded or compression does
-/// not help, so callers can always use the result. Transparent PNGs lose their
-/// alpha channel (catalog photos are photographs, not artwork).
+/// not help, so callers can always use the result. The source is deliberately
+/// preserved until the upload and cloud URL update have succeeded. Transparent
+/// PNGs lose their alpha channel (catalog photos are photographs, not artwork).
 /// Decoding runs on a background isolate.
 Future<File> compressImageFile(
   File source, {
@@ -49,13 +50,10 @@ Future<File> compressImageFile(
     if (compressed == null || compressed.isEmpty || compressed.length >= original.length) {
       return source;
     }
-    final target = File('${p.withoutExtension(source.path)}.jpg');
+    final target = File('${p.withoutExtension(source.path)}.optimized.jpg');
     final temp = File('${target.path}.tmp');
     await temp.writeAsBytes(compressed, flush: true);
     await temp.rename(target.path);
-    if (target.path != source.path && await source.exists()) {
-      await source.delete();
-    }
     return target;
   } catch (_) {
     return source;
