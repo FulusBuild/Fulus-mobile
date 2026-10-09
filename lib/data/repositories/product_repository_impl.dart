@@ -92,7 +92,7 @@ class ProductRepositoryImpl implements ProductRepository {
     final query = _db.selectOnly(_db.products)
       ..addColumns([_db.products.sku])
       ..where(_db.products.deletedAt.isNull() &
-          _db.products.locationId.equals(session.activeLocationId));
+          _db.products.locationId.equals(session.activeLocationId!));
     final rows = await query.get();
     return rows.map((row) => row.read(_db.products.sku)!).toSet();
   }
@@ -109,7 +109,7 @@ class ProductRepositoryImpl implements ProductRepository {
       ..addColumns([_db.products.barcode])
       ..where(_db.products.deletedAt.isNull() &
           _db.products.barcode.isNotNull() &
-          _db.products.locationId.equals(session.activeLocationId));
+          _db.products.locationId.equals(session.activeLocationId!));
     final rows = await query.get();
     return rows.map((row) => row.read(_db.products.barcode)!).toSet();
   }
@@ -164,7 +164,7 @@ class ProductRepositoryImpl implements ProductRepository {
     if (resolvedLocationId != null) {
       for (final stockLevel in stockLevels) {
         final stockLocationLocalId =
-            await _resolveLocationLocalId(stockLevel.locationId);
+            await _resolveLocationLocalId(stockLevel.locationServerId);
         if (stockLocationLocalId != null &&
             stockLocationLocalId != resolvedLocationId) {
           throw StateError(
@@ -181,7 +181,7 @@ class ProductRepositoryImpl implements ProductRepository {
     final localSupplierId = await _resolveSupplierLocalId(supplierId);
     await _db.transaction(() async {
       if (existing == null) {
-        await _db.into(_db.products).insert(ProductsCompanion.insert(localId: localId, serverId: Value(serverId), locationId: Value(resolvedLocationId), name: name, barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: costPrice, sellingPrice: sellingPrice, lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), createdAt: updatedAt, updatedAt: updatedAt, deletedAt: Value(deletedAt), syncStatus: SyncStatus.settled));
+        await _db.into(_db.products).insert(ProductsCompanion.insert(localId: localId, serverId: Value(serverId), locationId: Value(resolvedLocationId), name: name, sku: Value(sku), barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: costPrice, sellingPrice: sellingPrice, lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), createdAt: updatedAt, updatedAt: updatedAt, deletedAt: Value(deletedAt), syncStatus: SyncStatus.settled));
       } else {
         await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(serverId: Value(serverId), locationId: Value(resolvedLocationId), name: Value(name), sku: Value(sku), barcode: Value(barcode), categoryId: Value(localCategoryId), supplierId: Value(localSupplierId), costPrice: Value(costPrice), sellingPrice: Value(sellingPrice), lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(effectivePhotoPath), deletedAt: Value(deletedAt), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled)));
       }
@@ -249,15 +249,15 @@ class ProductRepositoryImpl implements ProductRepository {
         session!.activeLocationId != draft.locationId) {
       throw StateError('Products can only be created in the active location.');
     }
-    final existingSku = await (_db.select(_db.products)
-          ..where((p) => customExpression<bool>(
-                'lower(sku) = ?',
-                variables: [Variable(draft.sku.toLowerCase())],
-              ) &
-              p.locationId.equals(draft.locationId) &
-              p.deletedAt.isNull()))
-        .getSingleOrNull();
-    if (existingSku != null) throw ArgumentError.value(draft.sku, 'sku', 'already exists');
+    final locationProducts = await (_db.select(_db.products)
+          ..where((p) => p.locationId.equals(draft.locationId))
+          ..where((p) => p.deletedAt.isNull()))
+        .get();
+    if (locationProducts.any(
+      (product) => product.sku.toLowerCase() == draft.sku.toLowerCase(),
+    )) {
+      throw ArgumentError.value(draft.sku, 'sku', 'already exists');
+    }
     if (draft.barcode != null && draft.barcode!.isNotEmpty) {
       final existingBarcode = await (_db.select(_db.products)
             ..where((p) => p.barcode.equals(draft.barcode!) &
@@ -283,18 +283,23 @@ class ProductRepositoryImpl implements ProductRepository {
     final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
     if (current == null) throw StateError('Product $localId does not exist.');
     await _assertProductInActiveLocation(current.locationId);
+    if (current.locationId == null) {
+      throw StateError('Product ownership is unresolved; reconcile it before updating.');
+    }
     if (sku != null) {
-      final duplicate = await (_db.select(_db.products)..where((p) => customExpression<bool>(
-                'lower(sku) = ?',
-                variables: [Variable(sku.toLowerCase())],
-              ) &
-              p.locationId.equals(current.locationId) &
-              p.localId.equals(localId).not() &
-              p.deletedAt.isNull())).getSingleOrNull();
-      if (duplicate != null) throw ArgumentError.value(sku, 'sku', 'already exists');
+      final locationProducts = await (_db.select(_db.products)
+            ..where((p) => p.locationId.equals(current.locationId!))
+            ..where((p) => p.localId.equals(localId).not())
+            ..where((p) => p.deletedAt.isNull()))
+          .get();
+      if (locationProducts.any(
+        (product) => product.sku.toLowerCase() == sku.toLowerCase(),
+      )) {
+        throw ArgumentError.value(sku, 'sku', 'already exists');
+      }
     }
     if (barcode != null && barcode.isNotEmpty) {
-      final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.locationId.equals(current.locationId) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
+      final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.locationId.equals(current.locationId!) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
       if (duplicate != null) throw ArgumentError.value(barcode, 'barcode', 'already exists');
     }
     await _db.transaction(() async {
