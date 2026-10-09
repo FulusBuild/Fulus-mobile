@@ -548,7 +548,7 @@ class _ProductRow extends StatelessWidget {
                           ),
                         )
                       : (product.photoPath!.startsWith('http://') || product.photoPath!.startsWith('https://'))
-                          ? Image.network(
+                          ? CachedRemoteImage(
                               product.photoPath!,
                               fit: BoxFit.cover,
                               width: double.infinity,
