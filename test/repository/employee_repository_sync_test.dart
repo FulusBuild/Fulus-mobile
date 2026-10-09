@@ -28,7 +28,7 @@ void main() {
           name: 'Location 1',
           createdAt: DateTime.utc(2026, 9, 30, 10),
           updatedAt: DateTime.utc(2026, 9, 30, 10),
-          syncStatus: const Value(SyncStatus.settled),
+          syncStatus: SyncStatus.settled,
         ),
         LocationsCompanion.insert(
           localId: 'location-local-2',
@@ -36,7 +36,7 @@ void main() {
           name: 'Location 2',
           createdAt: DateTime.utc(2026, 9, 30, 10),
           updatedAt: DateTime.utc(2026, 9, 30, 10),
-          syncStatus: const Value(SyncStatus.settled),
+          syncStatus: SyncStatus.settled,
         ),
       ]);
     });
@@ -71,14 +71,14 @@ void main() {
           name: 'Location A',
           createdAt: now,
           updatedAt: now,
-          syncStatus: const Value(SyncStatus.settled),
+          syncStatus: SyncStatus.settled,
         ),
         LocationsCompanion.insert(
           localId: 'location-b',
           name: 'Location B',
           createdAt: now,
           updatedAt: now,
-          syncStatus: const Value(SyncStatus.settled),
+          syncStatus: SyncStatus.settled,
         ),
       ]);
     });
