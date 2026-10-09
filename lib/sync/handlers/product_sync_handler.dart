@@ -73,7 +73,7 @@ class ProductSyncHandler implements SyncHandler {
       localId: product.supplierId,
       entityType: 'supplier',
     );
-    final ownerLocationLocalId = product.locationId ?? stock?.locationLocalId;
+    final ownerLocationLocalId = product.locationId;
     if (ownerLocationLocalId == null || ownerLocationLocalId.isEmpty) {
       throw StateError(
         'Product $localId has no safely resolved owner location. '
