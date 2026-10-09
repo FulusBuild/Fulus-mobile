@@ -144,7 +144,7 @@ Deno.serve(async req => {
         }
         const row = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
         const locationId = row?.location_id;
-        return locationId == null || accessibleLocationIds.has(String(locationId));
+        return locationId != null && accessibleLocationIds.has(String(locationId));
       }
       if (!payload || typeof payload !== "object") return false;
       const row = payload as Record<string, unknown>;
