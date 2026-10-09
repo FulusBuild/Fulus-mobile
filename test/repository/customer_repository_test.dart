@@ -47,6 +47,20 @@ void main() {
   });
 
   group('createCustomer', () {
+    test('rejects creation when there is no active session', () async {
+      await (db.delete(db.sessions)..where((row) => row.id.equals('current'))).go();
+
+      await expectLater(
+        repository.createCustomer(
+          const CustomerDraft(name: 'Unscoped Customer', locationId: 'location-1'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await db.select(db.customers).get(), isEmpty);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
     test('writes the customer locally with zero starting balance', () async {
       final result = await repository.createCustomer(
         const CustomerDraft(name: 'Chidinma Okafor', locationId: 'location-1', phone: '+2348012345678'),
