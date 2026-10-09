@@ -2,6 +2,7 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/employee_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/domain/entities/permission.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/domain/repositories/permission_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
@@ -17,6 +18,8 @@ void main() {
   late AppDatabase db;
   late SyncQueue syncQueue;
   late EmployeeRepositoryImpl repository;
+  late _MockAuthRepository authRepository;
+  late _MockPermissionRepository permissionRepository;
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -41,16 +44,43 @@ void main() {
       ]);
     });
     syncQueue = SyncQueue(db);
+    authRepository = _MockAuthRepository();
+    permissionRepository = _MockPermissionRepository();
     repository = EmployeeRepositoryImpl(
       db: db,
-      authRepository: _MockAuthRepository(),
-      permissionRepository: _MockPermissionRepository(),
+      authRepository: authRepository,
+      permissionRepository: permissionRepository,
       syncQueue: syncQueue,
     );
   });
 
   tearDown(() async {
     await db.close();
+  });
+
+  test('employee creation fails closed without an active session', () async {
+    when(() => authRepository.currentUser).thenReturn(const AuthUser(
+      id: 'owner-user',
+      fullName: 'Owner',
+      role: AuthRole.owner,
+      isActive: true,
+      hasLoginPin: false,
+    ));
+    when(() => permissionRepository.hasPermission(
+      userId: 'owner-user',
+      role: AuthRole.owner,
+      permission: Permission.manageEmployees,
+    )).thenAnswer((_) async => true);
+
+    await expectLater(
+      repository.createEmployee(const EmployeeDraft(
+        fullName: 'Unscoped Employee',
+        locationId: 'location-1',
+      )),
+      throwsA(isA<StateError>()),
+    );
+    expect(await db.select(db.employees).get(), isEmpty);
+    expect(await db.select(db.syncQueueItems).get(), isEmpty);
   });
 
   test('employee roster reads are isolated to the active location while sync can drain other-location outbox rows', () async {
