@@ -106,6 +106,7 @@ class Customer {
 class CustomerDraft {
   const CustomerDraft({
     required this.name,
+    this.locationId,
     this.phone,
     this.email,
     this.address,
@@ -116,6 +117,7 @@ class CustomerDraft {
   });
 
   final String name;
+  final String? locationId;
   final String? phone;
   final String? email;
   final String? address;
