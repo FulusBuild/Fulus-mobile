@@ -140,6 +140,7 @@ class SyncEngine {
         progress = true;
       } on SyncFailure catch (e, st) {
         if (e.kind == SyncErrorKind.dependencyNotReady) {
+          await _recordDependencyDeferral(item, e.message);
           deferred.add(item);
           continue;
         }
@@ -174,6 +175,7 @@ class SyncEngine {
       } catch (e, st) {
         final classified = SyncFailure.classify(e);
         if (classified.kind == SyncErrorKind.dependencyNotReady) {
+          await _recordDependencyDeferral(item, classified.message);
           deferred.add(item);
           continue;
         }
@@ -254,6 +256,40 @@ class SyncEngine {
         createdAt: DateTime.now(),
       ),
     );
+  }
+
+  /// Dependency deferrals do not consume retry attempts, but keeping their
+  /// reason on the durable queue row makes a pending item diagnosable. Preserve
+  /// an existing failure (and especially the [BLOCKED] marker) rather than
+  /// replacing more useful failure evidence with a transient dependency wait.
+  Future<void> _recordDependencyDeferral(
+    SyncQueueItem item,
+    String message,
+  ) async {
+    final previousError = item.lastError;
+    // Permanent attention markers are the canonical state for blocked items;
+    // never replace them with a transient dependency-wait reason.
+    if (previousError != null &&
+        (previousError.startsWith('[BLOCKED]') ||
+            previousError.startsWith('[CONFLICT]'))) {
+      return;
+    }
+
+    final deferral = 'Dependency deferred: $message';
+    final updatedError = previousError == null || previousError.isEmpty
+        ? message
+        : previousError.contains(deferral)
+            ? previousError
+            : '$previousError\n$deferral';
+
+    final update = _db.update(_db.syncQueueItems)
+      ..where((q) => q.id.equals(item.id));
+    if (previousError == null) {
+      update.where((q) => q.lastError.isNull());
+    } else {
+      update.where((q) => q.lastError.equals(previousError));
+    }
+    await update.write(SyncQueueItemsCompanion(lastError: Value(updatedError)));
   }
 
   Future<void> _removeFromQueue(String id) async {

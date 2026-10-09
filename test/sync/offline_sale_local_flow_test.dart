@@ -166,7 +166,10 @@ void main() {
     final queued = await db.select(db.syncQueueItems).get();
     expect(queued, hasLength(1));
     expect(queued.single.syncAttempts, 0);
-    expect(queued.single.lastError, isNull);
+    expect(
+      queued.single.lastError,
+      'Fulus Cloud authorization is required for sale sync; legacy API transport is disabled.',
+    );
 
     await executionLease.release();
     await db.close();

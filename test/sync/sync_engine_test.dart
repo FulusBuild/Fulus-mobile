@@ -46,6 +46,7 @@ void main() {
     required DateTime enqueuedAt,
     int syncAttempts = 0,
     DateTime? lastAttemptedAt,
+    String? lastError,
   }) async {
     await db.into(db.syncQueueItems).insert(
           SyncQueueItemsCompanion.insert(
@@ -57,6 +58,7 @@ void main() {
             enqueuedAt: enqueuedAt,
             syncAttempts: Value(syncAttempts),
             lastAttemptedAt: Value(lastAttemptedAt),
+            lastError: Value(lastError),
           ),
         );
   }
@@ -411,6 +413,57 @@ void main() {
 
     expect(handler.attemptedIds, ['product', 'category', 'product']);
     expect(await allQueueItems(), isEmpty);
+  });
+
+  test('persists dependency deferral reason without consuming retry attempts', () async {
+    await seedItem(
+      id: 'waiting-item',
+      entityLocalId: 'waiting-product-photo',
+      enqueuedAt: DateTime.now(),
+      priority: 2,
+    );
+
+    final handler = _ScriptedHandler((_) async {
+      throw const SyncFailure(
+        kind: SyncErrorKind.dependencyNotReady,
+        message: 'Fulus cloud authorization is required for product photo sync.',
+      );
+    });
+    final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    await engine.runOnce();
+
+    final pending = await allQueueItems();
+    expect(pending, hasLength(1));
+    expect(pending.single.lastError,
+        'Fulus cloud authorization is required for product photo sync.');
+    expect(pending.single.syncAttempts, 0);
+  });
+
+  test('adds current dependency deferral while preserving an older retryable error', () async {
+    await seedItem(
+      id: 'waiting-with-error',
+      entityLocalId: 'waiting-product-photo',
+      enqueuedAt: DateTime.now(),
+      priority: 2,
+      lastError: 'Previous upload failed with HTTP 503.',
+    );
+
+    final handler = _ScriptedHandler((_) async {
+      throw const SyncFailure(
+        kind: SyncErrorKind.dependencyNotReady,
+        message: 'Cloud authorization is required for product photo sync.',
+      );
+    });
+    final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    await engine.runOnce();
+
+    final pending = await allQueueItems();
+    expect(pending, hasLength(1));
+    expect(pending.single.lastError, contains('Previous upload failed with HTTP 503.'));
+    expect(pending.single.lastError, contains('Dependency deferred: Cloud authorization is required for product photo sync.'));
+    expect(pending.single.syncAttempts, 0);
   });
 
   group('retry backoff', () {

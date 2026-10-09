@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -8,8 +9,11 @@ import 'package:fulus_mobile/data/local/sync_cursor_store.dart';
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/core/notifications/notification_service.dart';
+import 'package:fulus_mobile/core/diagnostics/diagnostic_logger.dart';
+import 'package:fulus_mobile/core/diagnostics/models/diagnostic_enums.dart';
 
 class _MockNotificationService extends Mock implements NotificationService {}
+class _MockDiagnosticLogger extends Mock implements DiagnosticLogger {}
 
 void main() {
   late AppDatabase db;
@@ -74,4 +78,54 @@ void main() {
 
     expect(notifier.healthFor('business-1').lastPushAt, isNotNull);
   });
+  test('health diagnostic identifies queued work without exporting local IDs', () async {
+    final preferences = await SharedPreferences.getInstance();
+    final logger = _MockDiagnosticLogger();
+    when(() => logger.captureInfo(
+          category: DiagnosticCategory.synchronization,
+          title: 'Sync health',
+          message: 'Periodic sync health snapshot.',
+          technicalContext: any(named: 'technicalContext'),
+        )).thenAnswer((_) async {});
+
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'operation-private-id',
+        entityType: 'product_photo',
+        entityLocalId: 'product-private-id',
+        operation: 'upload',
+        priority: 2,
+        enqueuedAt: DateTime.now().subtract(const Duration(minutes: 12)),
+        syncAttempts: const Value(5),
+        lastError: const Value('HTTP 403 permission denied'),
+      ),
+    );
+
+    final notifier = SyncStatusNotifier(
+      db: db,
+      syncConfig: config,
+      notificationService: notifications,
+      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      diagnosticLogger: logger,
+    );
+
+    await notifier.emitHealthDiagnostic('business-1');
+
+    final context = verify(() => logger.captureInfo(
+          category: DiagnosticCategory.synchronization,
+          title: 'Sync health',
+          message: 'Periodic sync health snapshot.',
+          technicalContext: captureAny(named: 'technicalContext'),
+        )).captured.single as Map<String, String>;
+
+    expect(context['pending_count'], '1');
+    expect(context['attention_count'], '1');
+    expect(context['pending_items_json'], contains('product_photo'));
+    expect(context['pending_items_json'], contains('HTTP 403 permission denied'));
+    expect(context['pending_items_json'], isNot(contains('product-private-id')));
+    expect(context['pending_items_json'], isNot(contains('operation-private-id')));
+    expect(context['unresolved_conflict_count'], '0');
+  });
+
 }
