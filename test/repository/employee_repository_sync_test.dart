@@ -84,6 +84,43 @@ void main() {
     expect(await db.select(db.syncQueueItems).get(), isEmpty);
   });
 
+  test('employee mutations fail closed without an active session', () async {
+    when(() => authRepository.currentUser).thenReturn(const AuthUser(
+      id: 'owner-user',
+      fullName: 'Owner',
+      role: AuthRole.owner,
+      isActive: true,
+      hasLoginPin: false,
+    ));
+    when(() => permissionRepository.hasPermission(
+      userId: 'owner-user',
+      role: AuthRole.owner,
+      permission: Permission.manageEmployees,
+    )).thenAnswer((_) async => true);
+
+    final now = DateTime.utc(2026, 10, 9, 10);
+    await db.into(db.employees).insert(EmployeesCompanion.insert(
+      localId: 'employee-unscoped',
+      fullName: 'Employee Without Session',
+      locationId: const Value('location-local-1'),
+      createdAt: now,
+      updatedAt: now,
+      syncStatus: SyncStatus.settled,
+    ));
+
+    await expectLater(
+      repository.deactivateEmployee('employee-unscoped'),
+      throwsA(isA<StateError>()),
+    );
+
+    final row = await (db.select(db.employees)
+          ..where((employee) => employee.localId.equals('employee-unscoped')))
+        .getSingle();
+    expect(row.isActive, isTrue);
+    expect(row.deletedAt, isNull);
+    expect(await db.select(db.syncQueueItems).get(), isEmpty);
+  });
+
   test('employee roster reads are isolated to the active location while sync can drain other-location outbox rows', () async {
     final now = DateTime.utc(2026, 10, 9, 10);
     await db.into(db.users).insert(
