@@ -1,4 +1,5 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/domain/entities/draft_cart.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
@@ -68,6 +69,11 @@ void main() {
     // locations row seeded first — loc-1 covers all tests except the
     // multi-location one below, which seeds loc-2 itself.
     await seedLocation(db, localId: 'loc-1');
+    await seedUser(db, localId: 'owner-user', role: AuthRole.owner);
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current', userId: 'owner-user',
+      activeLocationId: const Value('loc-1'),
+    ));
     final syncQueue = SyncQueue(db);
     final productRepository = ProductRepositoryImpl(
       db: db,
@@ -171,7 +177,7 @@ void main() {
         'collected cash', () async {
       final customerRepository = CustomerRepositoryImpl(db: db, syncQueue: SyncQueue(db));
       final customer = await customerRepository.createCustomer(
-        const CustomerDraft(name: 'Sanni'),
+        const CustomerDraft(name: 'Sanni', locationId: 'loc-1'),
       );
 
       final draft = await draftCartRepository.getOrCreateDraftCart(
