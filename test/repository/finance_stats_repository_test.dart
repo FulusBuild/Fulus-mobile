@@ -371,6 +371,7 @@ void main() {
       await db.into(db.customers).insert(
             CustomersCompanion.insert(
               localId: 'customer-1',
+              locationId: const Value('loc-1'),
               name: 'Test Customer',
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
