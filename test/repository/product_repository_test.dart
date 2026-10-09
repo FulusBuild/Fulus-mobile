@@ -20,7 +20,7 @@ void main() {
       name: 'Main Store',
       createdAt: DateTime(2026, 1, 1),
       updatedAt: DateTime(2026, 1, 1),
-      syncStatus: SyncStatus.settled,
+      syncStatus: const Value(SyncStatus.settled),
     ));
   }
 
@@ -67,7 +67,7 @@ void main() {
             name: 'Main Store',
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
@@ -79,7 +79,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
 
       await repository.reconcileStockLevel(
@@ -98,7 +98,7 @@ void main() {
       await db.into(db.locations).insert(LocationsCompanion.insert(
             localId: locationId, name: 'Main Store',
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
@@ -129,14 +129,14 @@ void main() {
       await db.into(db.locations).insert(LocationsCompanion.insert(
             localId: locationId, name: 'Main Store',
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
             locationId: const Value(locationId),
             sku: 'SKU-p1', costPrice: 500, sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
 
       await repository.reconcileStockLevel(
@@ -166,7 +166,7 @@ void main() {
             name: 'Main Store',
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
     });
 
@@ -176,7 +176,7 @@ void main() {
         name: 'Second Store',
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
+        syncStatus: const Value(SyncStatus.settled),
       ));
       await db.batch((batch) {
         batch.insertAll(db.products, [
@@ -189,7 +189,7 @@ void main() {
             sellingPrice: 200,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ),
           ProductsCompanion.insert(
             localId: 'product-b',
@@ -200,7 +200,7 @@ void main() {
             sellingPrice: 200,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ),
         ]);
       });
@@ -211,14 +211,14 @@ void main() {
             locationLocalId: locationId,
             currentStock: const Value(5),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ),
           ProductStockLevelsCompanion.insert(
             productLocalId: 'product-b',
             locationLocalId: 'loc-b',
             currentStock: const Value(8),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ),
         ]);
       });
@@ -242,14 +242,14 @@ void main() {
         sellingPrice: 1000,
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
+        syncStatus: const Value(SyncStatus.settled),
       ));
       await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
         productLocalId: 'p1',
         locationLocalId: locationId,
         currentStock: const Value(20),
         updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
+        syncStatus: const Value(SyncStatus.settled),
       ));
 
       final emitted = await repository.watchProducts(locationId: locationId).first;
@@ -269,7 +269,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
 
       final emitted = await repository.watchProducts(locationId: locationId).first;
@@ -287,7 +287,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
             isActive: const Value(false),
           ));
 
@@ -306,7 +306,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
             isActive: const Value(false),
           ));
 
@@ -330,7 +330,7 @@ void main() {
           lowStockThreshold: const Value(10),
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),
-          syncStatus: SyncStatus.settled,
+          syncStatus: const Value(SyncStatus.settled),
         ),
         ProductsCompanion.insert(
           localId: 'healthy',
@@ -343,7 +343,7 @@ void main() {
           lowStockThreshold: const Value(10),
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),
-          syncStatus: SyncStatus.settled,
+          syncStatus: const Value(SyncStatus.settled),
         ),
       ]);
       });
@@ -354,14 +354,14 @@ void main() {
           locationLocalId: locationId,
           currentStock: const Value(2),
           updatedAt: DateTime(2026, 1, 1),
-          syncStatus: SyncStatus.settled,
+          syncStatus: const Value(SyncStatus.settled),
         ),
         ProductStockLevelsCompanion.insert(
           productLocalId: 'healthy',
           locationLocalId: locationId,
           currentStock: const Value(50),
           updatedAt: DateTime(2026, 1, 1),
-          syncStatus: SyncStatus.settled,
+          syncStatus: const Value(SyncStatus.settled),
         ),
       ]);
       });
@@ -384,7 +384,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
 
       final emitted = await repository.watchLowStockProducts(locationId: locationId).first;
@@ -403,7 +403,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
 
       final result = await repository.getProductByBarcode('6001234567890', locationId: locationId);
@@ -427,7 +427,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
 
       final result = await repository.getProductBySku('COKE-50CL', locationId: locationId);
@@ -609,7 +609,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
 
       await repository.updateProduct(localId: 'p1', sellingPrice: 1200);
@@ -632,7 +632,7 @@ void main() {
             sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
+            syncStatus: const Value(SyncStatus.settled),
           ));
 
       await repository.updateProduct(localId: 'p1', sellingPrice: 1200);
@@ -663,7 +663,7 @@ void main() {
               sellingPrice: 1000,
               createdAt: DateTime(2026, 1, 1),
               updatedAt: DateTime(2026, 1, 1),
-              syncStatus: SyncStatus.settled,
+              syncStatus: const Value(SyncStatus.settled),
             ));
       }
 
@@ -832,7 +832,7 @@ void main() {
         sellingPrice: 1000,
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
+        syncStatus: const Value(SyncStatus.settled),
       ));
     }
 
