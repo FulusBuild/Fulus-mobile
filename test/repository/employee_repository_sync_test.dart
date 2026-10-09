@@ -33,6 +33,49 @@ void main() {
     await db.close();
   });
 
+  test('employee roster reads are isolated to the active location while sync can drain other-location outbox rows', () async {
+    final now = DateTime.utc(2026, 10, 9, 10);
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value('location-a'),
+      ),
+    );
+    for (final entry in [
+      ('employee-a', 'Location A employee', 'location-a'),
+      ('employee-b', 'Location B employee', 'location-b'),
+    ]) {
+      await db.into(db.employees).insert(
+        EmployeesCompanion.insert(
+          localId: entry.$1,
+          fullName: entry.$2,
+          locationId: Value(entry.$3),
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: const Value(SyncStatus.pending),
+        ),
+      );
+    }
+
+    final visible = await repository.watchEmployees(isActive: true).first;
+    expect(visible.map((employee) => employee.id), ['employee-a']);
+    expect(await repository.getEmployeeById('employee-b'), isNull);
+    expect(
+      (await repository.getEmployeeById('employee-b', forSync: true))?.id,
+      'employee-b',
+    );
+  });
+
   test('reconcileServerState creates a local projection with stable server identity', () async {
     final createdAt = DateTime.utc(2026, 9, 30, 10);
     final updatedAt = DateTime.utc(2026, 9, 30, 11);
