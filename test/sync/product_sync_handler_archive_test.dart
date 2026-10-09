@@ -185,6 +185,7 @@ void main() {
     await db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value('loc-1'),
             serverId: const Value('server-product-1'),
             name: 'Archived product',
             sku: 'ARCHIVE-1',
