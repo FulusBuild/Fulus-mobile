@@ -237,7 +237,7 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<Product> createProduct(ProductDraft draft) async {
     if (draft.sellingPrice <= 0) throw ArgumentError.value(draft.sellingPrice, 'sellingPrice', 'must be > 0');
     if (draft.costPrice < 0) throw ArgumentError.value(draft.costPrice, 'costPrice', 'must be >= 0');
-    if (draft.locationId == null || draft.locationId!.isEmpty) {
+    if (draft.locationId.isEmpty) {
       throw StateError('Product ownership requires an explicit location.');
     }
     final session = await (_db.select(_db.sessions)
