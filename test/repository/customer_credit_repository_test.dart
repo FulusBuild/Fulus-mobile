@@ -390,6 +390,48 @@ void main() {
   });
 
   group('watchLedger', () {
+    test('reads legacy snake_case ledger entry types without failing the stream', () async {
+      final customerId = await createTestCustomer();
+      final createdAt = DateTime(2026, 10, 1);
+
+      // These values may remain on devices upgraded from an older local
+      // representation. One unsupported row previously caused the entire
+      // customer's reactive history stream to fail.
+      await db.into(db.customerLedgerEntries).insert(
+        CustomerLedgerEntriesCompanion.insert(
+          localId: 'legacy-credit-sale',
+          customerLocalId: customerId,
+          entryType: 'credit_sale',
+          amount: 5000,
+          saleLocalId: const Value('sale-1'),
+          createdAt: createdAt,
+          updatedAt: createdAt,
+        ),
+      );
+      await db.into(db.customerLedgerEntries).insert(
+        CustomerLedgerEntriesCompanion.insert(
+          localId: 'legacy-refund',
+          customerLocalId: customerId,
+          entryType: 'refund_adjustment',
+          amount: 1000,
+          saleLocalId: const Value('sale-1'),
+          createdAt: createdAt.add(const Duration(seconds: 1)),
+          updatedAt: createdAt.add(const Duration(seconds: 1)),
+        ),
+      );
+
+      final entries = await creditRepository.watchLedger(customerId).first;
+
+      expect(entries, hasLength(2));
+      expect(
+        entries.map((entry) => entry.entryType),
+        containsAll([
+          CustomerLedgerEntryType.creditSale,
+          CustomerLedgerEntryType.refundAdjustment,
+        ]),
+      );
+    });
+
     test('emits entries reverse-chronologically', () async {
       final customerId = await createTestCustomer();
       await creditRepository.recordCreditSale(
