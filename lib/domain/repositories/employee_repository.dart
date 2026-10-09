@@ -70,7 +70,13 @@ abstract class EmployeeRepository {
   /// Null for an id that doesn't exist OR that belongs to a
   /// deactivated employee — consistent with every list/stream method
   /// on this repository, all of which exclude deactivated employees.
-  Future<Employee?> getEmployeeById(String id, {bool includeInactive = false});
+  /// [forSync] is reserved for durable outbox handlers that must drain
+  /// queued mutations even after the user switches active locations.
+  Future<Employee?> getEmployeeById(
+    String id, {
+    bool includeInactive = false,
+    bool forSync = false,
+  });
 
   Future<EmployeeStats> getStats();
 
