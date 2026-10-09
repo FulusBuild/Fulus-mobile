@@ -2,7 +2,9 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -75,6 +77,74 @@ void main() {
     test('returns null for an id that was never created', () async {
       final fetched = await repository.getCustomerById('does-not-exist');
       expect(fetched, isNull);
+    });
+  });
+
+  group('location isolation', () {
+    test('customer reads are scoped to the active location while outbox lookup remains available', () async {
+      final now = DateTime.utc(2026, 10, 9, 10);
+      await db.into(db.users).insert(
+        UsersCompanion.insert(
+          localId: 'owner-user',
+          fullName: 'Owner',
+          role: AuthRole.owner,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await db.batch((batch) {
+        batch.insertAll(db.locations, [
+          LocationsCompanion.insert(
+            localId: 'location-a',
+            name: 'Location A',
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.settled,
+          ),
+          LocationsCompanion.insert(
+            localId: 'location-b',
+            name: 'Location B',
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.settled,
+          ),
+        ]);
+      });
+      await db.into(db.sessions).insert(
+        SessionsCompanion.insert(
+          id: 'current',
+          userId: 'owner-user',
+          activeLocationId: const Value('location-a'),
+        ),
+      );
+      await db.batch((batch) {
+        batch.insertAll(db.customers, [
+          CustomersCompanion.insert(
+            localId: 'customer-a',
+            locationId: const Value('location-a'),
+            name: 'Customer A',
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.settled,
+          ),
+          CustomersCompanion.insert(
+            localId: 'customer-b',
+            locationId: const Value('location-b'),
+            name: 'Customer B',
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.pending,
+          ),
+        ]);
+      });
+
+      final visible = await repository.watchCustomers().first;
+      expect(visible.map((customer) => customer.localId), ['customer-a']);
+      expect(await repository.getCustomerById('customer-b'), isNull);
+      expect(
+        (await repository.getCustomerById('customer-b', forSync: true))?.localId,
+        'customer-b',
+      );
     });
   });
 
