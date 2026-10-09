@@ -594,6 +594,166 @@ for select using (
 
 revoke all on function public.guard_location_owned_record() from public, anon, authenticated;
 
+
+-- Active roster entries require an explicit location. Existing inactive/null
+-- legacy rows remain available for controlled recovery, but cannot be created
+-- or updated into an active unassigned roster entry.
+do $employee_patch$
+declare
+  v_definition text;
+  v_patched text;
+  v_old text;
+  v_new text;
+begin
+  v_definition := pg_catalog.pg_get_functiondef(
+    'public.fulus_api_mutate_employee(uuid,uuid,uuid,text,text,uuid,text,text,text,text,text,numeric,text,text,date,uuid,boolean,bigint,text)'::regprocedure
+  );
+  v_patched := v_definition;
+
+  v_old := E'  if target_operation = ''create'' and target_location_id is not null then\n' ||
+    E'    perform public.require_location_access(target_business_id, target_location_id);\n' ||
+    E'  end if;';
+  v_new := E'  if target_location_id is null then\n' ||
+    E'    raise exception using errcode = ''22023'', message = ''Employee location_id is required'';\n' ||
+    E'  end if;\n' ||
+    E'  perform public.require_location_access(target_business_id, target_location_id);';
+  v_patched := replace(v_patched, v_old, v_new);
+
+  if v_patched = v_definition then
+    raise exception 'employee location ownership patch did not apply';
+  end if;
+  if position('Employee location_id is required' in v_patched) = 0 then
+    raise exception 'employee location ownership contract is incomplete';
+  end if;
+  execute v_patched;
+end;
+$employee_patch$;
+
+-- Database-level guards protect mutation paths that bypass the mobile UI.
+-- Legacy rows with unresolved ownership are intentionally not valid for new
+-- transactional references; existing historical rows are not rewritten.
+create or replace function public.guard_location_transaction_references()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_customer_location uuid;
+  v_product_location uuid;
+  v_sale_location uuid;
+begin
+  if tg_table_name = 'sales' then
+    if new.customer_id is not null
+       and (tg_op = 'INSERT' or new.customer_id is distinct from old.customer_id
+            or new.location_id is distinct from old.location_id) then
+      select c.location_id into v_customer_location
+      from public.customers c
+      where c.id = new.customer_id and c.business_id = new.business_id;
+      if v_customer_location is null
+         or v_customer_location is distinct from new.location_id then
+        raise exception using errcode = '42501',
+          message = 'Customer is not owned by the sale location';
+      end if;
+    end if;
+    return new;
+  elsif tg_table_name = 'sale_items' then
+    if new.product_id is null then return new; end if;
+    select s.location_id into v_sale_location
+    from public.sales s where s.id = new.sale_id;
+    select p.location_id into v_product_location
+    from public.products p where p.id = new.product_id;
+    if v_product_location is null
+       or v_sale_location is null
+       or v_product_location is distinct from v_sale_location then
+      raise exception using errcode = '42501',
+        message = 'Product is not owned by the sale location';
+    end if;
+    return new;
+  elsif tg_table_name = 'product_stock_levels' then
+    select p.location_id into v_product_location
+    from public.products p where p.id = new.product_id;
+    if v_product_location is null
+       or v_product_location is distinct from new.location_id then
+      raise exception using errcode = '42501',
+        message = 'Stock location does not match product owner location';
+    end if;
+    return new;
+  elsif tg_table_name = 'inventory_movements' then
+    select p.location_id into v_product_location
+    from public.products p where p.id = new.product_id;
+    if v_product_location is null
+       or v_product_location is distinct from new.location_id then
+      raise exception using errcode = '42501',
+        message = 'Movement location does not match product owner location';
+    end if;
+    return new;
+  elsif tg_table_name = 'returns' then
+    if new.customer_id is null then return new; end if;
+    select s.location_id into v_sale_location
+    from public.sales s where s.id = new.sale_id;
+    select c.location_id into v_customer_location
+    from public.customers c where c.id = new.customer_id;
+    if v_customer_location is null
+       or v_sale_location is null
+       or v_customer_location is distinct from v_sale_location then
+      raise exception using errcode = '42501',
+        message = 'Customer is not owned by the return sale location';
+    end if;
+    return new;
+  elsif tg_table_name = 'customer_ledger_entries' then
+    select c.location_id into v_customer_location
+    from public.customers c where c.id = new.customer_id;
+    if v_customer_location is null then
+      raise exception using errcode = '42501',
+        message = 'Customer location ownership is unresolved';
+    end if;
+    if new.sale_id is not null then
+      select s.location_id into v_sale_location
+      from public.sales s where s.id = new.sale_id;
+      if v_sale_location is distinct from v_customer_location then
+        raise exception using errcode = '42501',
+          message = 'Customer ledger sale belongs to another location';
+      end if;
+    end if;
+    return new;
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists sales_customer_location_guard on public.sales;
+create trigger sales_customer_location_guard
+before insert or update of customer_id, location_id on public.sales
+for each row execute function public.guard_location_transaction_references();
+
+drop trigger if exists sale_items_product_location_guard on public.sale_items;
+create trigger sale_items_product_location_guard
+before insert or update of product_id, sale_id on public.sale_items
+for each row execute function public.guard_location_transaction_references();
+
+drop trigger if exists product_stock_location_guard on public.product_stock_levels;
+create trigger product_stock_location_guard
+before insert or update of product_id, location_id on public.product_stock_levels
+for each row execute function public.guard_location_transaction_references();
+
+drop trigger if exists inventory_movement_product_location_guard on public.inventory_movements;
+create trigger inventory_movement_product_location_guard
+before insert or update of product_id, location_id on public.inventory_movements
+for each row execute function public.guard_location_transaction_references();
+
+drop trigger if exists returns_customer_location_guard on public.returns;
+create trigger returns_customer_location_guard
+before insert or update of customer_id, sale_id on public.returns
+for each row execute function public.guard_location_transaction_references();
+
+drop trigger if exists customer_ledger_location_guard on public.customer_ledger_entries;
+create trigger customer_ledger_location_guard
+before insert or update of customer_id, sale_id on public.customer_ledger_entries
+for each row execute function public.guard_location_transaction_references();
+
+revoke all on function public.guard_location_transaction_references() from public, anon, authenticated;
+
 -- Existing employees already have location_id; this index supports scoped
 -- roster reads without changing employee identity/membership relationships.
 create index if not exists employees_business_location_updated_idx
