@@ -41,15 +41,16 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
       final session = await (_db.select(_db.sessions)
             ..where((row) => row.id.equals('current')))
           .getSingleOrNull();
-      if (product.locationId != null &&
-          product.locationId != movement.locationId) {
-        throw StateError('Stock movement location does not match product ownership.');
+      if (session == null ||
+          session.activeLocationId == null ||
+          session.activeLocationId != movement.locationId) {
+        throw StateError('A valid active location is required for stock movements.');
       }
-      if (session != null &&
-          (session.activeLocationId == null ||
-              session.activeLocationId != movement.locationId ||
-              product.locationId == null)) {
-        throw StateError('Stock movements require an owned product in the active location.');
+      if (product.locationId == null) {
+        throw StateError('Stock movements require a product with resolved location ownership.');
+      }
+      if (product.locationId != movement.locationId) {
+        throw StateError('Stock movement location does not match product ownership.');
       }
 
       final current = await (_db.select(_db.productStockLevels)
