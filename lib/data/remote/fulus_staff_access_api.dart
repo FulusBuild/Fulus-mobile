@@ -313,7 +313,8 @@ class LocationOwnershipReview {
 
   String get displayEntityType =>
       entityType == 'product' ? 'Product' :
-      entityType == 'customer' ? 'Customer' : entityType;
+      entityType == 'customer' ? 'Customer' :
+      entityType == 'employee' ? 'Employee' : entityType;
 
   factory LocationOwnershipReview.fromJson(Map<String, dynamic> json) {
     final candidates = json['candidate_location_ids'];
