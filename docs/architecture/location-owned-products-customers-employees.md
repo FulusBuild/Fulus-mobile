@@ -111,3 +111,12 @@ Verified against PR head `7130e0fe12414824d2728584be4317fba1acfb9a` (base SHA ob
 5. Production-backed verification requires explicit rollout approval. No deployment or production mutation was performed as part of this review.
 
 PR #211 remains a draft. Do not infer ownership for legacy records or treat green CI alone as runtime acceptance.
+
+
+## Current verification checkpoint (2026-10-10, PR head `e489246617b306457b3830421dd577f7523ce4fe`)
+
+- Fulus Mobile CI passed on this PR head: run [38028786185](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38028786185).
+- Supabase Migration Chain passed the clean-schema migration rebuild and SQL contract suite: run [38028786241](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38028786241).
+- The four-PR review also confirmed that PR #208's legacy ledger mapper/test change overlaps this PR in `test/repository/customer_credit_repository_test.dart`. The changes are additive in the current patches, but the combined behavior still needs a single integration run before merging either branch.
+- PR #214's restore normalizer optimization is not deployed to production. The successful production multi-device run on that PR therefore does not close this PR's location-isolation acceptance criteria.
+- Remaining blockers are unchanged: authenticated ownership-review UI/API exercise; offline two-location/two-device isolation through retry, restart, restore and convergence; full employee invite/claim/sign-in/reinstall/restore and permission journey; and explicit production rollout approval. This PR remains draft and unmerged.
