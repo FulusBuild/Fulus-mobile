@@ -37,10 +37,13 @@ grep -F 'action === "location_ownership_review_list" || action === "location_own
 grep -F 'role?.name !== "owner" && role?.name !== "admin"' supabase/functions/fulus-api/index.ts >/dev/null
 grep -F 'fulus_api_resolve_location_ownership' supabase/functions/fulus-api/index.ts >/dev/null
 # Ownership review choices must come from active locations in the requested
-# business, not from the device's unscoped local location cache.
-grep -F '.from("locations")' supabase/functions/fulus-api/index.ts >/dev/null
-grep -F '.eq("business_id", bid)' supabase/functions/fulus-api/index.ts >/dev/null
-grep -F '.eq("status", "active")' supabase/functions/fulus-api/index.ts >/dev/null
-grep -F 'locations: locations ?? []' supabase/functions/fulus-api/index.ts >/dev/null
+# business, not from the device's unscoped local location cache. Scope checks
+# are asserted within the ownership-review list handler, not elsewhere in the file.
+ownership_review_list_block="$(sed -n '/if (action === "location_ownership_review_list") {/,/const reviewId/p' supabase/functions/fulus-api/index.ts)"
+grep -F '.from("locations")' <<<"$ownership_review_list_block" >/dev/null
+grep -F '.select("id,name")' <<<"$ownership_review_list_block" >/dev/null
+grep -F '.eq("business_id", bid)' <<<"$ownership_review_list_block" >/dev/null
+grep -F '.eq("status", "active")' <<<"$ownership_review_list_block" >/dev/null
+grep -F 'locations: locations ?? []' <<<"$ownership_review_list_block" >/dev/null
 grep -F "grant execute on function public.fulus_api_resolve_location_ownership(uuid, uuid, uuid, uuid)" supabase/migrations/20261010200000_add_location_ownership_review_resolution.sql >/dev/null
 grep -F "Selected location must be active and belong to the same business" supabase/migrations/20261010200000_add_location_ownership_review_resolution.sql >/dev/null
