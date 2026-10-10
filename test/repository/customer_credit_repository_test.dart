@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide isNull;
 import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
@@ -390,6 +391,66 @@ void main() {
   });
 
   group('watchLedger', () {
+    test('reads legacy snake_case ledger entry types without failing the stream', () async {
+      final customerId = await createTestCustomer();
+      final createdAt = DateTime(2026, 10, 1);
+
+      // These values may remain on devices upgraded from an older local
+      // representation. One unsupported row previously caused the entire
+      // customer's reactive history stream to fail.
+      await db.into(db.customerLedgerEntries).insert(
+        CustomerLedgerEntriesCompanion.insert(
+          localId: 'legacy-credit-sale',
+          customerLocalId: customerId,
+          entryType: 'credit_sale',
+          amount: 5000,
+          saleLocalId: const Value('sale-1'),
+          createdAt: createdAt,
+          updatedAt: createdAt,
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+      await db.into(db.customerLedgerEntries).insert(
+        CustomerLedgerEntriesCompanion.insert(
+          localId: 'legacy-refund',
+          customerLocalId: customerId,
+          entryType: 'refund_adjustment',
+          amount: 1000,
+          saleLocalId: const Value('sale-1'),
+          createdAt: createdAt.add(const Duration(seconds: 1)),
+          updatedAt: createdAt.add(const Duration(seconds: 1)),
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+      await db.into(db.customerLedgerEntries).insert(
+        CustomerLedgerEntriesCompanion.insert(
+          localId: 'legacy-credit-reversal',
+          customerLocalId: customerId,
+          entryType: 'credit_reversal',
+          amount: 500,
+          saleLocalId: const Value('sale-1'),
+          createdAt: createdAt.add(const Duration(seconds: 2)),
+          updatedAt: createdAt.add(const Duration(seconds: 2)),
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+
+      final entries = await creditRepository.watchLedger(customerId).first;
+
+      expect(entries, hasLength(3));
+      expect(
+        entries.map((entry) => entry.entryType).toSet(),
+        containsAll({
+          CustomerLedgerEntryType.creditSale,
+          CustomerLedgerEntryType.refundAdjustment,
+        }),
+      );
+      expect(
+        entries.where((entry) => entry.entryType == CustomerLedgerEntryType.refundAdjustment),
+        hasLength(2),
+      );
+    });
+
     test('emits entries reverse-chronologically', () async {
       final customerId = await createTestCustomer();
       await creditRepository.recordCreditSale(
