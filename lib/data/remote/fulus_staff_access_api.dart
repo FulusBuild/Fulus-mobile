@@ -190,6 +190,43 @@ class FulusStaffAccessApi {
     return result is Map && result['revoked'] == true;
   }
 
+  /// Lists unresolved legacy product/customer ownership reviews. The server
+  /// independently enforces owner/admin membership for this business.
+  Future<List<LocationOwnershipReview>> listLocationOwnershipReviews({
+    required String businessId,
+  }) async {
+    final response = await _call({
+      'action': 'location_ownership_review_list',
+      'business_id': businessId,
+    });
+    final data = response['data'];
+    final raw = data is Map ? data['items'] : null;
+    if (raw is! List) {
+      throw const FormatException('Cloud returned invalid ownership review data.');
+    }
+    return raw
+        .map((item) => LocationOwnershipReview.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ))
+        .toList(growable: false);
+  }
+
+  /// Resolves one pending review to an explicitly selected location. This
+  /// never guesses ownership; the server revalidates role, business,
+  /// location, and unresolved-record state in one transaction.
+  Future<void> resolveLocationOwnershipReview({
+    required String businessId,
+    required String reviewId,
+    required String locationId,
+  }) async {
+    await _call({
+      'action': 'location_ownership_review_resolve',
+      'business_id': businessId,
+      'review_id': reviewId,
+      'location_id': locationId,
+    });
+  }
+
   Future<Map<String, dynamic>> _call(Map<String, dynamic> body) async {
     try {
       final response = await _client.dio.post(
@@ -205,6 +242,48 @@ class FulusStaffAccessApi {
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
+  }
+}
+
+class LocationOwnershipReview {
+  const LocationOwnershipReview({
+    required this.id,
+    required this.businessId,
+    required this.entityType,
+    required this.entityId,
+    required this.candidateLocationIds,
+    required this.classification,
+    required this.reason,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String businessId;
+  final String entityType;
+  final String entityId;
+  final List<String> candidateLocationIds;
+  final String classification;
+  final String reason;
+  final DateTime? createdAt;
+
+  String get displayEntityType =>
+      entityType == 'product' ? 'Product' :
+      entityType == 'customer' ? 'Customer' : entityType;
+
+  factory LocationOwnershipReview.fromJson(Map<String, dynamic> json) {
+    final candidates = json['candidate_location_ids'];
+    return LocationOwnershipReview(
+      id: json['id']?.toString() ?? '',
+      businessId: json['business_id']?.toString() ?? '',
+      entityType: json['entity_type']?.toString() ?? 'record',
+      entityId: json['entity_id']?.toString() ?? '',
+      candidateLocationIds: candidates is List
+          ? candidates.map((value) => value.toString()).toList(growable: false)
+          : const [],
+      classification: json['classification']?.toString() ?? 'unresolved',
+      reason: json['reason']?.toString() ?? '',
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+    );
   }
 }
 
