@@ -139,3 +139,17 @@ Verification on exact code head `56af744ef9a3bfc8fc5d45d34871a4536f389e65`:
 - Fulus Mobile CI passed: [run 38038467462](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38038467462).
 
 These are local migration-contract and Flutter CI results. They do not replace authenticated live owner/admin UI/API testing or offline two-location/two-device convergence. No production migration or deployment was performed.
+
+
+## Follow-up audit finding (2026-10-10, ambiguous ownership resolution)
+
+A code-path review found that the ownership-review UI/API presents an explicit target location for pending product/customer reviews, but the database ownership guard rejects assignment when historical references span locations:
+
+- Products are rejected if stock levels, inventory movements, or sale-item/sale history point to a different location than the proposed owner.
+- Customers are rejected if historical sales, returns, or sale-linked ledger entries point to a different location than the proposed owner.
+
+This fail-closed guard protects history and must not be weakened merely to make resolution succeed. However, the existing SQL resolver test covers legacy rows without conflicting history, not the ambiguous cross-location case. As a result, some review items surfaced to an administrator cannot be resolved through the current ordinary assignment flow.
+
+**Merge blocker:** define and test an explicit safe disposition for shared/ambiguous historical records, preserving historical foreign keys and stock/ledger references. If ordinary assignment is intentionally disallowed, the UI/API must clearly distinguish those records from resolvable unassigned rows and route them to a separate reconciliation workflow. Add SQL tests for product and customer histories spanning two locations. Do not automatically reparent historical data.
+
+This finding was also recorded in the PR #211 conversation. It is not a CI failure; it is an uncovered behavior/acceptance gap.
