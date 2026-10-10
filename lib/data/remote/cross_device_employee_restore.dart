@@ -89,6 +89,14 @@ class CrossDeviceEmployeeRestore {
           snapshot,
           currentUserId: claim.userId,
         );
+        // Employee restore snapshots omit the full business roster, but
+        // historical sales and drawer shifts may still reference other users.
+        // Seed inactive placeholders before the importer inserts FK references.
+        await _seedHistoricalCashierUsers(
+          historicalCashierIds,
+          currentUserId: claim.userId,
+          now: now,
+        );
 
         final result = await CloudRestoreImporter(_db).importSnapshot(
           snapshot,
@@ -260,6 +268,33 @@ class CrossDeviceEmployeeRestore {
       tin: data['tin']?.toString(),
       receiptFooter: data['receipt_footer']?.toString(),
     );
+  }
+
+  Future<void> _seedHistoricalCashierUsers(
+    Set<String> cashierIds, {
+    required String currentUserId,
+    required DateTime now,
+  }) async {
+    for (final cashierId in cashierIds) {
+      if (cashierId == currentUserId) continue;
+      await _db.customStatement(
+        '''
+        INSERT INTO users(
+          local_id, username, email, full_name, hashed_password, password_salt,
+          login_pin_hash, login_pin_salt, role, is_active,
+          failed_login_attempts, locked_until, approval_pin_hash,
+          approval_pin_salt, created_at, updated_at
+        )
+        VALUES (?, NULL, NULL, 'Historical staff member', NULL, NULL, NULL, NULL, 'employee', 0, 0, NULL, NULL, NULL, ?, ?)
+        ON CONFLICT(local_id) DO NOTHING
+        ''',
+        [
+          cashierId,
+          now.millisecondsSinceEpoch,
+          now.millisecondsSinceEpoch,
+        ],
+      );
+    }
   }
 
   Set<String> _seedHistoricalCashierIds(
