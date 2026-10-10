@@ -59,6 +59,39 @@ void main() {
     expect(await requestedPath.future, '/functions/v1/fulus-api');
   });
 
+  test('ownership location targets come from the server-scoped response', () async {
+    final requestedPath = Completer<String>();
+    server.listen((request) async {
+      requestedPath.complete(request.uri.path);
+      request.response.statusCode = HttpStatus.ok;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'data': {
+          'items': <dynamic>[],
+          'locations': [
+            {'id': 'location-1', 'name': 'Main Branch'},
+          ],
+        },
+      }));
+      await request.response.close();
+    });
+
+    final api = FulusStaffAccessApi(
+      client: client,
+      functionBaseUrl:
+          'http://127.0.0.1:${server.port}/functions/v1/fulus-staff-api',
+    );
+
+    final locations = await api.listLocationOwnershipTargets(
+      businessId: 'business-1',
+    );
+
+    expect(await requestedPath.future, '/functions/v1/fulus-api');
+    expect(locations, hasLength(1));
+    expect(locations.single.id, 'location-1');
+    expect(locations.single.name, 'Main Branch');
+  });
+
   test('ownership review endpoint can be explicitly overridden', () async {
     final requestedPath = Completer<String>();
     server.listen((request) async {
