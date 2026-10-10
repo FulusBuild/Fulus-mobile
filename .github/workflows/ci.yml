@@ -269,7 +269,16 @@ jobs:
   fulus_multi_device_e2e:
     name: Fulus multi-device convergence test
     needs: [fulus_e2e, change_scope]
-    if: needs.fulus_e2e.result == 'success' && needs.change_scope.outputs.migration_changed != 'true'
+    # Migration-changing PRs must not run this against production automatically,
+    # because production has not received the PR migration. A deliberate manual
+    # dispatch can still run the live convergence scenario against the configured
+    # E2E environment to collect runtime evidence independently of PR CI.
+    if: >-
+      needs.fulus_e2e.result == 'success' &&
+      (
+        needs.change_scope.outputs.migration_changed != 'true' ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
