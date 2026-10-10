@@ -6,9 +6,12 @@ on:
 permissions:
   contents: read
 
+# Share the deployment lock so live evidence cannot run against a schema or
+# Edge Function set that is being changed by the production deployment workflow.
+# Do not cancel an active run; let it finish before another run takes the lock.
 concurrency:
-  group: fulus-runtime-production-evidence
-  cancel-in-progress: true
+  group: fulus-production-supabase-migrations
+  cancel-in-progress: false
 
 env:
   FLUTTER_VERSION: "3.44.9"
