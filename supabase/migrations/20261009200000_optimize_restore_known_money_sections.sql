@@ -1,3 +1,54 @@
+-- Keep the row-level allowlist in sync with every direct monetary field
+-- accepted by CloudRestoreImporter. The section normalizer delegates row
+-- conversion to this helper, so expanding only the caller's key probe is not
+-- sufficient.
+create or replace function public._fulus_money_wire_row_jsonb(p_value jsonb)
+returns jsonb
+language plpgsql
+immutable
+set search_path = ''
+as $function$
+declare
+  v_result jsonb;
+begin
+  if p_value is null
+     or pg_catalog.jsonb_typeof(p_value) <> 'object' then
+    return p_value;
+  end if;
+
+  select coalesce(
+    pg_catalog.jsonb_object_agg(
+      section.key,
+      case
+        when section.key = any (array[
+          'amount','amount_remitted','credit_limit','outstanding_balance',
+          'opening_cash','closing_cash','cash_difference','subtotal',
+          'whole_cart_discount','discount','tax','total','amount_paid',
+          'cash_tendered','cash_change','tendered_amount','unit_price',
+          'cost_price_at_sale','line_total','line_discount','cost_price',
+          'selling_price','refund_amount','salary'
+        ]::text[])
+        and pg_catalog.jsonb_typeof(section.value) = 'number'
+        then pg_catalog.to_jsonb(
+          pg_catalog.to_char(
+            (section.value #>> '{}')::numeric,
+            'FM999999999999999999999999999999990.00'
+          )
+        )
+        else section.value
+      end
+    ),
+    '{}'::jsonb
+  )
+  into v_result
+  from pg_catalog.jsonb_each(p_value) as section(key, value);
+
+  return v_result;
+end;
+$function$;
+
+revoke all on function public._fulus_money_wire_row_jsonb(jsonb) from public;
+
 -- Skip large non-financial snapshot arrays during money-wire normalization.
 create or replace function public._fulus_money_wire_jsonb(p_value jsonb)
 returns jsonb
