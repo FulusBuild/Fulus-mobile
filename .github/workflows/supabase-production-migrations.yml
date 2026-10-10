@@ -31,7 +31,7 @@ jobs:
   deploy:
     name: Verify and deploy production migrations
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     environment: production
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -81,7 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Waiting for Fulus Mobile CI and Supabase Migration Chain on $COMMIT_SHA"
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 40); do
             ci_runs="$(gh api \
               -H 'Accept: application/vnd.github+json' \
               -H 'X-GitHub-Api-Version: 2026-03-10' \
