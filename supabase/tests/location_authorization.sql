@@ -182,6 +182,12 @@ declare
     where lor.entity_type = 'product' and p.sku = 'AUTHZ-LEGACY-PRODUCT'
   );
   v_product uuid := (select id from public.products where sku = 'AUTHZ-LEGACY-PRODUCT');
+  v_customer_review uuid := (
+    select lor.id from public.location_ownership_review lor
+    join public.customers c on c.id = lor.entity_id
+    where lor.entity_type = 'customer' and c.name = 'Legacy Review Customer'
+  );
+  v_customer uuid := (select id from public.customers where name = 'Legacy Review Customer');
   v_other_location uuid := (
     select l.id from public.locations l
     join public.businesses b on b.id = l.business_id
@@ -214,6 +220,35 @@ begin
   if v_result->>'location_id' is distinct from v_location_a::text then
     raise exception 'FAIL: resolution result does not report the selected location';
   end if;
+
+  -- Customer resolution follows the same explicit, immutable ownership path.
+  v_result := public.fulus_api_resolve_location_ownership(
+    v_owner, v_business, v_customer_review, v_location_a
+  );
+  if (select location_id from public.customers where id = v_customer)
+      is distinct from v_location_a then
+    raise exception 'FAIL: explicit customer location was not assigned';
+  end if;
+  if not exists (
+    select 1 from public.location_ownership_review
+    where id = v_customer_review and reviewed_at is not null and reviewed_by = v_owner
+  ) then
+    raise exception 'FAIL: customer review resolution was not recorded';
+  end if;
+  if v_result->>'entity_type' is distinct from 'customer'
+     or v_result->>'entity_id' is distinct from v_customer::text then
+    raise exception 'FAIL: customer resolution result identifies the wrong entity';
+  end if;
+
+  -- A resolved review cannot be replayed to transfer ownership again.
+  begin
+    perform public.fulus_api_resolve_location_ownership(
+      v_owner, v_business, v_review,
+      (select location_b_id from _authz_test_ids)
+    );
+    raise exception 'FAIL: an already-resolved ownership review was replayed';
+  exception when sqlstate 'P0002' then null;
+  end;
 end
 $ownership_review$;
 
