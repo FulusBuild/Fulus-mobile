@@ -14,6 +14,10 @@ grep -F '.eq("registered_by", ud.user.id)' "$diagnostics" >/dev/null
 # customer ownership is legacy/shared, then fall back to explicit customer owner.
 grep -F 'payload?.sale_id === "string" ? [payload.sale_id] : []' supabase/functions/fulus-api/index.ts >/dev/null
 grep -F 'const saleLocationId = saleId ? saleLocationBySaleId.get(saleId) : undefined;' supabase/functions/fulus-api/index.ts >/dev/null
+# Customers share the location-scoped catalog read contract, but remain on their
+# dedicated customer mutation RPCs rather than the generic catalog writer.
+grep -F 'const readableEntities = ["products", "customers", "categories", "suppliers"];' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F 'action === "catalog_list" ? readableEntities : mutableEntities' supabase/functions/fulus-api/index.ts >/dev/null
 
 echo "PASS: cloud API authorization contracts are present"
 
