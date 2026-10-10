@@ -11,7 +11,7 @@ alter table public.customers
 create table if not exists public.location_ownership_review (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
-  entity_type text not null check (entity_type in ('product', 'customer')),
+  entity_type text not null check (entity_type in ('product', 'customer', 'employee')),
   entity_id uuid not null,
   candidate_location_ids uuid[] not null default '{}'::uuid[],
   classification text not null check (classification in ('ambiguous', 'unassigned')),
@@ -192,6 +192,20 @@ from public.customers c
 left join candidates on candidates.customer_id = c.id and candidates.business_id = c.business_id
 left join unscoped_ledger on unscoped_ledger.customer_id = c.id and unscoped_ledger.business_id = c.business_id
 where c.location_id is null
+on conflict (entity_type, entity_id) do nothing;
+
+-- Legacy roster rows without an explicit location must be visible to the same
+-- owner/admin reconciliation workflow instead of silently disappearing from
+-- every location-filtered employee list.
+insert into public.location_ownership_review(
+  business_id, entity_type, entity_id, candidate_location_ids,
+  classification, reason
+)
+select e.business_id, 'employee', e.id, '{}'::uuid[],
+       'unassigned',
+       'No explicit location ownership exists for this legacy employee'
+from public.employees e
+where e.location_id is null
 on conflict (entity_type, entity_id) do nothing;
 
 drop index if exists public.products_business_sku_uq;
