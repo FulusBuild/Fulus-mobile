@@ -31,7 +31,7 @@ jobs:
   deploy:
     name: Verify and deploy production migrations
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     environment: production
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -74,34 +74,61 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Gate production deployment on mobile and cloud-sync CI
+      - name: Gate production deployment on exact-commit CI and migration-chain tests
         env:
           GH_TOKEN: ${{ github.token }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          echo "Waiting for Fulus Mobile CI on $COMMIT_SHA"
-          for attempt in $(seq 1 60); do
-            runs="$(gh api \
+          echo "Waiting for Fulus Mobile CI and Supabase Migration Chain on $COMMIT_SHA"
+          for attempt in $(seq 1 40); do
+            ci_runs="$(gh api \
               -H 'Accept: application/vnd.github+json' \
               -H 'X-GitHub-Api-Version: 2026-03-10' \
               "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${COMMIT_SHA}&per_page=20")"
-            run_count="$(jq '.total_count' <<<"$runs")"
-            if [ "$run_count" -gt 0 ]; then
-              conclusion="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last | .conclusion // empty' <<<"$runs")"
-              status="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last | .status // empty' <<<"$runs")"
-              echo "CI status=$status conclusion=$conclusion"
-              case "$conclusion" in
-                success) exit 0 ;;
+            migration_runs="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "/repos/${GITHUB_REPOSITORY}/actions/workflows/supabase-migrations.yml/runs?head_sha=${COMMIT_SHA}&per_page=20")"
+
+            ci_count="$(jq --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push")] | length' <<<"$ci_runs")"
+            migration_count="$(jq --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | length' <<<"$migration_runs")"
+
+            if [ "$ci_count" -gt 0 ]; then
+              ci_conclusion="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | sort_by(.created_at) | last | .conclusion // empty' <<<"$ci_runs")"
+              ci_status="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | sort_by(.created_at) | last | .status // empty' <<<"$ci_runs")"
+              echo "Fulus Mobile CI status=$ci_status conclusion=$ci_conclusion"
+              case "$ci_conclusion" in
                 failure|cancelled|timed_out|action_required|stale)
                   echo "::error::Fulus Mobile CI did not pass for this production commit."
                   exit 1
                   ;;
               esac
+            else
+              ci_conclusion=""
+            fi
+
+            if [ "$migration_count" -gt 0 ]; then
+              migration_conclusion="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | sort_by(.created_at) | last | .conclusion // empty' <<<"$migration_runs")"
+              migration_status="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | sort_by(.created_at) | last | .status // empty' <<<"$migration_runs")"
+              echo "Supabase Migration Chain status=$migration_status conclusion=$migration_conclusion"
+              case "$migration_conclusion" in
+                failure|cancelled|timed_out|action_required|stale)
+                  echo "::error::Fulus Supabase Migration Chain did not pass for this production commit."
+                  exit 1
+                  ;;
+              esac
+            else
+              migration_conclusion=""
+            fi
+
+            if [ "$ci_conclusion" = "success" ] && [ "$migration_conclusion" = "success" ]; then
+              echo "Both exact-commit CI gates passed."
+              exit 0
             fi
             sleep 30
           done
-          echo "::error::Timed out waiting for Fulus Mobile CI for this exact commit."
+          echo "::error::Timed out waiting for exact-commit CI and Supabase Migration Chain results."
           exit 1
 
       - name: Diagnose Supabase Management API authentication

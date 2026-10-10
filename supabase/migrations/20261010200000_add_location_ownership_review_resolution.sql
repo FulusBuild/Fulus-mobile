@@ -85,6 +85,22 @@ begin
     set location_id = target_location_id
     where id = v_review.entity_id and business_id = target_business_id
       and location_id is null;
+
+    -- Customer ownership is location-scoped, so publish the canonical row
+    -- after assignment. Without this change-feed event, devices that already
+    -- synced the unassigned legacy customer keep it hidden and unsellable.
+    perform public._fulus_append_change(
+      target_business_id,
+      'customer',
+      v_review.entity_id,
+      'upsert',
+      (
+        select pg_catalog.to_jsonb(c)
+        from public.customers c
+        where c.id = v_review.entity_id
+          and c.business_id = target_business_id
+      )
+    );
   elsif v_review.entity_type = 'employee' then
     select e.* into v_employee
     from public.employees e
