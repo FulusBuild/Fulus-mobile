@@ -5,10 +5,13 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
+# Avoid cancelling an active evidence run; a newer manual dispatch may
+# replace only a pending evidence run, never a production deployment.
 concurrency:
   group: fulus-runtime-production-evidence
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FLUTTER_VERSION: "3.44.9"
@@ -52,8 +55,30 @@ jobs:
           SUPABASE_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
         run: dart run tool/fulus_auth_e2e.dart
 
+  production-deployment-preflight:
+    name: Ensure production deployment is idle before live evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check production deployment workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/supabase-production-migrations.yml/runs?per_page=20")"
+          active="$(jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")] | length' <<<"$runs")"
+          if [ "$active" -gt 0 ]; then
+            echo "::error::A production migration/deployment run is active or queued. Wait for it to finish, then rerun runtime evidence."
+            exit 1
+          fi
+          echo "No active production migration/deployment run found."
+
   live-sync-contract:
     name: Live sync contract
+    needs: production-deployment-preflight
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

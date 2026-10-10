@@ -431,6 +431,32 @@ begin
   end;
 end
 $$;
+-- Stock-level guards derive business ownership from product and location;
+-- product_stock_levels deliberately has no business_id column.
+insert into public.product_stock_levels(product_id, location_id, current_stock, updated_at)
+select p.id, t.location_a_id, 17, now()
+from _authz_test_ids t
+join public.products p on p.business_id = t.business_id and p.sku = 'AUTHZ-PRODUCT-A';
+
+do $stock_level_guard$
+declare
+  v_product uuid := (select id from public.products where sku = 'AUTHZ-PRODUCT-A');
+  v_other_location uuid := (
+    select l.id from public.locations l
+    join public.businesses b on b.id = l.business_id
+    where b.name = 'Authorization Other Business' and l.code = 'AUTH-OTHER'
+  );
+begin
+  begin
+    insert into public.product_stock_levels(product_id, location_id, current_stock, updated_at)
+    values (v_product, v_other_location, 99, now());
+    raise exception 'FAIL: stock level accepted a location owned by another business';
+  exception
+    when sqlstate '42501' then null;
+  end;
+end
+$stock_level_guard$;
+
 select 'PASS: location access, product/customer RLS, and immutable tenant/location ownership contracts hold' as result;
 
 rollback;
