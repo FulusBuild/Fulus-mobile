@@ -90,3 +90,24 @@ Keep PR #211 as a draft until these blockers are closed and the exact final head
 - The owner/admin-gated `location_ownership_review_list` response now includes active locations queried by the selected business ID. The review screen uses those server-returned targets and sends their cloud IDs to the transactional resolver; the resolver independently validates business membership and active location ownership.
 - Added a Flutter API regression test proving the ownership target list is parsed from the authorized API response. This does not replace the still-required authenticated end-to-end UI/API exercise.
 - Code changes were committed to PR #211; re-run Mobile CI and Supabase Migration Chain against the exact new head before treating this fix as verified. Live production sync/multi-device and full employee journey checks remain outstanding. PR #211 remains a draft.
+
+
+## Follow-up verification note (2026-10-10, PR #211 CI and resolver review)
+
+Verified against PR head `7130e0fe12414824d2728584be4317fba1acfb9a` (base SHA observed: `8b1e9516068ab311551a478daa6fe308799ad9f3`):
+
+- Fulus Mobile CI run [38028276295](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38028276295) completed successfully. Its dependency, migration filename integrity, change-scope, Dart code generation, static analysis, and Flutter test jobs completed successfully.
+- Fulus Supabase Migration Chain run [38028276195](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38028276195) completed successfully, including clean schema rebuild and SQL authorization, repayment, financial fidelity, employee restore isolation, and cloud API contract tests.
+- The earlier `LocationOwnershipTarget.serverId` compile/analyzer failure is resolved: the ownership review screen now compares candidate IDs against `LocationOwnershipTarget.id`.
+- Source inspection confirms the ownership-review list endpoint checks active business membership and owner/admin role before returning review rows and active locations filtered by the requested business. The resolver RPC independently checks owner/admin membership, locks the pending review and target entity, verifies that the selected location is active and belongs to the same business, rejects already-owned/missing entities, assigns only a null location_id, and records reviewer/time. The RPC is executable only by service_role.
+- These CI results establish local build/test and migration-contract status only. They do not establish authenticated UI/API end-to-end behavior or production/two-device convergence.
+
+### Remaining acceptance blockers (unchanged)
+
+1. Run an authenticated owner/admin UI/API workflow, including non-admin denial, cross-business target rejection, duplicate/concurrent resolution, missing/already-owned records, reviewer audit, and post-resolution refresh.
+2. Prove two-location isolation across offline create/mutation, durable outbox replay/retry, process restart, snapshot restore, location switching, and two-device convergence. Include denied cross-location reads/writes for products, customers, roster, stock, and related financial/history projections.
+3. Verify the full employee invitation/claim/password/sign-in/logout/reinstall/restore and role-permission journey in the combined PR set, preserving inactive historical cashiers without granting access.
+4. Recheck all four PR heads and their CI against the current base before integration. Previously observed green results for #208, #209, and #214 apply only to their exact recorded SHAs.
+5. Production-backed verification requires explicit rollout approval. No deployment or production mutation was performed as part of this review.
+
+PR #211 remains a draft. Do not infer ownership for legacy records or treat green CI alone as runtime acceptance.
