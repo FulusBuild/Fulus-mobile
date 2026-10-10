@@ -353,7 +353,14 @@ Deno.serve(async req => {
         .order("created_at", { ascending: true })
         .limit(200);
       if (error) return out({ error: { code: "OWNERSHIP_REVIEW_READ_FAILED", message: "Unable to read pending ownership reviews" } }, 500);
-      return out({ data: { items: data ?? [], server_authoritative: true } });
+      const { data: locations, error: locationsError } = await serviceDb
+        .from("locations")
+        .select("id,name")
+        .eq("business_id", bid)
+        .eq("status", "active")
+        .order("name", { ascending: true });
+      if (locationsError) return out({ error: { code: "OWNERSHIP_REVIEW_LOCATIONS_FAILED", message: "Unable to read business locations" } }, 500);
+      return out({ data: { items: data ?? [], locations: locations ?? [], server_authoritative: true } });
     }
 
     const reviewId = typeof b.review_id === "string" ? b.review_id : null;
