@@ -3,12 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/theme/design_tokens.dart';
-import '../../../../../domain/entities/location.dart';
 import '../../../../../data/remote/fulus_staff_access_api.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
-final _ownershipReviewLocationsProvider = StreamProvider<List<Location>>((ref) {
-  return ref.watch(locationRepositoryProvider).watchLocations();
+final _ownershipReviewLocationsProvider =
+    FutureProvider<List<LocationOwnershipTarget>>((ref) async {
+  final connection = ref.watch(fulusConnectionStateProvider);
+  final businessId = connection.selectedBusinessId;
+  if (businessId == null || businessId.isEmpty) {
+    throw StateError('Connect this device to a business before reviewing ownership.');
+  }
+  return ref.watch(fulusStaffAccessApiProvider).listLocationOwnershipTargets(
+        businessId: businessId,
+      );
 });
 
 class LocationOwnershipReviewScreen extends ConsumerStatefulWidget {
@@ -47,7 +54,7 @@ class _LocationOwnershipReviewScreenState
 
   Future<void> _resolve(
     LocationOwnershipReview review,
-    Location location,
+    LocationOwnershipTarget location,
   ) async {
     if (_resolvingReviewId != null) return;
     final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
@@ -60,7 +67,7 @@ class _LocationOwnershipReviewScreenState
       await ref.read(fulusStaffAccessApiProvider).resolveLocationOwnershipReview(
             businessId: businessId,
             reviewId: review.id,
-            locationId: location.serverId ?? location.localId,
+            locationId: location.id,
           );
       if (!mounted) return;
       showFulusSnackbar(
@@ -162,18 +169,15 @@ class _OwnershipReviewCard extends StatelessWidget {
   });
 
   final LocationOwnershipReview review;
-  final List<Location> locations;
+  final List<LocationOwnershipTarget> locations;
   final bool resolving;
-  final ValueChanged<Location> onResolve;
+  final ValueChanged<LocationOwnershipTarget> onResolve;
 
   @override
   Widget build(BuildContext context) {
     final candidates = review.candidateLocationIds.toSet();
-    final cloudLocations = locations
-        .where((location) => location.serverId != null && location.serverId!.isNotEmpty)
-        .toList(growable: false);
-    final suggested = cloudLocations
-        .where((location) => candidates.contains(location.serverId))
+    final suggested = locations
+        .where((location) => candidates.contains(location.id))
         .toList(growable: false);
 
     return Padding(
@@ -211,12 +215,12 @@ class _OwnershipReviewCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: AppSpacing.sm),
-              for (final location in cloudLocations)
+              for (final location in locations)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                   child: FulusListRow(
                     leading: Icon(
-                      candidates.contains(location.serverId)
+                      candidates.contains(location.id)
                           ? Icons.location_on_outlined
                           : Icons.place_outlined,
                     ),
@@ -248,7 +252,7 @@ class _OwnershipReviewCard extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmAndResolve(BuildContext context, Location location) async {
+  Future<void> _confirmAndResolve(BuildContext context, LocationOwnershipTarget location) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
