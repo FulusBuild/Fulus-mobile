@@ -30,3 +30,11 @@ if grep -RIn --include='*.ts' -E '(^|[[:space:]{,])message:[[:space:]]*(error|er
   echo "Cloud API source exposes raw database error messages to clients"
   exit 1
 fi
+
+# Legacy ownership review is exposed only through administrator-gated API
+# actions and an actor-validating, service-role-only transactional RPC.
+grep -F 'action === "location_ownership_review_list" || action === "location_ownership_review_resolve"' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F 'role?.name !== "owner" && role?.name !== "admin"' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F 'fulus_api_resolve_location_ownership' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F "grant execute on function public.fulus_api_resolve_location_ownership(uuid, uuid, uuid, uuid)" supabase/migrations/20261010200000_add_location_ownership_review_resolution.sql >/dev/null
+grep -F "Selected location must be active and belong to the same business" supabase/migrations/20261010200000_add_location_ownership_review_resolution.sql >/dev/null
