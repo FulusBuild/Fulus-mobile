@@ -12,7 +12,6 @@ on:
       - "supabase/migrations/**"
       - "supabase/config.toml"
       - "supabase/functions/**"
-      - ".github/workflows/supabase-production-migrations.yml"
   workflow_dispatch:
 
 permissions:
@@ -41,6 +40,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Restrict manual production deployment to main
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          EVENT_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_REF" != "refs/heads/main" ]; then
+            echo "::error::Manual production migrations/deployment may only be dispatched from main."
+            exit 1
+          fi
 
       - name: Validate deployment secrets
         run: |
