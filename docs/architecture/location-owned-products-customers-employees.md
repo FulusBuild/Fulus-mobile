@@ -149,5 +149,6 @@ The location-ownership candidate must be tested with the repository's current mi
 2. `20261009170000_optimize_money_wire_row_aggregation.sql`
 3. `20261009190000_optimize_restore_snapshot_array_traversal.sql`
 4. `20261009200000_optimize_restore_known_money_sections.sql` (already recorded as applied in production; restored from the migration-history reconciliation PR)
+5. `20261010230000_complete_restore_money_allowlist_and_large_snapshot_contract.sql` (follow-up from PR #216; must come after location migrations ending at `20261010220000`)
 
-The first three files are byte-for-byte copies of the versions on `main`; the fourth is copied from PR #214's verified migration file. Location-ownership migrations begin after this sequence. The candidate still requires clean-schema migration-chain CI and review of the final ordered SQL. Do not merge this validation candidate independently, and do not dispatch or trigger a production deployment without explicit approval.
+The first three files are byte-for-byte copies of the versions on `main`; the fourth is copied from PR #214's verified migration file; the fifth is copied from PR #216's verified candidate. The location-ownership migrations must remain between versions `20261009200000` and `20261010230000`. The candidate still requires clean-schema migration-chain CI and review of the final ordered SQL. Do not merge this validation candidate independently, and do not dispatch or trigger a production deployment without explicit approval.
