@@ -212,6 +212,14 @@ begin
 
   v_actual := public._fulus_money_wire_jsonb(v_input);
 
+  if v_actual -> 'audit_events' is distinct from v_input -> 'audit_events' then
+    raise exception 'large audit_events section must remain byte-for-byte equivalent as JSONB';
+  end if;
+
+  if v_actual -> 'inventory_movements' is distinct from v_input -> 'inventory_movements' then
+    raise exception 'large inventory_movements section must remain byte-for-byte equivalent as JSONB';
+  end if;
+
   if pg_catalog.jsonb_array_length(v_actual -> 'audit_events') <> 3000
      or v_actual -> 'audit_events' -> 0 ->> 'id' <> '1'
      or v_actual -> 'audit_events' -> 2999 ->> 'id' <> '3000'
