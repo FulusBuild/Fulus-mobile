@@ -4,11 +4,17 @@ import 'api_client.dart';
 
 /// Cloud staff/access boundary. All mutations are authorized server-side.
 class FulusStaffAccessApi {
-  FulusStaffAccessApi({required ApiClient client, required String functionBaseUrl})
-      : _client = client, _functionBaseUrl = functionBaseUrl;
+  FulusStaffAccessApi({
+    required ApiClient client,
+    required String functionBaseUrl,
+    String? ownershipFunctionBaseUrl,
+  })  : _client = client,
+        _functionBaseUrl = functionBaseUrl,
+        _ownershipFunctionBaseUrl = ownershipFunctionBaseUrl ?? functionBaseUrl;
 
   final ApiClient _client;
   final String _functionBaseUrl;
+  final String _ownershipFunctionBaseUrl;
 
   Future<StaffInvite> createInvite({
     required String businessId,
@@ -198,7 +204,7 @@ class FulusStaffAccessApi {
     final response = await _call({
       'action': 'location_ownership_review_list',
       'business_id': businessId,
-    });
+    }, functionBaseUrl: _ownershipFunctionBaseUrl);
     final data = response['data'];
     final raw = data is Map ? data['items'] : null;
     if (raw is! List) {
@@ -224,13 +230,16 @@ class FulusStaffAccessApi {
       'business_id': businessId,
       'review_id': reviewId,
       'location_id': locationId,
-    });
+    }, functionBaseUrl: _ownershipFunctionBaseUrl);
   }
 
-  Future<Map<String, dynamic>> _call(Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> _call(
+    Map<String, dynamic> body, {
+    String? functionBaseUrl,
+  }) async {
     try {
       final response = await _client.dio.post(
-        _functionBaseUrl,
+        functionBaseUrl ?? _functionBaseUrl,
         data: body,
         options: Options(headers: {
           'content-type': 'application/json',
