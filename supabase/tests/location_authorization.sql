@@ -104,14 +104,6 @@ select t.business_id, 'AUTHZ-LEGACY-EMPLOYEE', t.worker_id,
        'Legacy Employee', 'cashier', null, true
 from _authz_test_ids t;
 
-insert into public.location_ownership_review(
-  business_id, entity_type, entity_id, candidate_location_ids, classification, reason
-)
-select e.business_id, 'employee', e.id, '{}'::uuid[], 'unassigned',
-       'No explicit location ownership exists for this legacy employee'
-from public.employees e
-where e.client_reference = 'AUTHZ-LEGACY-EMPLOYEE';
-
 insert into public.businesses (name)
 values ('Authorization Other Business');
 
