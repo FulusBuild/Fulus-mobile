@@ -169,3 +169,67 @@ begin
   end if;
 end;
 $test$;
+
+
+-- Regression with restore-sized non-financial arrays. These sections must not
+-- be row-normalized just because arbitrary audit/movement payloads contain a
+-- key named "amount". This catches both accidental money conversion and a
+-- reintroduction of per-row traversal over thousands of unrelated records.
+do $large_snapshot_test$
+declare
+  v_input jsonb;
+  v_actual jsonb;
+begin
+  select pg_catalog.jsonb_build_object(
+    'products',
+    pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object('id', 'product-1', 'selling_price', 300)
+    ),
+    'audit_events',
+    (
+      select pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'id', i,
+          'amount', i,
+          'metadata', pg_catalog.jsonb_build_object('amount', i)
+        ) order by i
+      )
+      from pg_catalog.generate_series(1, 3000) as rows(i)
+    ),
+    'inventory_movements',
+    (
+      select pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'id', i,
+          'amount', i,
+          'metadata', pg_catalog.jsonb_build_object('amount', i)
+        ) order by i
+      )
+      from pg_catalog.generate_series(1, 2000) as rows(i)
+    )
+  )
+  into v_input;
+
+  v_actual := public._fulus_money_wire_jsonb(v_input);
+
+  if pg_catalog.jsonb_array_length(v_actual -> 'audit_events') <> 3000
+     or v_actual -> 'audit_events' -> 0 ->> 'id' <> '1'
+     or v_actual -> 'audit_events' -> 2999 ->> 'id' <> '3000'
+     or pg_catalog.jsonb_typeof(v_actual -> 'audit_events' -> 0 -> 'amount') <> 'number'
+     or pg_catalog.jsonb_typeof(v_actual -> 'audit_events' -> 0 -> 'metadata' -> 'amount') <> 'number' then
+    raise exception 'large audit_events section was not preserved unchanged';
+  end if;
+
+  if pg_catalog.jsonb_array_length(v_actual -> 'inventory_movements') <> 2000
+     or v_actual -> 'inventory_movements' -> 0 ->> 'id' <> '1'
+     or v_actual -> 'inventory_movements' -> 1999 ->> 'id' <> '2000'
+     or pg_catalog.jsonb_typeof(v_actual -> 'inventory_movements' -> 0 -> 'amount') <> 'number'
+     or pg_catalog.jsonb_typeof(v_actual -> 'inventory_movements' -> 0 -> 'metadata' -> 'amount') <> 'number' then
+    raise exception 'large inventory_movements section was not preserved unchanged';
+  end if;
+
+  if v_actual -> 'products' -> 0 ->> 'selling_price' <> '300.00' then
+    raise exception 'financial sections must still normalize direct money fields';
+  end if;
+end;
+$large_snapshot_test$;
