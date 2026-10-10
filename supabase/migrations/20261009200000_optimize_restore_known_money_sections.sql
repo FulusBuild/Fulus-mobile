@@ -17,7 +17,8 @@ declare
   v_money_sections constant text[] := array[
     'products','customers','sales','expenses','income_records','returns',
     'cash_ledger','cash_drawer_shifts','sale_items','sale_payments',
-    'return_items','customer_ledger_entries','employees'
+    'return_items','customer_ledger_entries','supplier_ledger_entries',
+    'tax_remittances','employees'
   ];
 begin
   if p_value is null then return null; end if;
@@ -64,10 +65,10 @@ declare
   v_actual jsonb;
 begin
   v_actual := public._fulus_money_wire_jsonb(
-    '{"amount":300,"sales":[{"total":1200,"meta":{"amount":50}}],"audit_events":[{"amount":700}],"inventory_movements":[{"amount":400}]}'::jsonb
+    '{"amount":300,"sales":[{"total":1200,"meta":{"amount":50}}],"supplier_ledger_entries":[{"amount":850}],"tax_remittances":[{"amount":75}],"audit_events":[{"amount":700}],"inventory_movements":[{"amount":400}]}'::jsonb
   );
   if v_actual is distinct from
-    '{"amount":"300.00","sales":[{"total":"1200.00","meta":{"amount":50}}],"audit_events":[{"amount":700}],"inventory_movements":[{"amount":400}]}'::jsonb then
+    '{"amount":"300.00","sales":[{"total":"1200.00","meta":{"amount":50}}],"supplier_ledger_entries":[{"amount":"850.00"}],"tax_remittances":[{"amount":"75.00"}],"audit_events":[{"amount":700}],"inventory_movements":[{"amount":400}]}'::jsonb then
     raise exception 'restore normalizer money-section contract failed: %', v_actual;
   end if;
 end;
