@@ -66,7 +66,7 @@ Current-head verification:
 
 ### Explicit remaining blockers before merge
 
-1. **Legacy ownership review workflow:** the database records ambiguous/unassigned rows, but a complete authorized API/UI workflow for reviewing and resolving those rows is not yet implemented. Do not assign those rows automatically.
+1. **Legacy ownership review workflow:** the service-role-only transactional resolution RPC and owner/admin-gated API actions to list and resolve pending reviews are implemented. Regression tests cover denial for a non-admin, rejection of a cross-business location, successful explicit product/customer assignment, reviewer recording, and replay rejection. The in-app review UI and end-to-end API authorization exercise are still missing. Do not assign legacy rows automatically.
 2. **Two-location, two-device convergence proof:** add/run an end-to-end scenario proving that a product/customer created offline in Location A remains owned by A after retry, restart, restore, and another device's sync, and that a Location B actor cannot read or mutate it. Pull-request CI has not run the production multi-device workflow.
 3. **Employee journey:** SQL restore-isolation contracts pass, but the full invitation/claim, sign-in, reinstall/restore, and role-permission journey still needs end-to-end verification.
 4. **Production rollout:** the new migration and Edge Function changes have not been deployed to production from this draft PR. Do not merge or deploy until the remaining acceptance criteria and required runtime evidence are satisfied.
@@ -78,4 +78,5 @@ Keep PR #211 as a draft until these blockers are closed and the exact final head
 
 - Fixed a cloud API contract mismatch: the `catalog_list` handler already required `location_id` and applied location authorization/filtering for customers, but the shared entity allowlist rejected `customers` before that path could run. Customer reads are now admitted only for `catalog_list`; generic catalog mutations still reject customers and continue using the dedicated customer mutation RPCs.
 - Added a source contract assertion in `supabase/tests/cloud_api_authorization_contracts.sh` so this mismatch is caught by CI.
-- This closes the API routing gap only. It does not establish the full legacy ownership review UI/API, offline/two-device location convergence, employee journey E2E, or production rollout evidence. Those remain blockers; PR #211 stays draft.
+- The follow-up ownership-review implementation adds owner/admin-gated API actions for listing pending reviews and resolving one to an explicitly selected active location, backed by a service-role-only transactional RPC. The SQL authorization test now covers successful resolution for both products and customers, rejects cross-business assignment and non-admin resolution, records the reviewer, and rejects replay of a resolved review.
+- The in-app ownership-review UI, end-to-end API authorization exercise, offline/two-device location convergence, employee journey E2E, and production rollout evidence remain outstanding. PR #211 stays draft.
