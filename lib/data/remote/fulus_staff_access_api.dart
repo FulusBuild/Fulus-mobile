@@ -218,6 +218,28 @@ class FulusStaffAccessApi {
         .toList(growable: false);
   }
 
+  /// Lists active locations from the same server-validated business context
+  /// used by the ownership review API. Do not use the local location cache here:
+  /// it has no business_id column and may contain locations from another account.
+  Future<List<LocationOwnershipTarget>> listLocationOwnershipTargets({
+    required String businessId,
+  }) async {
+    final response = await _call({
+      'action': 'location_ownership_review_list',
+      'business_id': businessId,
+    }, functionBaseUrl: _ownershipFunctionBaseUrl);
+    final data = response['data'];
+    final raw = data is Map ? data['locations'] : null;
+    if (raw is! List) {
+      throw const FormatException('Cloud returned invalid ownership location data.');
+    }
+    return raw
+        .map((item) => LocationOwnershipTarget.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ))
+        .toList(growable: false);
+  }
+
   /// Resolves one pending review to an explicitly selected location. This
   /// never guesses ownership; the server revalidates role, business,
   /// location, and unresolved-record state in one transaction.
@@ -253,6 +275,19 @@ class FulusStaffAccessApi {
       throw _client.mapError(e);
     }
   }
+}
+
+class LocationOwnershipTarget {
+  const LocationOwnershipTarget({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory LocationOwnershipTarget.fromJson(Map<String, dynamic> json) =>
+      LocationOwnershipTarget(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+      );
 }
 
 class LocationOwnershipReview {
