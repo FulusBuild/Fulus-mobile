@@ -18,6 +18,7 @@ declare
   v_review public.location_ownership_review%rowtype;
   v_location_business_id uuid;
   v_entity_location_id uuid;
+  v_employee public.employees%rowtype;
 begin
   if target_user_id is null or target_business_id is null
      or target_review_id is null or target_location_id is null then
@@ -84,6 +85,54 @@ begin
     set location_id = target_location_id
     where id = v_review.entity_id and business_id = target_business_id
       and location_id is null;
+  elsif v_review.entity_type = 'employee' then
+    select e.* into v_employee
+    from public.employees e
+    where e.id = v_review.entity_id and e.business_id = target_business_id
+    for update;
+
+    if not found or v_employee.location_id is not null then
+      raise exception using errcode = 'P0002', message = 'Employee is missing or already has an owner location';
+    end if;
+
+    update public.employees e
+    set location_id = target_location_id, updated_at = pg_catalog.now()
+    where e.id = v_review.entity_id
+      and e.business_id = target_business_id
+      and e.location_id is null
+    returning e.* into v_employee;
+
+    if not found then
+      raise exception using errcode = '40001', message = 'Employee ownership was concurrently resolved';
+    end if;
+
+    -- The employee's roster location and active location membership are one
+    -- ownership boundary. Do not activate an inactive employee during review.
+    if v_employee.auth_user_id is not null then
+      delete from public.location_memberships
+      where business_id = target_business_id
+        and user_id = v_employee.auth_user_id
+        and status = 'active';
+
+      if v_employee.is_active then
+        insert into public.location_memberships(
+          business_id, user_id, location_id, status, created_at, updated_at
+        )
+        values (
+          target_business_id, v_employee.auth_user_id, target_location_id,
+          'active', pg_catalog.now(), pg_catalog.now()
+        )
+        on conflict (location_id, user_id)
+        do update set
+          business_id = excluded.business_id,
+          status = 'active',
+          updated_at = pg_catalog.now();
+      end if;
+    end if;
+
+    perform public._fulus_append_change(
+      target_business_id, 'employee', v_employee.id, 'upsert', pg_catalog.to_jsonb(v_employee)
+    );
   else
     raise exception using errcode = '22023', message = 'Unsupported ownership review entity type';
   end if;
