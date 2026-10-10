@@ -104,6 +104,36 @@ jobs:
           echo "::error::Timed out waiting for Fulus Mobile CI for this exact commit."
           exit 1
 
+      - name: Gate production deployment on Supabase migration-chain tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "Waiting for Fulus Supabase Migration Chain on $COMMIT_SHA"
+          for attempt in $(seq 1 60); do
+            runs="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "/repos/${GITHUB_REPOSITORY}/actions/workflows/supabase-migrations.yml/runs?head_sha=${COMMIT_SHA}&per_page=20")"
+            matching_count="$(jq --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push")] | length' <<<"$runs")"
+            if [ "$matching_count" -gt 0 ]; then
+              conclusion="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push")] | sort_by(.created_at) | last | .conclusion // empty' <<<"$runs")"
+              status="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push")] | sort_by(.created_at) | last | .status // empty' <<<"$runs")"
+              echo "Migration-chain status=$status conclusion=$conclusion"
+              case "$conclusion" in
+                success) exit 0 ;;
+                failure|cancelled|timed_out|action_required|stale)
+                  echo "::error::Fulus Supabase Migration Chain did not pass for this production commit."
+                  exit 1
+                  ;;
+              esac
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for Fulus Supabase Migration Chain for this exact commit."
+          exit 1
+
       - name: Diagnose Supabase Management API authentication
         run: |
           set -euo pipefail
