@@ -276,6 +276,10 @@ jobs:
     if: >-
       needs.fulus_e2e.result == 'success' &&
       (
+        github.event_name != 'workflow_dispatch' ||
+        github.ref == 'refs/heads/main'
+      ) &&
+      (
         needs.change_scope.outputs.migration_changed != 'true' ||
         github.event_name == 'workflow_dispatch'
       )
