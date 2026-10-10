@@ -72,3 +72,10 @@ Current-head verification:
 4. **Production rollout:** the new migration and Edge Function changes have not been deployed to production from this draft PR. Do not merge or deploy until the remaining acceptance criteria and required runtime evidence are satisfied.
 
 Keep PR #211 as a draft until these blockers are closed and the exact final head has green CI plus the required runtime evidence.
+
+
+## Follow-up verification note (2026-10-10)
+
+- Fixed a cloud API contract mismatch: the `catalog_list` handler already required `location_id` and applied location authorization/filtering for customers, but the shared entity allowlist rejected `customers` before that path could run. Customer reads are now admitted only for `catalog_list`; generic catalog mutations still reject customers and continue using the dedicated customer mutation RPCs.
+- Added a source contract assertion in `supabase/tests/cloud_api_authorization_contracts.sh` so this mismatch is caught by CI.
+- This closes the API routing gap only. It does not establish the full legacy ownership review UI/API, offline/two-device location convergence, employee journey E2E, or production rollout evidence. Those remain blockers; PR #211 stays draft.
