@@ -428,7 +428,9 @@ Deno.serve(async req => {
 
   if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(action))) {
     const entity = typeof b.entity === "string" ? b.entity : null;
-    if (!entity || !["products", "categories", "suppliers"].includes(entity)) {
+    const readableEntities = ["products", "customers", "categories", "suppliers"];
+    const mutableEntities = ["products", "categories", "suppliers"];
+    if (!entity || !(action === "catalog_list" ? readableEntities : mutableEntities).includes(entity)) {
       return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
     }
 
