@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -83,8 +85,10 @@ class _LocationOwnershipReviewScreenState
       );
       setState(() => _reviewsFuture = _loadReviews());
       // The resolved row changes cloud ownership. Refresh local projections
-      // only after the server confirms the transactional resolution.
+      // only after the server confirms the transactional resolution, then ask
+      // the normal connectivity-gated sync path to pull the new canonical owner.
       ref.read(dataRefreshSignalProvider.notifier).state++;
+      unawaited(ref.read(syncServiceProvider).refreshAfterContextChange());
     } catch (error) {
       if (mounted) {
         showFulusSnackbar(
