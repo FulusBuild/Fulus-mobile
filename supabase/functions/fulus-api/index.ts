@@ -328,6 +328,59 @@ Deno.serve(async req => {
   if (!bid) return out({ error: { code: "INVALID_COMMAND", message: "business_id is required" } }, 400);
   if (!(members ?? []).some(m => m.business_id === bid)) return out({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
 
+  if (action === "location_ownership_review_list" || action === "location_ownership_review_resolve") {
+    const { data: membership, error: membershipError } = await serviceDb
+      .from("business_memberships")
+      .select("role_id, roles(name)")
+      .eq("business_id", bid)
+      .eq("user_id", uid)
+      .eq("status", "active")
+      .maybeSingle();
+    if (membershipError || !membership) {
+      return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify business role" } }, 500);
+    }
+    const role = Array.isArray(membership.roles) ? membership.roles[0] : membership.roles;
+    if (role?.name !== "owner" && role?.name !== "admin") {
+      return out({ error: { code: "FORBIDDEN", message: "Business administrator access required" } }, 403);
+    }
+
+    if (action === "location_ownership_review_list") {
+      const { data, error } = await serviceDb
+        .from("location_ownership_review")
+        .select("id,business_id,entity_type,entity_id,candidate_location_ids,classification,reason,created_at")
+        .eq("business_id", bid)
+        .is("reviewed_at", null)
+        .order("created_at", { ascending: true })
+        .limit(200);
+      if (error) return out({ error: { code: "OWNERSHIP_REVIEW_READ_FAILED", message: "Unable to read pending ownership reviews" } }, 500);
+      return out({ data: { items: data ?? [], server_authoritative: true } });
+    }
+
+    const reviewId = typeof b.review_id === "string" ? b.review_id : null;
+    const locationId = typeof b.location_id === "string" ? b.location_id : null;
+    if (!reviewId || !locationId) {
+      return out({ error: { code: "INVALID_OWNERSHIP_RESOLUTION", message: "review_id and location_id are required" } }, 400);
+    }
+    const { data, error } = await serviceDb.rpc("fulus_api_resolve_location_ownership", {
+      target_user_id: uid,
+      target_business_id: bid,
+      target_review_id: reviewId,
+      target_location_id: locationId,
+    });
+    if (error) {
+      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 :
+        error.code === "23503" ? 400 : error.code === "40001" ? 409 : 400;
+      const code = error.code === "42501" ? "FORBIDDEN" :
+        error.code === "P0002" ? "OWNERSHIP_REVIEW_NOT_FOUND" :
+        error.code === "40001" ? "OWNERSHIP_REVIEW_CONFLICT" : "INVALID_OWNERSHIP_RESOLUTION";
+      return out({ error: { code, message: code === "FORBIDDEN" ? "Business administrator access required" :
+        code === "OWNERSHIP_REVIEW_NOT_FOUND" ? "Pending review or unassigned record was not found" :
+        code === "OWNERSHIP_REVIEW_CONFLICT" ? "This ownership review was resolved concurrently" :
+        "Selected location is invalid for this business or the resolution could not be applied" } }, status);
+    }
+    return out({ data: { ...data, server_authoritative: true } });
+  }
+
   if (action === "restore_snapshot") {
     if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for recovery" } }, 400);
     const { data: device, error: de } = await serviceDb
