@@ -120,3 +120,22 @@ PR #211 remains a draft. Do not infer ownership for legacy records or treat gree
 - The four-PR review also confirmed that PR #208's legacy ledger mapper/test change overlaps this PR in `test/repository/customer_credit_repository_test.dart`. The changes are additive in the current patches, but the combined behavior still needs a single integration run before merging either branch.
 - PR #214's restore normalizer optimization is not deployed to production. The successful production multi-device run on that PR therefore does not close this PR's location-isolation acceptance criteria.
 - Remaining blockers are unchanged: authenticated ownership-review UI/API exercise; offline two-location/two-device isolation through retry, restart, restore and convergence; full employee invite/claim/sign-in/reinstall/restore and permission journey; and explicit production rollout approval. This PR remains draft and unmerged.
+
+
+## Employee ownership review follow-up (2026-10-10)
+
+A review of the location-filtered roster found that employees with a null `location_id` were hidden from every location roster, while the original review queue accepted only products and customers. That left no explicit path to reconcile legacy unassigned employees.
+
+The location ownership change now:
+- Allows `employee` review rows and backfills existing employees without a location into the pending owner/admin review queue.
+- Creates or reopens a pending review whenever a legacy/API write leaves an employee unassigned.
+- Resolves an employee only when the target location is active and belongs to the same business; the resolver locks the employee row, assigns only a null owner location, aligns active `location_memberships`, leaves inactive employees inactive, publishes a canonical employee change, and records reviewer/time.
+- Prevents ordinary roster update calls from clearing or changing an established employee location. Unassigned employee updates must wait for explicit ownership resolution.
+- Refreshes the normal connectivity-gated sync path after a successful review so the local employee canonical reconciler can apply the server-assigned location.
+- Adds disposable SQL regression coverage for auto-queueing a null-location employee, resolving it, membership alignment, canonical change publication, and rejection of a regular cross-location employee update.
+
+Verification on exact code head `56af744ef9a3bfc8fc5d45d34871a4536f389e65`:
+- Fulus Supabase Migration Chain passed: [run 38038467443](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38038467443).
+- Fulus Mobile CI passed: [run 38038467462](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38038467462).
+
+These are local migration-contract and Flutter CI results. They do not replace authenticated live owner/admin UI/API testing or offline two-location/two-device convergence. No production migration or deployment was performed.
