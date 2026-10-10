@@ -437,7 +437,9 @@ Deno.serve(async req => {
     const { data: allowed, error: pe } = await serviceDb.rpc("user_has_permission", {
       target_business_id: bid,
       target_user_id: uid,
-      target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage",
+      target_permission: action === "catalog_list"
+        ? (entity === "customers" ? "customers.read" : "catalog.read")
+        : "catalog.manage",
     });
     if (pe) return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
     if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
