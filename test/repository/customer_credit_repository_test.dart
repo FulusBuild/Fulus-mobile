@@ -422,16 +422,32 @@ void main() {
           syncStatus: SyncStatus.settled,
         ),
       );
+      await db.into(db.customerLedgerEntries).insert(
+        CustomerLedgerEntriesCompanion.insert(
+          localId: 'legacy-credit-reversal',
+          customerLocalId: customerId,
+          entryType: 'credit_reversal',
+          amount: 500,
+          saleLocalId: const Value('sale-1'),
+          createdAt: createdAt.add(const Duration(seconds: 2)),
+          updatedAt: createdAt.add(const Duration(seconds: 2)),
+          syncStatus: SyncStatus.settled,
+        ),
+      );
 
       final entries = await creditRepository.watchLedger(customerId).first;
 
-      expect(entries, hasLength(2));
+      expect(entries, hasLength(3));
       expect(
-        entries.map((entry) => entry.entryType),
-        containsAll([
+        entries.map((entry) => entry.entryType).toSet(),
+        containsAll({
           CustomerLedgerEntryType.creditSale,
           CustomerLedgerEntryType.refundAdjustment,
-        ]),
+        }),
+      );
+      expect(
+        entries.where((entry) => entry.entryType == CustomerLedgerEntryType.refundAdjustment),
+        hasLength(2),
       );
     });
 
