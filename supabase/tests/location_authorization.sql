@@ -281,6 +281,16 @@ begin
      or v_result->>'entity_id' is distinct from v_customer::text then
     raise exception 'FAIL: customer resolution result identifies the wrong entity';
   end if;
+  if not exists (
+    select 1
+    from public.sync_changes
+    where business_id = v_business
+      and entity_type = 'customer'
+      and entity_id = v_customer
+      and payload->>'location_id' = v_location_a::text
+  ) then
+    raise exception 'FAIL: customer ownership resolution did not publish the resolved customer to the sync feed';
+  end if;
 
   -- A legacy API create without location is retained as unassigned, but it
   -- must automatically enter the owner/admin review queue and gain no location access.
