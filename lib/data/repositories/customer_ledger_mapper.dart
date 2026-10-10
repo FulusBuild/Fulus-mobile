@@ -6,9 +6,13 @@ import '../local/database/tables.dart';
 
 CustomerLedgerEntryType _entryTypeFromColumn(String value) {
   return switch (value) {
-    'creditSale' => CustomerLedgerEntryType.creditSale,
+    // Current local writes persist Dart enum names. Accept the wire-style
+    // spellings too because older installs may retain ledger rows written
+    // before the local/canonical naming contract was unified.
+    'creditSale' || 'credit_sale' => CustomerLedgerEntryType.creditSale,
     'repayment' => CustomerLedgerEntryType.repayment,
-    'refundAdjustment' => CustomerLedgerEntryType.refundAdjustment,
+    'refundAdjustment' || 'refund_adjustment' || 'credit_reversal' =>
+      CustomerLedgerEntryType.refundAdjustment,
     _ => throw ArgumentError.value(
         value,
         'entryType',
