@@ -18,6 +18,7 @@ grep -F 'const saleLocationId = saleId ? saleLocationBySaleId.get(saleId) : unde
 # dedicated customer mutation RPCs rather than the generic catalog writer.
 grep -F 'const readableEntities = ["products", "customers", "categories", "suppliers"];' supabase/functions/fulus-api/index.ts >/dev/null
 grep -F 'action === "catalog_list" ? readableEntities : mutableEntities' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F 'entity === "customers" ? "customers.read" : "catalog.read"' supabase/functions/fulus-api/index.ts >/dev/null
 
 echo "PASS: cloud API authorization contracts are present"
 
