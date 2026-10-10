@@ -29,6 +29,7 @@ class LocationOwnershipReviewScreen extends ConsumerStatefulWidget {
 class _LocationOwnershipReviewScreenState
     extends ConsumerState<LocationOwnershipReviewScreen> {
   Future<List<LocationOwnershipReview>>? _reviewsFuture;
+  String? _reviewsBusinessId;
   String? _resolvingReviewId;
 
   Future<List<LocationOwnershipReview>> _loadReviews() async {
@@ -43,12 +44,18 @@ class _LocationOwnershipReviewScreenState
   }
 
   void _reload() {
-    setState(() => _reviewsFuture = _loadReviews());
+    setState(() {
+      _reviewsBusinessId =
+          ref.read(fulusConnectionStateProvider).selectedBusinessId;
+      _reviewsFuture = _loadReviews();
+    });
   }
 
   @override
   void initState() {
     super.initState();
+    _reviewsBusinessId =
+        ref.read(fulusConnectionStateProvider).selectedBusinessId;
     _reviewsFuture = _loadReviews();
   }
 
@@ -94,6 +101,14 @@ class _LocationOwnershipReviewScreenState
 
   @override
   Widget build(BuildContext context) {
+    final selectedBusinessId =
+        ref.watch(fulusConnectionStateProvider).selectedBusinessId;
+    // A business switch must never leave the previous business's review rows
+    // visible while the location-target provider refreshes for the new scope.
+    if (_reviewsBusinessId != selectedBusinessId) {
+      _reviewsBusinessId = selectedBusinessId;
+      _reviewsFuture = _loadReviews();
+    }
     final locationsAsync = ref.watch(_ownershipReviewLocationsProvider);
     final reviewsFuture = _reviewsFuture;
 
