@@ -139,7 +139,7 @@ class _LocationOwnershipReviewScreenState
                   return const FulusEmptyState(
                     icon: Icons.verified_outlined,
                     headline: 'No records need review',
-                    body: 'All currently listed legacy product and customer ownership reviews are resolved.',
+                    body: 'All currently listed legacy product, customer, and employee ownership reviews are resolved.',
                   );
                 }
                 return locationsAsync.when(
