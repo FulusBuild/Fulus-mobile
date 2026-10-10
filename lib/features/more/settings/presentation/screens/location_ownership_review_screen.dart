@@ -60,7 +60,7 @@ class _LocationOwnershipReviewScreenState
       await ref.read(fulusStaffAccessApiProvider).resolveLocationOwnershipReview(
             businessId: businessId,
             reviewId: review.id,
-            locationId: location.localId,
+            locationId: location.serverId ?? location.localId,
           );
       if (!mounted) return;
       showFulusSnackbar(
