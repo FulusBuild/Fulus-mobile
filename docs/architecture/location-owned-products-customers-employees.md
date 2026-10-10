@@ -153,3 +153,39 @@ This fail-closed guard protects history and must not be weakened merely to make 
 **Merge blocker:** define and test an explicit safe disposition for shared/ambiguous historical records, preserving historical foreign keys and stock/ledger references. If ordinary assignment is intentionally disallowed, the UI/API must clearly distinguish those records from resolvable unassigned rows and route them to a separate reconciliation workflow. Add SQL tests for product and customer histories spanning two locations. Do not automatically reparent historical data.
 
 This finding was also recorded in the PR #211 conversation. It is not a CI failure; it is an uncovered behavior/acceptance gap.
+
+## Continuation audit: location switching and durable mutations (2026-10-10)
+
+This section records a source-level continuation against live PR #211 head
+`eebd5f9b9640907910bdd04c7c493cc855681111`. It is not runtime acceptance.
+
+### Verified
+
+- `SwitchActiveLocation.call` serializes concurrent switch requests and permits switching only for an authenticated owner. It verifies the target location exists locally and is not deleted before writing the active-location preference.
+- The location switch use case does not rewrite product/customer/employee ownership. Product and customer mutations in PR #211 carry location identity in their local records, and the reviewed repository mutation paths reject cross-location writes.
+- Product catalogue reads in PR #211 join stock by the requested location and require both the session's active location and the product's owner location to match. This closes the original “other location's product with zero stock” query path.
+- Customer and employee list queries join the current session and filter by active location. Their create/update/archive/reactivation paths include ownership checks.
+- The durable queue insert checks the business-switch barrier both before and inside its transaction, checks the restore-maintenance fence, and captures actor identity alongside the queued operation.
+- The business-switch guard waits for sync to become idle and refuses a business switch while durable queue items remain. This guard is for **business** switching, not location switching.
+- Observed CI for PR #211 head `eebd5f9b9640907910bdd04c7c493cc855681111`: Mobile CI run [38045879203](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38045879203) and Migration Chain run [38045879214](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38045879214) both succeeded. Mobile CI did not execute live sync, multi-device convergence, or APK jobs.
+
+### Open verification question: in-flight sync during a location switch
+
+`SwitchActiveLocation` serializes location-switch requests but does not itself wait for an in-flight sync cycle or establish a location-switch barrier. This is not yet classified as a defect: product/customer/employee ownership is stored on the rows, and the reviewed handlers have their own ownership/dependency checks. However, the complete call graph has not yet proved that every pull, canonical reconciliation, sale/cart mutation, and stock operation is independent of a concurrent active-location change.
+
+Required proof before closing this item:
+
+1. Trace every location-sensitive sync handler and canonical reconciler to confirm server queries use stable server-side location ownership rather than a mutable active-location value.
+2. Add or verify deterministic tests that pause a pull/push, switch A → B, resume the old operation, and assert no A records are exposed as B data and no mutation is reassigned.
+3. Verify the same scenarios with pending outbox operations, app restart, offline retry, and two-device convergence.
+4. Exercise owner switching and employee-assigned-location enforcement separately. Employees must not gain the owner's location-switch capability.
+
+### Integration and production boundaries
+
+- PR #208 overlaps PR #211 in customer ledger mapper/test coverage; compare and run the combined behavior before either is integrated.
+- PR #209 overlaps PR #211 in `lib/data/remote/cross_device_employee_restore.dart`. Preserve the historical-cashier placeholder behavior while reviewing location-scoped restore authorization and inactive-user semantics.
+- PR #214 adds `20261009200000_optimize_restore_known_money_sections.sql`, a migration described as already applied in production but absent from `main` at this checkpoint. Do not merge it independently or trigger production deployment until migration history/provenance and the combined sequence are explicitly approved.
+- PR #216 includes that same migration plus the follow-up allowlist migration and CI workflow changes; PR #218 is a combined validation candidate, not an independent merge candidate.
+- PR #217's branch removes the production workflow's self-file push path and rejects manual dispatch refs other than `refs/heads/main`. The live `main` workflow still includes the workflow file in its push paths and has an unrestricted `workflow_dispatch` trigger. Do not dispatch it; integration of #217 remains a safety requirement before workflow-only changes can be considered safe.
+
+No PR was merged, no production workflow was dispatched, and no production change was made during this continuation.
