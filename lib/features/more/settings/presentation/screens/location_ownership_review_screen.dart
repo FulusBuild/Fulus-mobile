@@ -218,7 +218,7 @@ class _OwnershipReviewCard extends StatelessWidget {
                     leading: Icon(
                       candidates.contains(location.serverId)
                           ? Icons.location_on_outlined
-                          : Icons.location_outlined,
+                          : Icons.place_outlined,
                     ),
                     title: Text(location.name),
                     subtitle: Text(
