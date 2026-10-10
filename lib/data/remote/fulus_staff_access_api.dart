@@ -10,7 +10,8 @@ class FulusStaffAccessApi {
     String? ownershipFunctionBaseUrl,
   })  : _client = client,
         _functionBaseUrl = functionBaseUrl,
-        _ownershipFunctionBaseUrl = ownershipFunctionBaseUrl ?? functionBaseUrl;
+        _ownershipFunctionBaseUrl = ownershipFunctionBaseUrl ??
+            functionBaseUrl.replaceFirst('/fulus-staff-api', '/fulus-api');
 
   final ApiClient _client;
   final String _functionBaseUrl;
