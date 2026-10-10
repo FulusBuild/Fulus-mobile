@@ -24,6 +24,7 @@ void main() {
   test('seeds inactive historical cashier identities before importing sales on a fresh employee device', () async {
     const employeeId = 'employee-user-id';
     const ownerId = 'business-owner-user-id';
+    const historicalDrawerCashierId = 'historical-drawer-cashier-id';
 
     final snapshot = <String, dynamic>{
       'version': 7,
@@ -89,7 +90,16 @@ void main() {
       'returns': [],
       'return_items': [],
       'tax_remittances': [],
-      'cash_drawer_shifts': [],
+      'cash_drawer_shifts': [
+        {
+          'id': 'drawer-shift-owned-by-historical-cashier',
+          'client_reference': 'drawer-shift-owned-by-historical-cashier',
+          'location_id': 'location-1',
+          'cashier_user_id': historicalDrawerCashierId,
+          'opened_at': '2026-10-09T09:00:00Z',
+          'opening_cash': '500.00',
+        },
+      ],
       'audit_events': [],
     };
 
@@ -131,6 +141,16 @@ void main() {
         .getSingle();
     expect(historicalOwner.isActive, isFalse);
     expect(historicalOwner.fullName, 'Historical staff member');
+
+    final historicalDrawerCashier = await (db.select(db.users)
+          ..where((user) => user.localId.equals(historicalDrawerCashierId)))
+        .getSingle();
+    expect(historicalDrawerCashier.isActive, isFalse);
+    expect(historicalDrawerCashier.fullName, 'Historical staff member');
+
+    final shifts = await db.select(db.cashDrawerShifts).get();
+    expect(shifts, hasLength(1));
+    expect(shifts.single.cashierUserId, historicalDrawerCashierId);
 
     final employee = await (db.select(db.users)
           ..where((user) => user.localId.equals(employeeId)))
