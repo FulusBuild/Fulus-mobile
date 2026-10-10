@@ -27,6 +27,18 @@ union all
 select id, 'cashier', false from public.businesses
 where name = 'Authorization Regression Business';
 
+-- The test owner needs the same explicit permission contract checked by the
+-- employee mutation RPC; ownership review itself remains owner/admin-gated.
+insert into public.role_permissions(role_id, permission_id)
+select r.id, p.id
+from public.roles r
+join public.permissions p on p.code = 'employees.manage'
+where r.business_id = (
+  select id from public.businesses where name = 'Authorization Regression Business'
+)
+and r.name = 'owner'
+on conflict (role_id, permission_id) do nothing;
+
 insert into public.locations (business_id, name, code, status)
 select id, 'Location A', 'AUTH-A', 'active'
 from public.businesses
