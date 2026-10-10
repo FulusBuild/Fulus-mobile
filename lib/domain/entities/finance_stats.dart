@@ -105,13 +105,11 @@ class CashFlowReport {
   /// comment for that history. Sourced from
   /// `CustomerCreditRepository.getRepaymentsForPeriod`, the same method
   /// Money already uses, so the two can't drift apart on this figure
-  /// again. One real scoping caveat, inherited from that method rather
-  /// than introduced here: it's business-wide, not location-scoped —
-  /// `CustomerLedgerEntries` has no `locationId` column, because
-  /// customers themselves aren't location-scoped in this data model.
-  /// For a single-location business this is a non-issue; for a
-  /// multi-location one, this component reflects repayments across
-  /// every location, not just [locationId].
+  /// again. Repayments are filtered through the owning customer's
+  /// location, using the same explicit [locationId] as the other inflow
+  /// sources. The ledger row itself has no location column; ownership is
+  /// resolved through its customer reference rather than guessed from the
+  /// repayment timestamp or the active screen.
   final Money customerRepaymentsInflow;
 
   final Money inflow;

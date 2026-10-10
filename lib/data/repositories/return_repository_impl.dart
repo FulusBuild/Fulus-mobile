@@ -33,11 +33,29 @@ class ReturnRepositoryImpl implements ReturnRepository {
   /// *non-rejected* prior return against the same sale — a rejected
   /// return frees its claimed quantity back up; pending/approved/
   /// completed ones don't.
+  Future<bool> _isSaleInActiveLocation(String saleLocalId) async {
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session == null || session.activeLocationId == null) return false;
+    final sale = await (_db.select(_db.sales)
+          ..where((row) => row.localId.equals(saleLocalId)))
+        .getSingleOrNull();
+    return sale != null && sale.locationId == session.activeLocationId;
+  }
+
+  Future<void> _requireSaleInActiveLocation(String saleLocalId) async {
+    if (!await _isSaleInActiveLocation(saleLocalId)) {
+      throw StateError('Returns are restricted to sales in the active location.');
+    }
+  }
+
   Future<
       ({
         Map<String, ({int quantity, Money totalLineAmount})> purchased,
         Map<String, int> alreadyClaimed,
       })> _purchasedAndClaimed(String originalSaleLocalId) async {
+    await _requireSaleInActiveLocation(originalSaleLocalId);
     final itemRows = await (_db.select(_db.saleItems)
           ..where((i) => i.saleLocalId.equals(originalSaleLocalId)))
         .get();
@@ -281,6 +299,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
     required bool approve,
   }) async {
     final row = await _requireReturnRow(returnLocalId);
+    await _requireSaleInActiveLocation(row.originalSaleLocalId);
     if (_statusFromRow(row) != ReturnStatus.pending) {
       throw StateError('Only pending returns can be approved or rejected.');
     }
@@ -309,6 +328,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
   @override
   Future<ReturnRequest> completeReturn(String returnLocalId) async {
     final row = await _requireReturnRow(returnLocalId);
+    await _requireSaleInActiveLocation(row.originalSaleLocalId);
     final currentStatus = _statusFromRow(row);
     // Completion is deliberately idempotent. A retry after a dropped
     // response must not restore inventory or reverse customer credit twice.
@@ -415,28 +435,42 @@ class ReturnRepositoryImpl implements ReturnRepository {
   }
 
   @override
-  Future<ReturnRequest?> getReturnById(String localId) async {
+  Future<ReturnRequest?> getReturnById(
+    String localId, {
+    bool forSync = false,
+  }) async {
     final row = await (_db.select(_db.returnRequests)
           ..where((r) => r.localId.equals(localId)))
         .getSingleOrNull();
     if (row == null) return null;
+    if (!forSync && !await _isSaleInActiveLocation(row.originalSaleLocalId)) {
+      return null;
+    }
     final items = await _itemsForReturn(localId);
     return row.toDomain(items: items);
   }
 
   @override
   Stream<List<ReturnRequest>> watchReturns({ReturnStatus? status, bool? isVoid}) {
-    final query = _db.select(_db.returnRequests)
-      ..orderBy([(r) => OrderingTerm.desc(r.createdAt)]);
+    final query = _db.select(_db.returnRequests).join([
+      innerJoin(
+        _db.sales,
+        _db.sales.localId.equalsExp(_db.returnRequests.originalSaleLocalId),
+      ),
+      innerJoin(_db.sessions, _db.sessions.id.equals('current')),
+    ])
+      ..where(_db.sales.locationId.equalsExp(_db.sessions.activeLocationId))
+      ..orderBy([OrderingTerm.desc(_db.returnRequests.createdAt)]);
     if (status != null) {
-      query.where((r) => r.status.equals(status.name));
+      query.where(_db.returnRequests.status.equals(status.name));
     }
     if (isVoid != null) {
-      query.where((r) => r.isVoid.equals(isVoid));
+      query.where(_db.returnRequests.isVoid.equals(isVoid));
     }
     return query.watch().asyncMap((rows) async {
       final results = <ReturnRequest>[];
-      for (final row in rows) {
+      for (final joinedRow in rows) {
+        final row = joinedRow.readTable(_db.returnRequests);
         final items = await _itemsForReturn(row.localId);
         results.add(row.toDomain(items: items));
       }

@@ -130,8 +130,11 @@ Deno.serve(async req => {
       "stock_movement",
       "return",
       "employee",
+      "product",
+      "customer",
+      "customer_ledger",
     ]);
-    const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>) => {
+    const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>, customerLocationByCustomerId: Map<string, string>) => {
       if (entityType === "location") {
         return accessibleLocationIds.has(entityId);
       }
@@ -142,7 +145,7 @@ Deno.serve(async req => {
         }
         const row = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
         const locationId = row?.location_id;
-        return locationId == null || accessibleLocationIds.has(String(locationId));
+        return locationId != null && accessibleLocationIds.has(String(locationId));
       }
       if (!payload || typeof payload !== "object") return false;
       const row = payload as Record<string, unknown>;
@@ -158,6 +161,21 @@ Deno.serve(async req => {
         const saleId = returnSaleIdByReturnId.get(entityId);
         const locationId = saleId ? saleLocationBySaleId.get(saleId) : undefined;
         return locationId != null && accessibleLocationIds.has(locationId);
+      }
+      if (entityType === "customer_ledger") {
+        // A ledger row tied to a sale inherits that sale's location. This
+        // preserves local historical ledger references for legacy shared or
+        // unassigned customers without exposing ledger entries from other
+        // locations. Repayment-only rows fall back to the customer's explicit
+        // owner location and fail closed when ownership is unresolved.
+        const saleId = typeof row.sale_id === "string" ? row.sale_id : null;
+        const saleLocationId = saleId ? saleLocationBySaleId.get(saleId) : undefined;
+        if (saleLocationId != null) {
+          return accessibleLocationIds.has(saleLocationId);
+        }
+        const customerId = typeof row.customer_id === "string" ? row.customer_id : null;
+        const customerLocationId = customerId ? customerLocationByCustomerId.get(customerId) : undefined;
+        return customerLocationId != null && accessibleLocationIds.has(customerLocationId);
       }
       return false;
     };
@@ -180,16 +198,33 @@ Deno.serve(async req => {
       const batch = changes ?? [];
       if (batch.length === 0) break;
 
-      const saleIds = [...new Set(batch
-        .filter(change => String(change.entity_type ?? "") === "sale")
-        .map(change => String(change.entity_id))
-        .filter(Boolean))];
+      const saleIds = [...new Set(batch.flatMap(change => {
+        const entityType = String(change.entity_type ?? "");
+        if (entityType === "sale") return [String(change.entity_id)];
+        if (entityType === "customer_ledger") {
+          const payload = change.payload && typeof change.payload === "object"
+            ? change.payload as Record<string, unknown>
+            : null;
+          return typeof payload?.sale_id === "string" ? [payload.sale_id] : [];
+        }
+        return [];
+      }).filter(Boolean))];
       const returnIds = [...new Set(batch
         .filter(change => String(change.entity_type ?? "") === "return")
         .map(change => String(change.entity_id))
         .filter(Boolean))];
+      const customerIds = [...new Set(batch
+        .filter(change => String(change.entity_type ?? "") === "customer_ledger")
+        .map(change => {
+          const payload = change.payload && typeof change.payload === "object"
+            ? change.payload as Record<string, unknown>
+            : null;
+          return typeof payload?.customer_id === "string" ? payload.customer_id : "";
+        })
+        .filter(Boolean))];
       const saleLocationBySaleId = new Map<string, string>();
       const returnSaleIdByReturnId = new Map<string, string>();
+      const customerLocationByCustomerId = new Map<string, string>();
 
       if (saleIds.length > 0) {
         const { data: sales, error: salesError } = await serviceDb
@@ -215,10 +250,24 @@ Deno.serve(async req => {
         }
       }
 
+      if (customerIds.length > 0) {
+        const { data: customers, error: customersError } = await serviceDb
+          .from("customers")
+          .select("id,location_id")
+          .eq("business_id", bid)
+          .in("id", customerIds);
+        if (customersError) return out({ error: { code: "SYNC_LOCATION_LOOKUP_FAILED", message: "Unable to resolve customer locations for ledger change feed" } }, 500);
+        for (const customer of customers ?? []) {
+          if (customer.location_id != null) {
+            customerLocationByCustomerId.set(String(customer.id), String(customer.location_id));
+          }
+        }
+      }
+
       for (const change of batch) {
         scanCursor = Number(change.sequence);
         const entityType = String(change.entity_type ?? "");
-        if (!locationScopedEntityTypes.has(entityType) || hasLocationAccess(entityType, String(change.entity_id), change.payload, saleLocationBySaleId, returnSaleIdByReturnId)) {
+        if (!locationScopedEntityTypes.has(entityType) || hasLocationAccess(entityType, String(change.entity_id), change.payload, saleLocationBySaleId, returnSaleIdByReturnId, customerLocationByCustomerId)) {
           rows.push(change);
           if (rows.length >= limit) break;
         }
@@ -278,6 +327,66 @@ Deno.serve(async req => {
   const bid = typeof b.business_id === "string" ? b.business_id : null;
   if (!bid) return out({ error: { code: "INVALID_COMMAND", message: "business_id is required" } }, 400);
   if (!(members ?? []).some(m => m.business_id === bid)) return out({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+
+  if (action === "location_ownership_review_list" || action === "location_ownership_review_resolve") {
+    const { data: membership, error: membershipError } = await serviceDb
+      .from("business_memberships")
+      .select("role_id, roles(name)")
+      .eq("business_id", bid)
+      .eq("user_id", uid)
+      .eq("status", "active")
+      .maybeSingle();
+    if (membershipError || !membership) {
+      return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify business role" } }, 500);
+    }
+    const role = Array.isArray(membership.roles) ? membership.roles[0] : membership.roles;
+    if (role?.name !== "owner" && role?.name !== "admin") {
+      return out({ error: { code: "FORBIDDEN", message: "Business administrator access required" } }, 403);
+    }
+
+    if (action === "location_ownership_review_list") {
+      const { data, error } = await serviceDb
+        .from("location_ownership_review")
+        .select("id,business_id,entity_type,entity_id,candidate_location_ids,classification,reason,created_at")
+        .eq("business_id", bid)
+        .is("reviewed_at", null)
+        .order("created_at", { ascending: true })
+        .limit(200);
+      if (error) return out({ error: { code: "OWNERSHIP_REVIEW_READ_FAILED", message: "Unable to read pending ownership reviews" } }, 500);
+      const { data: locations, error: locationsError } = await serviceDb
+        .from("locations")
+        .select("id,name")
+        .eq("business_id", bid)
+        .eq("status", "active")
+        .order("name", { ascending: true });
+      if (locationsError) return out({ error: { code: "OWNERSHIP_REVIEW_LOCATIONS_FAILED", message: "Unable to read business locations" } }, 500);
+      return out({ data: { items: data ?? [], locations: locations ?? [], server_authoritative: true } });
+    }
+
+    const reviewId = typeof b.review_id === "string" ? b.review_id : null;
+    const locationId = typeof b.location_id === "string" ? b.location_id : null;
+    if (!reviewId || !locationId) {
+      return out({ error: { code: "INVALID_OWNERSHIP_RESOLUTION", message: "review_id and location_id are required" } }, 400);
+    }
+    const { data, error } = await serviceDb.rpc("fulus_api_resolve_location_ownership", {
+      target_user_id: uid,
+      target_business_id: bid,
+      target_review_id: reviewId,
+      target_location_id: locationId,
+    });
+    if (error) {
+      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 :
+        error.code === "23503" ? 400 : error.code === "40001" ? 409 : 400;
+      const code = error.code === "42501" ? "FORBIDDEN" :
+        error.code === "P0002" ? "OWNERSHIP_REVIEW_NOT_FOUND" :
+        error.code === "40001" ? "OWNERSHIP_REVIEW_CONFLICT" : "INVALID_OWNERSHIP_RESOLUTION";
+      return out({ error: { code, message: code === "FORBIDDEN" ? "Business administrator access required" :
+        code === "OWNERSHIP_REVIEW_NOT_FOUND" ? "Pending review or unassigned record was not found" :
+        code === "OWNERSHIP_REVIEW_CONFLICT" ? "This ownership review was resolved concurrently" :
+        "Selected location is invalid for this business or the resolution could not be applied" } }, status);
+    }
+    return out({ data: { ...data, server_authoritative: true } });
+  }
 
   if (action === "restore_snapshot") {
     if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for recovery" } }, 400);
@@ -379,24 +488,46 @@ Deno.serve(async req => {
 
   if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(action))) {
     const entity = typeof b.entity === "string" ? b.entity : null;
-    if (!entity || !["products", "categories", "suppliers"].includes(entity)) {
+    const readableEntities = ["products", "customers", "categories", "suppliers"];
+    const mutableEntities = ["products", "categories", "suppliers"];
+    if (!entity || !(action === "catalog_list" ? readableEntities : mutableEntities).includes(entity)) {
       return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
     }
 
     const { data: allowed, error: pe } = await serviceDb.rpc("user_has_permission", {
       target_business_id: bid,
       target_user_id: uid,
-      target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage",
+      target_permission: action === "catalog_list"
+        ? (entity === "customers" ? "customers.read" : "catalog.read")
+        : "catalog.manage",
     });
     if (pe) return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
     if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
 
     if (action === "catalog_list") {
-      const { data, error } = await serviceDb
+      const locationId = entity === "products" || entity === "customers"
+        ? (typeof b.location_id === "string" ? b.location_id : null)
+        : null;
+      if ((entity === "products" || entity === "customers") && !locationId) {
+        return out({ error: { code: "LOCATION_REQUIRED", message: "location_id is required for location-owned catalog reads" } }, 400);
+      }
+      if (locationId) {
+        const { error: locationError } = await serviceDb.rpc("fulus_api_require_location_access", {
+          target_user_id: uid,
+          target_business_id: bid,
+          target_location_id: locationId,
+        });
+        if (locationError) {
+          return out({ error: { code: "LOCATION_FORBIDDEN", message: "Location is not available to this account" } }, 403);
+        }
+      }
+      let query = serviceDb
         .from(entity)
         .select("*")
         .eq("business_id", bid)
-        .is("deleted_at", null)
+        .is("deleted_at", null);
+      if (locationId) query = query.eq("location_id", locationId);
+      const { data, error } = await query
         .order("updated_at", { ascending: false })
         .limit(Math.min(Math.max(Number(b.limit ?? 100), 1), 500));
       if (error) return out({ error: { code: "CATALOG_READ_FAILED", message: "Unable to read catalog" } }, 500);
@@ -504,13 +635,15 @@ Deno.serve(async req => {
       }));
     } else if (action === "customer_update") {
       const customerId = typeof rawPayload.server_id === "string" ? rawPayload.server_id : null;
-      if (!customerId) return out({ error: { code: "INVALID_CUSTOMER_UPDATE", message: "server_id is required" } }, 400);
+      const customerLocationId = typeof rawPayload.location_id === "string" ? rawPayload.location_id : null;
+      if (!customerId || !customerLocationId) return out({ error: { code: "INVALID_CUSTOMER_UPDATE", message: "server_id and location_id are required" } }, 400);
       ({ data, error } = await serviceDb.rpc("fulus_api_update_customer", {
         target_user_id: uid,
         target_business_id: bid,
         target_device_id: d.id,
         target_operation_id: oid,
         target_customer_id: customerId,
+        target_location_id: customerLocationId,
         target_name: typeof rawPayload.name === "string" ? rawPayload.name : "",
         target_phone: typeof rawPayload.phone === "string" ? rawPayload.phone : null,
         target_email: typeof rawPayload.email === "string" ? rawPayload.email : null,
@@ -587,6 +720,7 @@ Deno.serve(async req => {
       phone: typeof b.phone === "string" ? b.phone : null,
       email: typeof b.email === "string" ? b.email : null,
       address: typeof b.address === "string" ? b.address : null,
+      location_id: typeof b.location_id === "string" ? b.location_id : null,
       credit_limit: Number(b.credit_limit ?? 0),
       notes: typeof b.notes === "string" ? b.notes : null,
     };
@@ -597,9 +731,13 @@ Deno.serve(async req => {
     const requestHash = Array.from(new Uint8Array(hashBytes))
       .map(x => x.toString(16).padStart(2, "0"))
       .join("");
+    if (typeof b.location_id !== "string" || b.location_id.length === 0) {
+      return out({ error: { code: "LOCATION_REQUIRED", message: "location_id is required for customer creation" } }, 400);
+    }
     ({ data, error } = await serviceDb.rpc("fulus_api_create_customer", {
       target_user_id: uid,
       target_business_id: bid,
+      target_location_id: b.location_id,
       target_name: b.name,
       target_phone: typeof b.phone === "string" ? b.phone : null,
       target_email: typeof b.email === "string" ? b.email : null,

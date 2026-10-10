@@ -4,6 +4,7 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/stock_movement_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/stock_movement.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import '../helpers/db_seed_helpers.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart' hide isNull;
@@ -34,8 +35,15 @@ void main() {
           updatedAt: DateTime(2026, 1, 1),
           syncStatus: SyncStatus.settled,
         ));
+    await seedUser(db, localId: 'user-1');
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'user-1',
+      activeLocationId: const Value(locationId),
+    ));
     await db.into(db.products).insert(ProductsCompanion.insert(
           localId: productLocalId,
+          locationId: const Value(locationId),
           name: 'USB-C Cable',
           sku: 'CAB-USBC',
           costPrice: moneyFromMajor(500.0),
@@ -272,9 +280,24 @@ void main() {
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: 'prod-b',
+        locationId: const Value('loc-2'),
+        name: 'Other Store Product',
+        sku: 'CAB-USBC-B',
+        costPrice: moneyFromMajor(500),
+        sellingPrice: moneyFromMajor(1200),
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value('loc-2')));
       await repository.recordStockIn(
-        const StockInDraft(productLocalId: productLocalId, locationId: 'loc-2', quantity: 10),
+        const StockInDraft(productLocalId: 'prod-b', locationId: 'loc-2', quantity: 10),
       );
+      await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value(locationId)));
 
       final emitted = await repository.watchMovementsForLocation(locationId).first;
 

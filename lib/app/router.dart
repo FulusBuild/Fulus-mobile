@@ -43,6 +43,7 @@ import '../features/more/reports/presentation/screens/reports_screen.dart';
 import '../features/more/reports/presentation/screens/sales_transactions_screen.dart';
 import '../features/more/settings/presentation/screens/backup_screen.dart';
 import '../features/more/settings/presentation/screens/manage_locations_screen.dart';
+import '../features/more/settings/presentation/screens/location_ownership_review_screen.dart';
 import '../features/more/settings/presentation/screens/printer_pairing_screen.dart';
 import '../features/more/settings/presentation/screens/settings_main_screen.dart';
 import '../features/more/settings/presentation/screens/fulus_cloud_connection_screen.dart';
@@ -560,6 +561,16 @@ final appRouter = GoRouter(
                   path: 'settings/locations',
                   name: 'moreSettingsLocations',
                   pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ManageLocationsScreen()),
+                  routes: [
+                    GoRoute(
+                      path: 'ownership-review',
+                      name: 'moreSettingsLocationOwnershipReview',
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(
+                        state,
+                        const LocationOwnershipReviewScreen(),
+                      ),
+                    ),
+                  ],
                 ),
                 GoRoute(
                   path: 'settings',

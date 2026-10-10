@@ -213,9 +213,9 @@ class AppDatabase extends _$AppDatabase {
   /// business cursor. The cursor and blocked change therefore survive process
   /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
-  static const int schemaVersionForRestoreValidation = 24;
+  static const int schemaVersionForRestoreValidation = 25;
 
   @override
   MigrationStrategy get migration {
@@ -224,11 +224,14 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
         await customStatement(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_sku '
-          'ON products(sku) WHERE deleted_at IS NULL',
+          'ON products(location_id, lower(sku)) '
+          'WHERE deleted_at IS NULL AND location_id IS NOT NULL',
         );
         await customStatement(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode '
-          'ON products(barcode) WHERE deleted_at IS NULL',
+          'ON products(location_id, barcode) '
+          'WHERE deleted_at IS NULL AND barcode IS NOT NULL '
+          'AND location_id IS NOT NULL',
         );
         await customStatement(
           'CREATE INDEX IF NOT EXISTS idx_sale_items_sale_local_id '
@@ -696,6 +699,33 @@ class AppDatabase extends _$AppDatabase {
             'ON sale_items(sale_local_id)',
           );
         }
+
+        if (from < 25) {
+          // Location ownership is additive. Do not guess ownership for legacy
+          // catalog/customer rows: leave location_id NULL for explicit
+          // reconciliation rather than silently assigning records to whichever
+          // location happens to be active on upgrade.
+          await m.addColumn(products, products.locationId);
+          await m.addColumn(customers, customers.locationId);
+
+          // v6's unique SKU/barcode indexes were business-wide. Rebuild them
+          // around explicit owner location; unassigned legacy rows stay out
+          // of these indexes until safely reconciled.
+          await customStatement('DROP INDEX IF EXISTS idx_products_sku');
+          await customStatement('DROP INDEX IF EXISTS idx_products_barcode');
+          await customStatement(
+            'CREATE UNIQUE INDEX idx_products_sku '
+            'ON products(location_id, lower(sku)) '
+            'WHERE deleted_at IS NULL AND location_id IS NOT NULL',
+          );
+          await customStatement(
+            'CREATE UNIQUE INDEX idx_products_barcode '
+            'ON products(location_id, barcode) '
+            'WHERE deleted_at IS NULL AND barcode IS NOT NULL '
+            'AND location_id IS NOT NULL',
+          );
+        }
+
       },
       beforeOpen: (details) async {
         // Foreign keys are OFF by default in sqlite3 unless explicitly

@@ -508,6 +508,7 @@ Future<void> main() async {
     final customerResponse = await dio.post('', data: {
       'action': 'customer_create',
       'business_id': businessId,
+      'location_id': e2eLocationId,
       'operation_id': customerOperationId,
       'name': 'Fulus E2E Customer ' + suffix,
       'phone': '08000000000',
@@ -633,6 +634,7 @@ Future<void> main() async {
       'operation_id': 'e2e-customer-update-' + suffix,
       'payload': {
         'server_id': customerId,
+        'location_id': e2eLocationId,
         'name': 'Fulus E2E Customer Updated ' + suffix,
         'phone': '08000000000',
         'credit_limit': '125000.00',

@@ -113,10 +113,16 @@ void main() {
     // _FakeAuthRepository above attributes every sale to 'user-cashier-1',
     // so that row has to exist first.
     await seedUser(db, localId: 'user-cashier-1');
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'user-cashier-1',
+      activeLocationId: const Value(locationId),
+    ));
 
     await db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: productId,
+            locationId: const Value(locationId),
             name: 'Test Product',
             sku: 'SKU-1',
             costPrice: moneyFromMajor(100),
@@ -158,6 +164,18 @@ void main() {
   }
 
   group('createSale', () {
+    test('fails closed when no active session exists', () async {
+      await (db.delete(db.sessions)..where((s) => s.id.equals('current'))).go();
+
+      await expectLater(
+        repository.createSale(draftWithOneItem()),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await db.select(db.sales).get(), isEmpty);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
     test('writes the sale and its item locally', () async {
       final result = await repository.createSale(draftWithOneItem());
 

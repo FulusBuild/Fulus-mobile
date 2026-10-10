@@ -27,6 +27,7 @@ void main() {
           notes: any(named: 'notes'),
           outstandingBalance: any(named: 'outstandingBalance'),
           duplicateWarning: any(named: 'duplicateWarning'),
+          locationId: any(named: 'locationId'),
           updatedAt: any(named: 'updatedAt'),
           deletedAt: any(named: 'deletedAt'),
         )).thenAnswer((_) async {});
@@ -65,6 +66,7 @@ void main() {
           notes: 'from another device',
           outstandingBalance: moneyFromMajor(12500.0),
           duplicateWarning: null,
+          locationId: null,
           updatedAt: DateTime.parse('2026-09-15T12:00:00.000Z'),
           deletedAt: null,
         )).called(1);

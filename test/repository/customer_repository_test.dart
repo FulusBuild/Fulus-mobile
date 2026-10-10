@@ -2,7 +2,9 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,8 +13,31 @@ void main() {
   late SyncQueue syncQueue;
   late CustomerRepositoryImpl repository;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+      localId: 'location-1',
+      name: 'Test Location',
+      createdAt: DateTime.utc(2026, 1, 1),
+      updatedAt: DateTime.utc(2026, 1, 1),
+      syncStatus: SyncStatus.settled,
+    ));
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026, 1, 1),
+      ),
+    );
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value('location-1'),
+      ),
+    );
     syncQueue = SyncQueue(db);
     repository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
   });
@@ -22,9 +47,23 @@ void main() {
   });
 
   group('createCustomer', () {
+    test('rejects creation when there is no active session', () async {
+      await (db.delete(db.sessions)..where((row) => row.id.equals('current'))).go();
+
+      await expectLater(
+        repository.createCustomer(
+          const CustomerDraft(name: 'Unscoped Customer', locationId: 'location-1'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await db.select(db.customers).get(), isEmpty);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
     test('writes the customer locally with zero starting balance', () async {
       final result = await repository.createCustomer(
-        const CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678'),
+        const CustomerDraft(name: 'Chidinma Okafor', locationId: 'location-1', phone: '+2348012345678'),
       );
 
       expect(result.name, 'Chidinma Okafor');
@@ -38,7 +77,7 @@ void main() {
 
     test('enqueues a stock-and-customer-priority sync task', () async {
       final result = await repository.createCustomer(
-        const CustomerDraft(name: 'Walk-in Customer'),
+        const CustomerDraft(name: 'Walk-in Customer', locationId: 'location-1'),
       );
 
       final queued = await db.select(db.syncQueueItems).get();
@@ -52,8 +91,8 @@ void main() {
 
   group('watchCustomers', () {
     test('emits created customers ordered by name', () async {
-      await repository.createCustomer(const CustomerDraft(name: 'Zainab'));
-      await repository.createCustomer(const CustomerDraft(name: 'Amina'));
+      await repository.createCustomer(const CustomerDraft(name: 'Zainab', locationId: 'location-1'));
+      await repository.createCustomer(const CustomerDraft(name: 'Amina', locationId: 'location-1'));
 
       final emitted = await repository.watchCustomers().first;
 
@@ -64,7 +103,7 @@ void main() {
   group('getCustomerById', () {
     test('returns the matching customer', () async {
       final created = await repository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: 'location-1'),
       );
 
       final fetched = await repository.getCustomerById(created.localId);
@@ -78,10 +117,87 @@ void main() {
     });
   });
 
+  group('location isolation', () {
+    test('customer reads are scoped to the active location while outbox lookup remains available', () async {
+      final now = DateTime.utc(2026, 10, 9, 10);
+      await db.batch((batch) {
+        batch.insertAll(db.locations, [
+          LocationsCompanion.insert(
+            localId: 'location-a',
+            name: 'Location A',
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.settled,
+          ),
+          LocationsCompanion.insert(
+            localId: 'location-b',
+            name: 'Location B',
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.settled,
+          ),
+        ]);
+      });
+      await (db.update(db.sessions)..where((session) => session.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value('location-a')));
+      await db.batch((batch) {
+        batch.insertAll(db.customers, [
+          CustomersCompanion.insert(
+            localId: 'customer-a',
+            locationId: const Value('location-a'),
+            name: 'Customer A',
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.settled,
+          ),
+          CustomersCompanion.insert(
+            localId: 'customer-b',
+            locationId: const Value('location-b'),
+            name: 'Customer B',
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.pending,
+          ),
+        ]);
+      });
+
+      final visible = await repository.watchCustomers().first;
+      expect(visible.map((customer) => customer.localId), ['customer-a']);
+      expect(await repository.getCustomerById('customer-b'), isNull);
+      expect(
+        (await repository.getCustomerById('customer-b', forSync: true))?.localId,
+        'customer-b',
+      );
+
+      await expectLater(
+        repository.updateCustomer(
+          'customer-b',
+          const CustomerDraft(name: 'Cross-location edit', locationId: 'location-b'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        repository.archiveCustomer('customer-b'),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        repository.restoreCustomer('customer-b'),
+        throwsA(isA<StateError>()),
+      );
+
+      final unchanged = await (db.select(db.customers)
+            ..where((row) => row.localId.equals('customer-b')))
+          .getSingle();
+      expect(unchanged.name, 'Customer B');
+      expect(unchanged.deletedAt, isNull);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+  });
+
   group('markSynced', () {
     test('sets serverId and syncStatus on the local row', () async {
       final created = await repository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: 'location-1'),
       );
 
       await repository.markSynced(localId: created.localId, serverId: 'server-1');

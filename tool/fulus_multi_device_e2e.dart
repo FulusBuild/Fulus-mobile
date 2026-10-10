@@ -238,10 +238,12 @@ Future<String> _runFinancialConvergenceScenario(
   required String suffix,
 }) async {
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
+  final locationId = await _firstLocationId(dio, businessId);
 
   final customerCreate = await dio.post('', data: {
     'action': 'customer_create',
     'business_id': businessId,
+    'location_id': locationId,
     'operation_id': 'e2e-p16-customer-$suffix',
     'name': 'Fulus P16 Customer $suffix',
     'phone': '08000000001',
@@ -267,7 +269,7 @@ Future<String> _runFinancialConvergenceScenario(
     'business_id': businessId,
     'operation_id': seedOperation,
     'client_reference': seedOperation,
-    'location_id': await _firstLocationId(dio, businessId),
+    'location_id': locationId,
     'customer_id': customerId,
     'sale_date': saleDate,
      'discount': '0.00',

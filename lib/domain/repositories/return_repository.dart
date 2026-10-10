@@ -58,7 +58,10 @@ abstract class ReturnRepository {
   /// the return isn't currently `approved`.
   Future<ReturnRequest> completeReturn(String returnLocalId);
 
-  Future<ReturnRequest?> getReturnById(String localId);
+  /// [forSync] allows the durable outbox to read a queued return from its
+  /// original location after the user switches locations. User-facing reads
+  /// must leave this false so another location's return is not exposed.
+  Future<ReturnRequest?> getReturnById(String localId, {bool forSync = false});
 
   /// [isVoid], when non-null, additionally filters to only voids
   /// (`true`) or only genuine customer returns (`false`) — for report

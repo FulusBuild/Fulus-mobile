@@ -12,6 +12,7 @@ import 'package:fulus_mobile/domain/entities/stock_movement.dart';
 import 'package:fulus_mobile/domain/repositories/product_repository.dart';
 import 'package:fulus_mobile/sync/handlers/stock_movement_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import '../helpers/db_seed_helpers.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
@@ -38,8 +39,13 @@ void main() {
       localId: locationId, name: 'Main Store', serverId: const Value('server-location-1'),
       createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1), syncStatus: SyncStatus.settled,
     ));
+    await seedUser(db, localId: 'stock-sync-user');
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current', userId: 'stock-sync-user', activeLocationId: const Value(locationId),
+    ));
     await db.into(db.products).insert(ProductsCompanion.insert(
-      localId: productLocalId, name: 'USB-C Cable', sku: 'CAB-USBC', costPrice: 500, sellingPrice: 1200,
+      localId: productLocalId, locationId: const Value(locationId),
+      name: 'USB-C Cable', sku: 'CAB-USBC', costPrice: 500, sellingPrice: 1200,
       serverId: const Value('server-product-1'), createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1), syncStatus: SyncStatus.settled,
     ));
     when(() => connectionState.selectedBusinessId).thenReturn('business-1');
@@ -149,17 +155,31 @@ void main() {
         serverId: const Value('server-location-B'),
       ),
     );
+    await db.into(db.products).insert(ProductsCompanion.insert(
+      localId: 'prod-b',
+      locationId: const Value('loc-2'),
+      name: 'Location B Product',
+      sku: 'CAB-USBC-B',
+      costPrice: 500,
+      sellingPrice: 1200,
+      serverId: const Value('server-product-B'),
+      createdAt: now,
+      updatedAt: now,
+      syncStatus: SyncStatus.settled,
+    ));
+    await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+        .write(const SessionsCompanion(activeLocationId: Value('loc-2')));
 
     when(() => fulusSyncApi.submitOperation(
       businessId: any(named: 'businessId'), operationType: any(named: 'operationType'), operationId: any(named: 'operationId'),
       deviceClientId: any(named: 'deviceClientId'), clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
     )).thenAnswer((_) async => {'data': {'entity_id': 'server-movement-B', 'current_stock': 17}});
     when(() => productRepository.reconcileStockLevel(
-      productLocalId: productLocalId, locationId: 'loc-2', currentStock: 17, operationId: any(named: 'operationId'),
+      productLocalId: 'prod-b', locationId: 'loc-2', currentStock: 17, operationId: any(named: 'operationId'),
     )).thenAnswer((_) async {});
 
     final movement = await stockMovementRepository.recordStockIn(const StockInDraft(
-      productLocalId: productLocalId,
+      productLocalId: 'prod-b',
       locationId: 'loc-2',
       quantity: 7,
       reason: 'Delivery to B',
@@ -167,6 +187,8 @@ void main() {
 
     // Model the user having switched back to A before the pending B item replays.
     expect(movement.locationId, 'loc-2');
+    await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+        .write(const SessionsCompanion(activeLocationId: Value(locationId)));
     await handler.sync(await itemFor(movement.localId));
 
     final captured = verify(() => fulusSyncApi.submitOperation(
@@ -181,7 +203,7 @@ void main() {
     expect(captured['location_id'], 'server-location-B');
     expect(captured['location_id'], isNot('server-location-1'));
     verify(() => productRepository.reconcileStockLevel(
-      productLocalId: productLocalId,
+      productLocalId: 'prod-b',
       locationId: 'loc-2',
       currentStock: 17,
       operationId: 'q1',

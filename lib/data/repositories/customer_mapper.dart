@@ -13,6 +13,7 @@ extension CustomerToCompanion on Customer {
       updatedAt: updatedAt,
       syncStatus: SyncStatus.pending,
       serverId: Value(serverId),
+      locationId: Value(locationId),
       phone: Value(phone),
       email: Value(email),
       address: Value(address),
@@ -33,6 +34,7 @@ extension CustomerRowToDomain on CustomerRow {
     return Customer(
       localId: localId,
       serverId: serverId,
+      locationId: locationId,
       name: name,
       phone: phone,
       email: email,

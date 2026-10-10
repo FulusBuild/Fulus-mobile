@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/theme/design_tokens.dart';
@@ -94,9 +95,18 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
                   onTap: _switchingLocationId == null ? () => _addLocation(context, ref) : null,
                 ),
               );
+              final ownershipReviewTile = Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: FulusActionTile(
+                  icon: FulusIcons.locations,
+                  label: 'Review legacy ownership',
+                  onTap: () => context.pushNamed('moreSettingsLocationOwnershipReview'),
+                ),
+              );
               return CustomScrollView(
                 slivers: [
                   SliverToBoxAdapter(child: addTile),
+                  SliverToBoxAdapter(child: ownershipReviewTile),
                   SliverPadding(
                     padding: EdgeInsets.only(bottom: bottomInset),
                     sliver: SliverGrid(

@@ -89,12 +89,9 @@ class CrossDeviceEmployeeRestore {
           snapshot,
           currentUserId: claim.userId,
         );
-        // Employee restore snapshots intentionally contain only the claimed
-        // employee's membership/profile, not the whole business roster. Sales
-        // and drawer shifts can still reference owner or other historical
-        // cashier IDs. On a fresh install those Users rows do not exist, so
-        // preserving them in the importer is not enough: seed inactive FK
-        // placeholders before sales/shifts are inserted.
+        // Employee restore snapshots omit the full business roster, but
+        // historical sales and drawer shifts may still reference other users.
+        // Seed inactive placeholders before the importer inserts FK references.
         await _seedHistoricalCashierUsers(
           historicalCashierIds,
           currentUserId: claim.userId,

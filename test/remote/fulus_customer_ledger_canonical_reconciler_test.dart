@@ -63,6 +63,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   Future<List<CustomerLedgerEntry>> getRepaymentsForPeriod({
     required DateTime start,
     required DateTime end,
+    String? locationId,
   }) => throw UnimplementedError();
 
   @override

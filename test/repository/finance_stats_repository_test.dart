@@ -1,5 +1,6 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:fulus_mobile/data/repositories/finance_stats_repository_impl.dart';
@@ -34,6 +35,18 @@ void main() {
             syncStatus: SyncStatus.settled,
           ),
         );
+    await db.into(db.users).insert(UsersCompanion.insert(
+      localId: 'finance-user',
+      fullName: 'Finance User',
+      role: AuthRole.owner,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'finance-user',
+      activeLocationId: Value(id),
+    ));
   }
 
   Future<void> insertCompletedSale({
@@ -371,6 +384,7 @@ void main() {
       await db.into(db.customers).insert(
             CustomersCompanion.insert(
               localId: 'customer-1',
+              locationId: const Value('loc-1'),
               name: 'Test Customer',
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),

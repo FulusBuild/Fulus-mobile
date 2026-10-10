@@ -8,6 +8,7 @@ class Product {
   const Product({
     required this.localId,
     this.serverId,
+    this.locationId,
     required this.name,
     required this.sku,
     this.barcode,
@@ -27,6 +28,8 @@ class Product {
 
   final String localId;
   final String? serverId;
+  /// Null only for legacy catalog rows awaiting safe ownership reconciliation.
+  final String? locationId;
   final String name;
   final String sku;
   final String? barcode;
@@ -79,6 +82,7 @@ class ProductDraft {
     final now = DateTime.now();
     return Product(
       localId: localId,
+      locationId: locationId,
       name: name,
       sku: sku,
       barcode: barcode,
@@ -102,6 +106,7 @@ class ProductCreateDto {
     required this.sku,
     required this.costPrice,
     required this.sellingPrice,
+    this.locationId,
     this.barcode,
     this.categoryId,
     this.supplierId,
@@ -115,6 +120,7 @@ class ProductCreateDto {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
+  final String? locationId;
   @MoneyJsonConverter()
   final Money costPrice;
   @MoneyJsonConverter()
@@ -183,6 +189,7 @@ class ProductResponseDto {
     required this.isActive,
     required this.isLowStock,
     required this.stockValue,
+    this.locationId,
     this.photoPath,
   });
 
@@ -196,6 +203,7 @@ class ProductResponseDto {
   final Money costPrice;
   @MoneyJsonConverter()
   final Money sellingPrice;
+  final String? locationId;
   final int lowStockThreshold;
   final int currentStock;
   final bool isActive;
@@ -214,6 +222,9 @@ class ProductResponseDto {
     return Product(
       localId: id,
       serverId: id,
+      // DTO locationId is a cloud ID; the repository resolves it to a local
+      // location before persistence.
+      locationId: null,
       name: name,
       sku: sku,
       barcode: barcode,

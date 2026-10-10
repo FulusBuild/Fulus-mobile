@@ -28,6 +28,7 @@ abstract class CustomerCreditRepository {
   Future<List<CustomerLedgerEntry>> getRepaymentsForPeriod({
     required DateTime start,
     required DateTime end,
+    String? locationId,
   });
 
   /// Applies a server-authoritative ledger entry without creating an
