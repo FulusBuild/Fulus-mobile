@@ -24,7 +24,7 @@ class _LocationOwnershipReviewScreenState
   Future<List<LocationOwnershipReview>>? _reviewsFuture;
   String? _resolvingReviewId;
 
-  Future<List<LocationOwnershipReview>> _loadReviews() {
+  Future<List<LocationOwnershipReview>> _loadReviews() async {
     final connection = ref.read(fulusConnectionStateProvider);
     final businessId = connection.selectedBusinessId;
     if (businessId == null || businessId.isEmpty) {
