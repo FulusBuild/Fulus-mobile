@@ -170,7 +170,7 @@ reset role;
 
 -- Resolution is denied to a non-admin, rejects cross-business locations,
 -- and atomically assigns only unresolved records while recording the reviewer.
-do $
+do $ownership_review$ 
 declare
   v_business uuid := (select business_id from _authz_test_ids);
   v_owner uuid := (select owner_id from _authz_test_ids);
@@ -215,7 +215,7 @@ begin
     raise exception 'FAIL: resolution result does not report the selected location';
   end if;
 end
-$;
+$ownership_review$;
 
 -- The trigger must protect ownership even from privileged direct table writes.
 do $$
