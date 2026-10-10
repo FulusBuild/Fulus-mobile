@@ -36,5 +36,11 @@ fi
 grep -F 'action === "location_ownership_review_list" || action === "location_ownership_review_resolve"' supabase/functions/fulus-api/index.ts >/dev/null
 grep -F 'role?.name !== "owner" && role?.name !== "admin"' supabase/functions/fulus-api/index.ts >/dev/null
 grep -F 'fulus_api_resolve_location_ownership' supabase/functions/fulus-api/index.ts >/dev/null
+# Ownership review choices must come from active locations in the requested
+# business, not from the device's unscoped local location cache.
+grep -F '.from("locations")' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F '.eq("business_id", bid)' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F '.eq("status", "active")' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F 'locations: locations ?? []' supabase/functions/fulus-api/index.ts >/dev/null
 grep -F "grant execute on function public.fulus_api_resolve_location_ownership(uuid, uuid, uuid, uuid)" supabase/migrations/20261010200000_add_location_ownership_review_resolution.sql >/dev/null
 grep -F "Selected location must be active and belong to the same business" supabase/migrations/20261010200000_add_location_ownership_review_resolution.sql >/dev/null
