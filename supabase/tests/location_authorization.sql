@@ -64,6 +64,14 @@ insert into public.location_memberships (business_id, location_id, user_id, stat
 select business_id, location_a_id, worker_id, 'active'
 from _authz_test_ids;
 
+insert into public.devices (
+  business_id, registered_by, device_client_id, device_name,
+  platform, app_version, status, last_seen_at
+)
+select business_id, owner_id, 'ownership-review-device', 'Ownership Review Test',
+       'test', '1', 'active', now()
+from _authz_test_ids;
+
 insert into public.products (business_id, location_id, name, sku, cost_price, selling_price)
 select business_id, location_a_id, 'Authorization Product A', 'AUTHZ-PRODUCT-A', 0, 100
 from _authz_test_ids
@@ -206,6 +214,9 @@ declare
   v_employee uuid := (
     select id from public.employees where client_reference = 'AUTHZ-LEGACY-EMPLOYEE'
   );
+  v_device_id uuid := (
+    select id from public.devices where device_client_id = 'ownership-review-device'
+  );
   v_location_b uuid := (select location_b_id from _authz_test_ids);
   v_other_location uuid := (
     select l.id from public.locations l
@@ -259,6 +270,31 @@ begin
     raise exception 'FAIL: customer resolution result identifies the wrong entity';
   end if;
 
+  -- A legacy API create without location is retained as unassigned, but it
+  -- must automatically enter the owner/admin review queue and gain no location access.
+  perform public.fulus_api_mutate_employee(
+    target_business_id => v_business,
+    target_user_id => v_owner,
+    target_device_id => v_device_id,
+    target_operation_id => 'ownership-review-null-create',
+    target_operation => 'create',
+    target_client_reference => 'AUTHZ-API-UNASSIGNED',
+    target_full_name => 'API Unassigned Employee',
+    target_role => 'cashier',
+    target_location_id => null,
+    target_is_active => true,
+    target_request_hash => 'ownership-review-null-create-hash'
+  );
+  if not exists (
+    select 1 from public.employees e
+    join public.location_ownership_review lor
+      on lor.entity_type = 'employee' and lor.entity_id = e.id
+    where e.client_reference = 'AUTHZ-API-UNASSIGNED'
+      and e.location_id is null and lor.reviewed_at is null
+  ) then
+    raise exception 'FAIL: API-created unassigned employee was not queued for ownership review';
+  end if;
+
   -- Resolving an employee must assign the roster row, synchronize its active
   -- location membership, and publish the canonical employee change.
   v_result := public.fulus_api_resolve_location_ownership(
@@ -300,6 +336,26 @@ begin
   ) then
     raise exception 'FAIL: employee ownership resolution did not publish a sync change';
   end if;
+
+  -- The normal roster mutation RPC must not transfer a resolved employee to
+  -- another location; that would bypass the explicit ownership/transfer flow.
+  begin
+    perform public.fulus_api_mutate_employee(
+      target_business_id => v_business,
+      target_user_id => v_owner,
+      target_device_id => v_device_id,
+      target_operation_id => 'ownership-review-transfer-attempt',
+      target_operation => 'update',
+      target_employee_id => v_employee,
+      target_full_name => 'Legacy Employee',
+      target_role => 'cashier',
+      target_location_id => (select location_a_id from _authz_test_ids),
+      target_is_active => true,
+      target_request_hash => 'ownership-review-transfer-hash'
+    );
+    raise exception 'FAIL: employee location transfer bypassed ownership review';
+  exception when sqlstate '42501' then null;
+  end;
 
   -- A resolved review cannot be replayed to transfer ownership again.
   begin
