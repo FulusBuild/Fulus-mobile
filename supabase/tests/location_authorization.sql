@@ -95,6 +95,23 @@ union all
 select t.business_id, 'customer', c.id, '{}'::uuid[], 'unassigned', 'test customer'
 from _authz_test_ids t join public.customers c on c.business_id = t.business_id and c.name = 'Legacy Review Customer';
 
+-- Legacy employee roster rows without location ownership must be reviewable,
+-- not silently hidden from every location-filtered roster.
+insert into public.employees(
+  business_id, client_reference, auth_user_id, full_name, role, location_id, is_active
+)
+select t.business_id, 'AUTHZ-LEGACY-EMPLOYEE', t.worker_id,
+       'Legacy Employee', 'cashier', null, true
+from _authz_test_ids t;
+
+insert into public.location_ownership_review(
+  business_id, entity_type, entity_id, candidate_location_ids, classification, reason
+)
+select e.business_id, 'employee', e.id, '{}'::uuid[], 'unassigned',
+       'No explicit location ownership exists for this legacy employee'
+from public.employees e
+where e.client_reference = 'AUTHZ-LEGACY-EMPLOYEE';
+
 insert into public.businesses (name)
 values ('Authorization Other Business');
 
@@ -188,6 +205,16 @@ declare
     where lor.entity_type = 'customer' and c.name = 'Legacy Review Customer'
   );
   v_customer uuid := (select id from public.customers where name = 'Legacy Review Customer');
+  v_employee_review uuid := (
+    select lor.id from public.location_ownership_review lor
+    join public.employees e on e.id = lor.entity_id
+    where lor.entity_type = 'employee'
+      and e.client_reference = 'AUTHZ-LEGACY-EMPLOYEE'
+  );
+  v_employee uuid := (
+    select id from public.employees where client_reference = 'AUTHZ-LEGACY-EMPLOYEE'
+  );
+  v_location_b uuid := (select location_b_id from _authz_test_ids);
   v_other_location uuid := (
     select l.id from public.locations l
     join public.businesses b on b.id = l.business_id
@@ -238,6 +265,48 @@ begin
   if v_result->>'entity_type' is distinct from 'customer'
      or v_result->>'entity_id' is distinct from v_customer::text then
     raise exception 'FAIL: customer resolution result identifies the wrong entity';
+  end if;
+
+  -- Resolving an employee must assign the roster row, synchronize its active
+  -- location membership, and publish the canonical employee change.
+  v_result := public.fulus_api_resolve_location_ownership(
+    v_owner, v_business, v_employee_review, v_location_b
+  );
+  if (select location_id from public.employees where id = v_employee)
+      is distinct from v_location_b then
+    raise exception 'FAIL: explicit employee location was not assigned';
+  end if;
+  if not exists (
+    select 1 from public.location_ownership_review
+    where id = v_employee_review and reviewed_at is not null and reviewed_by = v_owner
+  ) then
+    raise exception 'FAIL: employee review resolution was not recorded';
+  end if;
+  if v_result->>'entity_type' is distinct from 'employee'
+     or v_result->>'entity_id' is distinct from v_employee::text then
+    raise exception 'FAIL: employee resolution result identifies the wrong entity';
+  end if;
+  if not exists (
+    select 1 from public.location_memberships
+    where business_id = v_business and user_id = v_worker
+      and location_id = v_location_b and status = 'active'
+  ) then
+    raise exception 'FAIL: employee resolution did not align active location membership';
+  end if;
+  if exists (
+    select 1 from public.location_memberships
+    where business_id = v_business and user_id = v_worker
+      and location_id = (select location_a_id from _authz_test_ids)
+      and status = 'active'
+  ) then
+    raise exception 'FAIL: employee resolution left an active membership at the previous location';
+  end if;
+  if not exists (
+    select 1 from public.sync_changes
+    where business_id = v_business and entity_type = 'employee'
+      and entity_id = v_employee
+  ) then
+    raise exception 'FAIL: employee ownership resolution did not publish a sync change';
   end if;
 
   -- A resolved review cannot be replayed to transfer ownership again.
