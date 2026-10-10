@@ -222,7 +222,7 @@ class _OwnershipReviewCard extends StatelessWidget {
                     ),
                     title: Text(location.name),
                     subtitle: Text(
-                      candidates.contains(location.localId)
+                      candidates.contains(location.serverId)
                           ? 'Suggested by existing records'
                           : 'Assign to this location',
                     ),
