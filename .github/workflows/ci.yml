@@ -269,7 +269,18 @@ jobs:
   fulus_multi_device_e2e:
     name: Fulus multi-device convergence test
     needs: [fulus_e2e, change_scope]
-    if: needs.fulus_e2e.result == 'success' && needs.change_scope.outputs.migration_changed != 'true'
+    # Migration-changing PRs must not run live convergence against production automatically.
+    # Manual live convergence is permitted only from main, where the deployed schema is expected to match.
+    if: >-
+      needs.fulus_e2e.result == 'success' &&
+      (
+        github.event_name != 'workflow_dispatch' ||
+        github.ref == 'refs/heads/main'
+      ) &&
+      (
+        needs.change_scope.outputs.migration_changed != 'true' ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
