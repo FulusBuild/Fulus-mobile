@@ -139,3 +139,15 @@ Verification on exact code head `56af744ef9a3bfc8fc5d45d34871a4536f389e65`:
 - Fulus Mobile CI passed: [run 38038467462](https://github.com/FulusBuild/Fulus-mobile/actions/runs/38038467462).
 
 These are local migration-contract and Flutter CI results. They do not replace authenticated live owner/admin UI/API testing or offline two-location/two-device convergence. No production migration or deployment was performed.
+
+
+## Migration sequence reconciliation (2026-10-10)
+
+The location-ownership candidate must be tested with the repository's current migration chain, not only against the older branch snapshot. The integration candidate restores the exact source files for these versions in order:
+
+1. `20261009150000_optimize_restore_money_wire_object_rebuild.sql`
+2. `20261009170000_optimize_money_wire_row_aggregation.sql`
+3. `20261009190000_optimize_restore_snapshot_array_traversal.sql`
+4. `20261009200000_optimize_restore_known_money_sections.sql` (already recorded as applied in production; restored from the migration-history reconciliation PR)
+
+The first three files are byte-for-byte copies of the versions on `main`; the fourth is copied from PR #214's verified migration file. Location-ownership migrations begin after this sequence. The candidate still requires clean-schema migration-chain CI and review of the final ordered SQL. Do not merge this validation candidate independently, and do not dispatch or trigger a production deployment without explicit approval.
