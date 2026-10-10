@@ -106,25 +106,29 @@ begin
     return new;
 
   elsif tg_table_name = 'returns' then
-    if new.customer_id is null then return new; end if;
-
     select s.location_id, s.business_id
       into v_sale_location, v_sale_business
     from public.sales s
     where s.id = new.sale_id;
 
-    select c.location_id, c.business_id
-      into v_customer_location, v_customer_business
-    from public.customers c
-    where c.id = new.customer_id;
-
-    if v_customer_location is null
-       or v_sale_location is null
-       or v_customer_business is distinct from new.business_id
-       or v_sale_business is distinct from new.business_id
-       or v_customer_location is distinct from v_sale_location then
+    if v_sale_location is null
+       or v_sale_business is distinct from new.business_id then
       raise exception using errcode = '42501',
-        message = 'Return customer and sale must belong to the same business and location';
+        message = 'Return sale must belong to the return business';
+    end if;
+
+    if new.customer_id is not null then
+      select c.location_id, c.business_id
+        into v_customer_location, v_customer_business
+      from public.customers c
+      where c.id = new.customer_id;
+
+      if v_customer_location is null
+         or v_customer_business is distinct from new.business_id
+         or v_customer_location is distinct from v_sale_location then
+        raise exception using errcode = '42501',
+          message = 'Return customer and sale must belong to the same business and location';
+      end if;
     end if;
     return new;
 
