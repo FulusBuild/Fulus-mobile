@@ -169,8 +169,11 @@ class _OwnershipReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final candidates = review.candidateLocationIds.toSet();
-    final suggested = locations
-        .where((location) => candidates.contains(location.localId))
+    final cloudLocations = locations
+        .where((location) => location.serverId != null && location.serverId!.isNotEmpty)
+        .toList(growable: false);
+    final suggested = cloudLocations
+        .where((location) => candidates.contains(location.serverId))
         .toList(growable: false);
 
     return Padding(
@@ -208,12 +211,12 @@ class _OwnershipReviewCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: AppSpacing.sm),
-              for (final location in locations)
+              for (final location in cloudLocations)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                   child: FulusListRow(
                     leading: Icon(
-                      candidates.contains(location.localId)
+                      candidates.contains(location.serverId)
                           ? Icons.location_on_outlined
                           : Icons.location_outlined,
                     ),
