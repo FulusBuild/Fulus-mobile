@@ -33,6 +33,12 @@ select id, 'repayment-regression-role', false
 from public.businesses
 where name = 'Customer Repayment Regression Business';
 
+insert into public.locations (business_id, name, status)
+select id, 'Repayment Regression Location', 'active'
+from public.businesses
+where name = 'Customer Repayment Regression Business';
+
+
 insert into public.role_permissions (role_id, permission_id)
 select r.id, p.id
 from public.roles r
@@ -47,10 +53,19 @@ join public.roles r on r.business_id = b.id and r.name = 'repayment-regression-r
 where b.name = 'Customer Repayment Regression Business'
   and u.email = 'repayment-regression@example.test';
 
-insert into public.customers (business_id, name, credit_limit, outstanding_balance, is_active)
-select id, 'Repayment Regression Customer', 1000, 500, true
-from public.businesses
-where name = 'Customer Repayment Regression Business';
+insert into public.location_memberships (business_id, location_id, user_id, status)
+select b.id, l.id, u.id, 'active'
+from public.businesses b
+join public.locations l on l.business_id = b.id and l.name = 'Repayment Regression Location'
+cross join auth.users u
+where b.name = 'Customer Repayment Regression Business'
+  and u.email = 'repayment-regression@example.test';
+
+insert into public.customers (business_id, location_id, name, credit_limit, outstanding_balance, is_active)
+select b.id, l.id, 'Repayment Regression Customer', 1000, 500, true
+from public.businesses b
+join public.locations l on l.business_id = b.id and l.name = 'Repayment Regression Location'
+where b.name = 'Customer Repayment Regression Business';
 
 insert into public.devices (
   business_id, registered_by, device_client_id, device_name, platform, app_version, status, last_seen_at

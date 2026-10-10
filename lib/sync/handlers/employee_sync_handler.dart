@@ -27,7 +27,11 @@ class EmployeeSyncHandler implements SyncHandler {
     if (item.operation != 'create' && item.operation != 'update') {
       throw StateError('EmployeeSyncHandler does not support this operation.');
     }
-    final employee = await _repository.getEmployeeById(item.entityLocalId, includeInactive: true);
+    final employee = await _repository.getEmployeeById(
+      item.entityLocalId,
+      includeInactive: true,
+      forSync: true,
+    );
     if (employee == null) throw StateError('No local employee found.');
     final businessId = _connection.selectedBusinessId;
     final device = _connection.registeredDevice;

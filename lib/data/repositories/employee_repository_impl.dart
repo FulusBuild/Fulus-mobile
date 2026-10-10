@@ -52,14 +52,51 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     }
   }
 
+  Future<void> _assertEmployeeInActiveLocation(String? employeeLocationId) async {
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session == null ||
+        session.activeLocationId == null ||
+        employeeLocationId == null ||
+        employeeLocationId != session.activeLocationId) {
+      throw StateError('Employee mutation requires verified ownership in the active location.');
+    }
+  }
+
   // ── Roster ──────────────────────────────────────────────────────────────
 
   @override
   Future<Employee> createEmployee(EmployeeDraft draft) async {
     await _requireManageEmployees();
     _engine.validateDraft(draft);
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session == null || session.activeLocationId == null) {
+      throw StateError('Select an active location before creating an employee.');
+    }
+    if (draft.locationId != null &&
+        draft.locationId != session.activeLocationId) {
+      throw StateError('Employees can only be created in the active location.');
+    }
+    final effectiveDraft = EmployeeDraft(
+      fullName: draft.fullName,
+      authUserId: draft.authUserId,
+      role: draft.role,
+      department: draft.department,
+      position: draft.position,
+      salary: draft.salary,
+      phone: draft.phone,
+      email: draft.email,
+      dateHired: draft.dateHired,
+      locationId: session.activeLocationId,
+    );
+    if (effectiveDraft.locationId == null) {
+      throw StateError('Employee roster ownership requires an explicit location.');
+    }
     final now = DateTime.now();
-    final entity = draft.toEntity(id: Ulid().toString(), now: now);
+    final entity = effectiveDraft.toEntity(id: Ulid().toString(), now: now);
     await _db.transaction(() async {
       await _db.into(_db.employees).insert(entity.toCompanion());
       await _syncQueue.enqueue(SyncTask.createEmployee(entity.id));
@@ -81,6 +118,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         'An employee login email cannot be changed after the employee is created.',
       );
     }
+    if (draft.locationId != null && draft.locationId != existing.locationId) {
+      throw StateError(
+        'Employee location transfer requires an explicit authorized transfer flow.',
+      );
+    }
     final updated = existing.copyWith(
       fullName: draft.fullName.trim(),
       role: draft.role,
@@ -90,7 +132,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       phone: draft.phone,
       email: draft.email,
       dateHired: draft.dateHired,
-      locationId: draft.locationId,
+      locationId: existing.locationId,
       updatedAt: DateTime.now(),
     );
     await _db.transaction(() async {
@@ -106,7 +148,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       );
       await _syncQueue.enqueue(SyncTask.updateEmployee(id));
     });
-    return (await getEmployeeById(id, includeInactive: true))!;
+    return updated;
   }
 
   @override
@@ -120,6 +162,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       if (row == null) {
         throw StateError('Employee $id not found.');
       }
+      await _assertEmployeeInActiveLocation(row.locationId);
       final currentUserId = _authRepository.currentUser?.id;
       if (currentUserId != null &&
           (row.authUserId == currentUserId || row.cloudUserId == currentUserId)) {
@@ -164,6 +207,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       if (row == null) {
         throw StateError('Employee $id not found.');
       }
+      await _assertEmployeeInActiveLocation(row.locationId);
       await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(true),
@@ -185,36 +229,62 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
-  Stream<List<Employee>> watchEmployees({String? searchQuery, String? department, bool? isActive}) {
-    final query = _db.select(_db.employees);
+  Stream<List<Employee>> watchEmployees({
+    String? searchQuery,
+    String? department,
+    bool? isActive,
+  }) {
+    final query = _db.select(_db.employees).join([
+      leftOuterJoin(
+        _db.sessions,
+        _db.sessions.id.equals('current'),
+      ),
+    ])
+      ..where(
+        _db.sessions.id.equals('current') &
+            _db.employees.locationId.equalsExp(_db.sessions.activeLocationId),
+      );
+
     // Active/default roster views hide soft-deleted rows. The explicit
     // inactive view must do the opposite so deactivated employees remain
     // recoverable for reactivation and audit history.
     if (isActive == false) {
-      query.where((e) => e.isActive.equals(false));
+      query.where(_db.employees.isActive.equals(false));
     } else {
-      query.where((e) => e.deletedAt.isNull());
+      query.where(_db.employees.deletedAt.isNull());
       if (isActive == true) {
-        query.where((e) => e.isActive.equals(true));
+        query.where(_db.employees.isActive.equals(true));
       }
     }
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
       final like = '%${searchQuery.trim()}%';
-      query.where((e) =>
-          e.fullName.like(like) | e.email.like(like) | e.department.like(like) | e.position.like(like));
+      query.where(
+        _db.employees.fullName.like(like) |
+            _db.employees.email.like(like) |
+            _db.employees.department.like(like) |
+            _db.employees.position.like(like),
+      );
     }
     if (department != null) {
-      query.where((e) => e.department.like('%$department%'));
+      query.where(_db.employees.department.like('%$department%'));
     }
     if (isActive != null) {
-      query.where((e) => e.isActive.equals(isActive));
+      query.where(_db.employees.isActive.equals(isActive));
     }
-    query.orderBy([(e) => OrderingTerm.asc(e.fullName)]);
-    return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
+    query.orderBy([OrderingTerm.asc(_db.employees.fullName)]);
+    return query.watch().map(
+          (rows) => rows
+              .map((row) => row.readTable(_db.employees).toDomain())
+              .toList(),
+        );
   }
 
   @override
-  Future<Employee?> getEmployeeById(String id, {bool includeInactive = false}) async {
+  Future<Employee?> getEmployeeById(
+    String id, {
+    bool includeInactive = false,
+    bool forSync = false,
+  }) async {
     // Filtered the same as every other read in this file by default —
     // without this, a deactivated employee's id would still resolve
     // here, and updateEmployee() (which calls this to load the
@@ -230,13 +300,33 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       query.where((e) => e.deletedAt.isNull());
     }
     final row = await query.getSingleOrNull();
-    return row?.toDomain();
+    if (row == null) return null;
+    if (!forSync) {
+      final session = await (_db.select(_db.sessions)
+            ..where((session) => session.id.equals('current')))
+          .getSingleOrNull();
+      if (session == null ||
+          session.activeLocationId == null ||
+          row.locationId != session.activeLocationId) {
+        return null;
+      }
+    }
+    return row.toDomain();
   }
 
   @override
   Future<EmployeeStats> getStats() async {
-    final rows = await (_db.select(_db.employees)..where((e) => e.deletedAt.isNull())).get();
-    return _engine.computeStats(rows.map((r) => r.toDomain()).toList());
+    final session = await (_db.select(_db.sessions)
+          ..where((session) => session.id.equals('current')))
+        .getSingleOrNull();
+    final query = _db.select(_db.employees)
+      ..where((employee) => employee.deletedAt.isNull());
+    if (session == null || session.activeLocationId == null) {
+      return _engine.computeStats(const <Employee>[]);
+    }
+    query.where((employee) => employee.locationId.equals(session.activeLocationId!));
+    final rows = await query.get();
+    return _engine.computeStats(rows.map((row) => row.toDomain()).toList());
   }
 
   @override
@@ -303,6 +393,12 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
               ..where((e) => e.localId.equals(clientReference)))
             .getSingleOrNull());
     final localId = existing?.localId ?? Ulid().toString();
+    final resolvedIncomingLocationId = await _resolveLocationLocalId(locationId);
+    if (locationId != null && resolvedIncomingLocationId == null) {
+      throw StateError('Employee owner location is not available locally yet.');
+    }
+    final effectiveLocationId =
+        locationId == null ? existing?.locationId : resolvedIncomingLocationId;
     await _db.transaction(() async {
       if (existing == null) {
         await _db.into(_db.employees).insert(
@@ -319,7 +415,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
             phone: Value(phone),
             email: Value(email),
             dateHired: Value(dateHired),
-            locationId: Value(locationId),
+            locationId: Value(effectiveLocationId),
             isActive: Value(isActive),
             createdAt: Value(createdAt),
             updatedAt: Value(updatedAt),
@@ -341,7 +437,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
             phone: Value(phone),
             email: Value(email),
             dateHired: Value(dateHired),
-            locationId: Value(locationId),
+            locationId: Value(effectiveLocationId),
             isActive: Value(isActive),
             deletedAt: Value(isActive ? null : updatedAt),
             updatedAt: Value(updatedAt),
@@ -355,6 +451,18 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         );
       }
     });
+  }
+
+  Future<String?> _resolveLocationLocalId(String? id) async {
+    if (id == null || id.isEmpty) return null;
+    final local = await (_db.select(_db.locations)
+          ..where((location) => location.localId.equals(id)))
+        .getSingleOrNull();
+    if (local != null) return local.localId;
+    final server = await (_db.select(_db.locations)
+          ..where((location) => location.serverId.equals(id)))
+        .getSingleOrNull();
+    return server?.localId;
   }
 
   @override

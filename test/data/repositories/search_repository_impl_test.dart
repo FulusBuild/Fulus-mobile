@@ -2,6 +2,7 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/search_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/search_result.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +32,22 @@ void main() {
             syncStatus: SyncStatus.settled,
           ),
         );
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+    );
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value('loc-1'),
+      ),
+    );
   });
 
   tearDown(() async {
@@ -42,11 +59,13 @@ void main() {
     required String name,
     String sku = 'SKU-0',
     String? barcode,
+    String locationId = 'loc-1',
     DateTime? deletedAt,
   }) {
     return db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: localId,
+            locationId: Value(locationId),
             name: name,
             sku: sku,
             barcode: Value(barcode),
@@ -64,11 +83,13 @@ void main() {
     required String localId,
     required String name,
     String? phone,
+    String locationId = 'loc-1',
     DateTime? deletedAt,
   }) {
     return db.into(db.customers).insert(
           CustomersCompanion.insert(
             localId: localId,
+            locationId: Value(locationId),
             name: name,
             phone: Value(phone),
             createdAt: DateTime(2026, 1, 1),
@@ -102,6 +123,32 @@ void main() {
           ),
         );
   }
+
+  test('search excludes products and customers owned by other locations', () async {
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Second Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await seedProduct(
+      localId: 'private-product',
+      name: 'Private Location Product',
+      locationId: 'loc-2',
+    );
+    await seedCustomer(
+      localId: 'private-customer',
+      name: 'Private Location Customer',
+      locationId: 'loc-2',
+    );
+
+    final results = await repository.search('Private Location');
+    expect(results.products, isEmpty);
+    expect(results.customers, isEmpty);
+  });
 
   test('empty query returns empty results without querying the database', () async {
     final results = await repository.search('   ');

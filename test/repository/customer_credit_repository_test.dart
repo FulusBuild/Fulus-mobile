@@ -4,6 +4,7 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/customer_ledger_entry.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
@@ -28,6 +29,14 @@ void main() {
     // first.
     await seedSale(db, localId: 'sale-1');
     await seedSale(db, localId: 'sale-2');
+    await seedUser(db, localId: 'owner-user', role: AuthRole.owner);
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value('loc-1'),
+      ),
+    );
   });
 
   tearDown(() async {
@@ -36,7 +45,7 @@ void main() {
 
   Future<String> createTestCustomer() async {
     final customer = await customerRepository.createCustomer(
-      const CustomerDraft(name: 'Ngozi Eze'),
+      const CustomerDraft(name: 'Ngozi Eze', locationId: 'loc-1'),
     );
     return customer.localId;
   }
@@ -340,6 +349,71 @@ void main() {
   });
 
   group('getRepaymentsForPeriod', () {
+    test('returns no repayments when there is no active session', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+      await creditRepository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 2000,
+      );
+      await (db.delete(db.sessions)..where((row) => row.id.equals('current'))).go();
+
+      final today = DateTime.now();
+      final results =
+          await creditRepository.getRepaymentsForPeriod(start: today, end: today);
+
+      expect(results, isEmpty);
+    });
+
+    test('does not let an explicit location override the active location', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+      await creditRepository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 2000,
+      );
+
+      final today = DateTime.now();
+      final results = await creditRepository.getRepaymentsForPeriod(
+        start: today,
+        end: today,
+        locationId: 'loc-2',
+      );
+
+      expect(results, isEmpty);
+    });
+
+    test('does not accept an explicit location when the session is absent', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+      await creditRepository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 2000,
+      );
+      await (db.delete(db.sessions)..where((row) => row.id.equals('current'))).go();
+
+      final today = DateTime.now();
+      final results = await creditRepository.getRepaymentsForPeriod(
+        start: today,
+        end: today,
+        locationId: 'loc-1',
+      );
+
+      expect(results, isEmpty);
+    });
+
     test('includes a repayment made today when the period covers today', () async {
       final customerId = await createTestCustomer();
       await creditRepository.recordCreditSale(
@@ -391,13 +465,10 @@ void main() {
   });
 
   group('watchLedger', () {
-    test('reads legacy snake_case ledger entry types without failing the stream', () async {
+    test('reads legacy snake_case ledger entry types under location scoping', () async {
       final customerId = await createTestCustomer();
       final createdAt = DateTime(2026, 10, 1);
 
-      // These values may remain on devices upgraded from an older local
-      // representation. One unsupported row previously caused the entire
-      // customer's reactive history stream to fail.
       await db.into(db.customerLedgerEntries).insert(
         CustomerLedgerEntriesCompanion.insert(
           localId: 'legacy-credit-sale',

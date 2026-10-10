@@ -2,6 +2,7 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/product.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
@@ -15,22 +16,49 @@ void main() {
   const locationId = 'loc-1';
 
   Future<void> seedLocation() async {
-    await db.into(db.locations).insert(LocationsCompanion.insert(
-      localId: locationId,
-      name: 'Main Store',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-      syncStatus: SyncStatus.settled,
-    ));
+    final existingLocation = await (db.select(db.locations)
+          ..where((location) => location.localId.equals(locationId)))
+        .getSingleOrNull();
+    if (existingLocation == null) {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+        localId: locationId,
+        name: 'Main Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+    }
+    final existingUser = await (db.select(db.users)
+          ..where((user) => user.localId.equals('owner-user')))
+        .getSingleOrNull();
+    if (existingUser == null) {
+      await db.into(db.users).insert(UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ));
+    }
+    final session = await (db.select(db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session == null) {
+      await db.into(db.sessions).insert(SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value(locationId),
+      ));
+    } else {
+      await (db.update(db.sessions)..where((row) => row.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value(locationId)));
+    }
   }
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
-    repository = ProductRepositoryImpl(
-      db: db,
-      syncQueue: syncQueue,
-    );
+    repository = ProductRepositoryImpl(db: db, syncQueue: syncQueue);
   });
 
   tearDown(() async {
@@ -71,6 +99,7 @@ void main() {
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             serverId: const Value('p1'),
             name: 'Product p1',
             sku: 'SKU-p1',
@@ -101,6 +130,7 @@ void main() {
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
+            locationId: const Value(locationId),
             sku: 'SKU-p1', costPrice: 500, sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.pending,
@@ -131,6 +161,7 @@ void main() {
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
+            locationId: const Value(locationId),
             sku: 'SKU-p1', costPrice: 500, sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -165,11 +196,131 @@ void main() {
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
+      await db.into(db.users).insert(UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ));
+      await db.into(db.sessions).insert(SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value(locationId),
+      ));
+    });
+
+    test('product catalog is isolated by owner location, not stock projection', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+        localId: 'loc-b',
+        name: 'Second Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await db.batch((batch) {
+        batch.insertAll(db.products, [
+          ProductsCompanion.insert(
+            localId: 'product-a',
+            locationId: const Value(locationId),
+            name: 'Location A Product',
+            sku: 'SKU-A',
+            costPrice: 100,
+            sellingPrice: 200,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+          ProductsCompanion.insert(
+            localId: 'product-b',
+            locationId: const Value('loc-b'),
+            name: 'Location B Product',
+            sku: 'SKU-B',
+            costPrice: 100,
+            sellingPrice: 200,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+        ]);
+      });
+      await db.batch((batch) {
+        batch.insertAll(db.productStockLevels, [
+          ProductStockLevelsCompanion.insert(
+            productLocalId: 'product-a',
+            locationLocalId: locationId,
+            currentStock: const Value(5),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+          ProductStockLevelsCompanion.insert(
+            productLocalId: 'product-b',
+            locationLocalId: 'loc-b',
+            currentStock: const Value(8),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+        ]);
+      });
+
+      final visible = await repository.watchProducts(locationId: locationId).first;
+      expect(visible.map((row) => row.product.localId), ['product-a']);
+      expect(
+        await repository.getProductById('product-b', locationId: locationId),
+        isNull,
+      );
+      expect(await repository.getProductById('product-b', locationId: 'loc-b'), isNull);
+      expect(await repository.watchProducts(locationId: 'loc-b').first, isEmpty);
+    });
+
+    test('SKU and barcode uniqueness is per owner location', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+        localId: 'loc-b',
+        name: 'Second Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await db.batch((batch) {
+        batch.insertAll(db.products, [
+          ProductsCompanion.insert(
+            localId: 'same-sku-a',
+            locationId: const Value(locationId),
+            name: 'Same SKU A',
+            sku: 'SHARED-SKU',
+            barcode: const Value('SHARED-BARCODE'),
+            costPrice: 100,
+            sellingPrice: 200,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+          ProductsCompanion.insert(
+            localId: 'same-sku-b',
+            locationId: const Value('loc-b'),
+            name: 'Same SKU B',
+            sku: 'SHARED-SKU',
+            barcode: const Value('SHARED-BARCODE'),
+            costPrice: 100,
+            sellingPrice: 200,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ),
+        ]);
+      });
+
+      final rows = await (db.select(db.products)
+            ..where((product) => product.sku.equals('SHARED-SKU')))
+          .get();
+      expect(rows, hasLength(2));
+      expect(rows.map((row) => row.locationId).toSet(), {locationId, 'loc-b'});
     });
 
     test('watchProducts joins in currentStock for the given location', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
         localId: 'p1',
+            locationId: const Value(locationId),
         serverId: const Value('p1'),
         name: 'Product p1',
         sku: 'SKU-p1',
@@ -197,6 +348,7 @@ void main() {
     test('watchProducts treats a product with no stock-level row as zero', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Product p1',
             sku: 'SKU-p1',
             costPrice: 500,
@@ -214,6 +366,7 @@ void main() {
     test('watchProducts excludes inactive products', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Discontinued',
             sku: 'SKU-p1',
             costPrice: 500,
@@ -232,6 +385,7 @@ void main() {
     test('getProductById finds a product even if inactive', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Discontinued',
             sku: 'SKU-p1',
             costPrice: 500,
@@ -253,6 +407,7 @@ void main() {
         batch.insertAll(db.products, [
         ProductsCompanion.insert(
           localId: 'low',
+            locationId: const Value(locationId),
           serverId: const Value('low'),
           name: 'Low',
           sku: 'SKU-low',
@@ -265,6 +420,7 @@ void main() {
         ),
         ProductsCompanion.insert(
           localId: 'healthy',
+            locationId: const Value(locationId),
           serverId: const Value('healthy'),
           name: 'Healthy',
           sku: 'SKU-healthy',
@@ -307,6 +463,7 @@ void main() {
       // comment on why this is an inner join rather than a left join.
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Never stocked here',
             sku: 'SKU-p1',
             costPrice: 500,
@@ -324,6 +481,7 @@ void main() {
     test('getProductByBarcode finds a match by barcode alone', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Coca-Cola 50cl',
             sku: 'SKU-p1',
             barcode: const Value('6001234567890'),
@@ -348,6 +506,7 @@ void main() {
     test('getProductBySku finds a match by SKU alone', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'Coca-Cola 50cl',
             sku: 'COKE-50CL',
             costPrice: 500,
@@ -365,6 +524,22 @@ void main() {
   });
 
   group('createProduct', () {
+    test('rejects creation when there is no active session', () async {
+      await expectLater(
+        repository.createProduct(const ProductDraft(
+          name: 'Unscoped Product',
+          sku: 'UNSCOPED-1',
+          costPrice: 100,
+          sellingPrice: 200,
+          locationId: locationId,
+        )),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await db.select(db.products).get(), isEmpty);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
     test('writes the product locally and returns immediately, without awaiting the network', () async {
       await seedLocation();
 
@@ -524,10 +699,39 @@ void main() {
   });
 
   group('updateProduct', () {
+    test('rejects mutation when the active session is missing', () async {
+      await seedLocation();
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: 'p1',
+        locationId: const Value(locationId),
+        name: 'Owned Product',
+        sku: 'SKU-p1',
+        costPrice: 500,
+        sellingPrice: 1000,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await (db.delete(db.sessions)..where((row) => row.id.equals('current'))).go();
+
+      await expectLater(
+        repository.updateProduct(localId: 'p1', name: 'Unauthorized Change'),
+        throwsA(isA<StateError>()),
+      );
+
+      final row = await (db.select(db.products)
+            ..where((p) => p.localId.equals('p1')))
+          .getSingle();
+      expect(row.name, 'Owned Product');
+      expect(row.syncStatus, SyncStatus.settled);
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
     test('changes only the fields passed, leaving the rest untouched', () async {
       await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             serverId: const Value('p1'),
             name: 'Original Name',
             sku: 'SKU-p1',
@@ -550,6 +754,7 @@ void main() {
       await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             serverId: const Value('p1'),
             name: 'Original Name',
             sku: 'SKU-p1',
@@ -580,6 +785,7 @@ void main() {
         await seedLocation();
         await db.into(db.products).insert(ProductsCompanion.insert(
               localId: 'p1',
+            locationId: const Value(locationId),
               serverId: const Value('p1'),
               name: 'Original Name',
               sku: 'SKU-p1',
@@ -655,8 +861,10 @@ void main() {
 
   group('markSynced', () {
     test('does not settle when the operation identity is already missing', () async {
+      await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'New Product',
             sku: 'NEW-1',
             costPrice: 300,
@@ -678,8 +886,10 @@ void main() {
     });
 
     test('keeps the row pending when a newer mutation is queued', () async {
+      await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'New Product',
             sku: 'NEW-1',
             costPrice: 300,
@@ -722,8 +932,10 @@ void main() {
     });
 
     test('sets serverId and syncStatus on the local row', () async {
+      await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
+            locationId: const Value(locationId),
             name: 'New Product',
             sku: 'NEW-1',
             costPrice: 300,
@@ -745,6 +957,7 @@ void main() {
       await seedLocation();
       await db.into(db.products).insert(ProductsCompanion.insert(
         localId: id,
+            locationId: const Value(locationId),
         name: 'Product $id',
         sku: sku,
         barcode: barcode == null ? const Value.absent() : Value(barcode),

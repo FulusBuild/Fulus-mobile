@@ -50,13 +50,12 @@ import 'money_repository.dart';
 /// builds its own aggregation directly from the other five repositories
 /// money_transaction.dart named, all independently correct.
 ///
-/// Customer repayments and supplier payments are intentionally
-/// business-wide in every method below, never filtered by the active
-/// location — `CustomerLedgerEntries`/`SupplierLedgerEntries` have no
-/// `locationId` column (tables.dart) and Customers/Suppliers aren't
-/// location-scoped either. That's an existing, deliberate architectural
-/// fact this class preserves, not a gap this pass introduced or should
-/// silently "fix" by inventing a filter the data can't support.
+/// Customer repayments are scoped through the owning customer's
+/// location; the ledger row's own lack of a location column is handled by
+/// joining it to that owner, never by guessing from the active screen.
+/// Supplier payments remain business-wide because suppliers are not yet
+/// location-owned. Keep that distinction explicit until supplier ownership
+/// is designed and migrated separately.
 class RealMoneyRepositoryImpl implements MoneyRepository {
   RealMoneyRepositoryImpl({
     required SaleRepository saleRepository,
@@ -116,10 +115,10 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   /// Employee data isolation: [cashierUserId] scopes the *sales* portion
   /// of this range to one cashier when given (default: everyone's,
   /// unchanged for every existing caller). Expenses, income records, and
-  /// repayments aren't included in that scoping — none of those
-  /// entities carry a "recorded by" user field in the current schema, so
-  /// there's nothing to filter them by; they remain business-wide
-  /// regardless of who's asking. [getSummary]/[getTransactions] are the
+  /// repayments aren't included in that cashier-specific filter — none
+  /// of those entities carry a "recorded by" user field in the current
+  /// schema. They still use their normal location scoping where available;
+  /// supplier payments remain business-wide until suppliers are location-owned. [getSummary]/[getTransactions] are the
   /// only callers that ever pass this; the cash-drawer reconciliation
   /// call below (`computeExpectedCash`/`closeDrawer`'s "sinceOpen") is
   /// deliberately left unscoped — a shared drawer's expected cash has to
@@ -160,6 +159,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         : _customerCreditRepository.getRepaymentsForPeriod(
             start: start,
             end: end,
+            locationId: locationId,
           );
     final paymentsFuture = cashierUserId != null
         ? Future.value(const <SupplierLedgerEntry>[])
@@ -569,6 +569,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final repaymentsFuture = _customerCreditRepository.getRepaymentsForPeriod(
       start: _epoch,
       end: end,
+      locationId: locationId,
     );
     final paymentsFuture = _supplierCreditRepository.getPaymentsForPeriod(
       start: _epoch,

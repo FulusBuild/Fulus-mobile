@@ -4,11 +4,18 @@ import 'api_client.dart';
 
 /// Cloud staff/access boundary. All mutations are authorized server-side.
 class FulusStaffAccessApi {
-  FulusStaffAccessApi({required ApiClient client, required String functionBaseUrl})
-      : _client = client, _functionBaseUrl = functionBaseUrl;
+  FulusStaffAccessApi({
+    required ApiClient client,
+    required String functionBaseUrl,
+    String? ownershipFunctionBaseUrl,
+  })  : _client = client,
+        _functionBaseUrl = functionBaseUrl,
+        _ownershipFunctionBaseUrl = ownershipFunctionBaseUrl ??
+            functionBaseUrl.replaceFirst('/fulus-staff-api', '/fulus-api');
 
   final ApiClient _client;
   final String _functionBaseUrl;
+  final String _ownershipFunctionBaseUrl;
 
   Future<StaffInvite> createInvite({
     required String businessId,
@@ -190,10 +197,72 @@ class FulusStaffAccessApi {
     return result is Map && result['revoked'] == true;
   }
 
-  Future<Map<String, dynamic>> _call(Map<String, dynamic> body) async {
+  /// Lists unresolved legacy product/customer ownership reviews. The server
+  /// independently enforces owner/admin membership for this business.
+  Future<List<LocationOwnershipReview>> listLocationOwnershipReviews({
+    required String businessId,
+  }) async {
+    final response = await _call({
+      'action': 'location_ownership_review_list',
+      'business_id': businessId,
+    }, functionBaseUrl: _ownershipFunctionBaseUrl);
+    final data = response['data'];
+    final raw = data is Map ? data['items'] : null;
+    if (raw is! List) {
+      throw const FormatException('Cloud returned invalid ownership review data.');
+    }
+    return raw
+        .map((item) => LocationOwnershipReview.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ))
+        .toList(growable: false);
+  }
+
+  /// Lists active locations from the same server-validated business context
+  /// used by the ownership review API. Do not use the local location cache here:
+  /// it has no business_id column and may contain locations from another account.
+  Future<List<LocationOwnershipTarget>> listLocationOwnershipTargets({
+    required String businessId,
+  }) async {
+    final response = await _call({
+      'action': 'location_ownership_review_list',
+      'business_id': businessId,
+    }, functionBaseUrl: _ownershipFunctionBaseUrl);
+    final data = response['data'];
+    final raw = data is Map ? data['locations'] : null;
+    if (raw is! List) {
+      throw const FormatException('Cloud returned invalid ownership location data.');
+    }
+    return raw
+        .map((item) => LocationOwnershipTarget.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ))
+        .toList(growable: false);
+  }
+
+  /// Resolves one pending review to an explicitly selected location. This
+  /// never guesses ownership; the server revalidates role, business,
+  /// location, and unresolved-record state in one transaction.
+  Future<void> resolveLocationOwnershipReview({
+    required String businessId,
+    required String reviewId,
+    required String locationId,
+  }) async {
+    await _call({
+      'action': 'location_ownership_review_resolve',
+      'business_id': businessId,
+      'review_id': reviewId,
+      'location_id': locationId,
+    }, functionBaseUrl: _ownershipFunctionBaseUrl);
+  }
+
+  Future<Map<String, dynamic>> _call(
+    Map<String, dynamic> body, {
+    String? functionBaseUrl,
+  }) async {
     try {
       final response = await _client.dio.post(
-        _functionBaseUrl,
+        functionBaseUrl ?? _functionBaseUrl,
         data: body,
         options: Options(headers: {
           'content-type': 'application/json',
@@ -205,6 +274,62 @@ class FulusStaffAccessApi {
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
+  }
+}
+
+class LocationOwnershipTarget {
+  const LocationOwnershipTarget({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory LocationOwnershipTarget.fromJson(Map<String, dynamic> json) =>
+      LocationOwnershipTarget(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+      );
+}
+
+class LocationOwnershipReview {
+  const LocationOwnershipReview({
+    required this.id,
+    required this.businessId,
+    required this.entityType,
+    required this.entityId,
+    required this.candidateLocationIds,
+    required this.classification,
+    required this.reason,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String businessId;
+  final String entityType;
+  final String entityId;
+  final List<String> candidateLocationIds;
+  final String classification;
+  final String reason;
+  final DateTime? createdAt;
+
+  String get displayEntityType =>
+      entityType == 'product' ? 'Product' :
+      entityType == 'customer' ? 'Customer' :
+      entityType == 'employee' ? 'Employee' : entityType;
+
+  factory LocationOwnershipReview.fromJson(Map<String, dynamic> json) {
+    final candidates = json['candidate_location_ids'];
+    return LocationOwnershipReview(
+      id: json['id']?.toString() ?? '',
+      businessId: json['business_id']?.toString() ?? '',
+      entityType: json['entity_type']?.toString() ?? 'record',
+      entityId: json['entity_id']?.toString() ?? '',
+      candidateLocationIds: candidates is List
+          ? candidates.map((value) => value.toString()).toList(growable: false)
+          : const [],
+      classification: json['classification']?.toString() ?? 'unresolved',
+      reason: json['reason']?.toString() ?? '',
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+    );
   }
 }
 

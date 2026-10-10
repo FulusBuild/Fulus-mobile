@@ -2,10 +2,12 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/employee_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/domain/entities/employee.dart';
+import 'package:fulus_mobile/domain/entities/permission.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/domain/repositories/permission_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -17,20 +19,167 @@ void main() {
   late AppDatabase db;
   late SyncQueue syncQueue;
   late EmployeeRepositoryImpl repository;
+  late _MockAuthRepository authRepository;
+  late _MockPermissionRepository permissionRepository;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.batch((batch) {
+      batch.insertAll(db.locations, [
+        LocationsCompanion.insert(
+          localId: 'location-local-1',
+          serverId: const Value('location-1'),
+          name: 'Location 1',
+          createdAt: DateTime.utc(2026, 9, 30, 10),
+          updatedAt: DateTime.utc(2026, 9, 30, 10),
+          syncStatus: SyncStatus.settled,
+        ),
+        LocationsCompanion.insert(
+          localId: 'location-local-2',
+          serverId: const Value('location-2'),
+          name: 'Location 2',
+          createdAt: DateTime.utc(2026, 9, 30, 10),
+          updatedAt: DateTime.utc(2026, 9, 30, 10),
+          syncStatus: SyncStatus.settled,
+        ),
+      ]);
+    });
     syncQueue = SyncQueue(db);
+    authRepository = _MockAuthRepository();
+    permissionRepository = _MockPermissionRepository();
     repository = EmployeeRepositoryImpl(
       db: db,
-      authRepository: _MockAuthRepository(),
-      permissionRepository: _MockPermissionRepository(),
+      authRepository: authRepository,
+      permissionRepository: permissionRepository,
       syncQueue: syncQueue,
     );
   });
 
   tearDown(() async {
     await db.close();
+  });
+
+  test('employee creation fails closed without an active session', () async {
+    when(() => authRepository.currentUser).thenReturn(const AuthUser(
+      id: 'owner-user',
+      fullName: 'Owner',
+      role: AuthRole.owner,
+      isActive: true,
+      hasLoginPin: false,
+    ));
+    when(() => permissionRepository.hasPermission(
+      userId: 'owner-user',
+      role: AuthRole.owner,
+      permission: Permission.manageEmployees,
+    )).thenAnswer((_) async => true);
+
+    await expectLater(
+      repository.createEmployee(const EmployeeDraft(
+        fullName: 'Unscoped Employee',
+        locationId: 'location-1',
+      )),
+      throwsA(isA<StateError>()),
+    );
+    expect(await db.select(db.employees).get(), isEmpty);
+    expect(await db.select(db.syncQueueItems).get(), isEmpty);
+  });
+
+  test('employee mutations fail closed without an active session', () async {
+    when(() => authRepository.currentUser).thenReturn(const AuthUser(
+      id: 'owner-user',
+      fullName: 'Owner',
+      role: AuthRole.owner,
+      isActive: true,
+      hasLoginPin: false,
+    ));
+    when(() => permissionRepository.hasPermission(
+      userId: 'owner-user',
+      role: AuthRole.owner,
+      permission: Permission.manageEmployees,
+    )).thenAnswer((_) async => true);
+
+    final now = DateTime.utc(2026, 10, 9, 10);
+    await db.into(db.employees).insert(EmployeesCompanion.insert(
+      localId: 'employee-unscoped',
+      fullName: 'Employee Without Session',
+      locationId: const Value('location-local-1'),
+      createdAt: now,
+      updatedAt: now,
+      syncStatus: const Value(SyncStatus.settled),
+    ));
+
+    await expectLater(
+      repository.deactivateEmployee('employee-unscoped'),
+      throwsA(isA<StateError>()),
+    );
+
+    final row = await (db.select(db.employees)
+          ..where((employee) => employee.localId.equals('employee-unscoped')))
+        .getSingle();
+    expect(row.isActive, isTrue);
+    expect(row.deletedAt, isNull);
+    expect(await db.select(db.syncQueueItems).get(), isEmpty);
+  });
+
+  test('employee roster reads are isolated to the active location while sync can drain other-location outbox rows', () async {
+    final now = DateTime.utc(2026, 10, 9, 10);
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'owner-user',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await db.batch((batch) {
+      batch.insertAll(db.locations, [
+        LocationsCompanion.insert(
+          localId: 'location-a',
+          name: 'Location A',
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+        LocationsCompanion.insert(
+          localId: 'location-b',
+          name: 'Location B',
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+      ]);
+    });
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'owner-user',
+        activeLocationId: const Value('location-a'),
+      ),
+    );
+    for (final entry in [
+      ('employee-a', 'Location A employee', 'location-a'),
+      ('employee-b', 'Location B employee', 'location-b'),
+    ]) {
+      await db.into(db.employees).insert(
+        EmployeesCompanion.insert(
+          localId: entry.$1,
+          fullName: entry.$2,
+          locationId: Value(entry.$3),
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: const Value(SyncStatus.pending),
+        ),
+      );
+    }
+
+    final visible = await repository.watchEmployees(isActive: true).first;
+    expect(visible.map((employee) => employee.id), ['employee-a']);
+    expect(await repository.getEmployeeById('employee-b'), isNull);
+    expect(
+      (await repository.getEmployeeById('employee-b', forSync: true))?.id,
+      'employee-b',
+    );
   });
 
   test('reconcileServerState creates a local projection with stable server identity', () async {
@@ -63,6 +212,7 @@ void main() {
     expect(rows.single.cloudUserId, 'cloud-user-1');
     expect(rows.single.fullName, 'Amina Yusuf');
     expect(rows.single.syncStatus, SyncStatus.settled);
+    expect(rows.single.locationId, 'location-local-1');
   });
 
   test('reconcileServerState projects authoritative activation to the linked local login', () async {

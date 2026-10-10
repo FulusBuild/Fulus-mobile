@@ -81,12 +81,17 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     await seedLocation(db, localId: locationId);
     await seedUser(db, localId: 'user-cashier-1');
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current', userId: 'user-cashier-1',
+      activeLocationId: const Value(locationId),
+    ));
 
     final now = DateTime(2026, 1, 1);
     for (final id in [productAId, productBId]) {
       await db.into(db.products).insert(
             ProductsCompanion.insert(
               localId: id,
+              locationId: const Value(locationId),
               name: id,
               sku: 'SKU-$id',
               costPrice: moneyFromMajor(400),
@@ -226,6 +231,7 @@ void main() {
     await db.into(db.customers).insert(
       CustomersCompanion.insert(
         localId: customerId,
+        locationId: const Value(locationId),
         name: 'Credit Split Customer',
         outstandingBalance: Value(moneyFromMajor(500)),
         createdAt: now,
@@ -286,6 +292,47 @@ void main() {
   });
 
   group('createReturn', () {
+    test('queued return remains readable for sync after switching locations', () async {
+      final sale = await purchase();
+      final request = await returnRepository.createReturn(
+        originalSaleLocalId: sale.localId,
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
+        returnReason: 'Pending return',
+        refundMethod: 'cash',
+        autoApprove: false,
+      );
+      await seedLocation(db, localId: 'loc-2');
+      await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+          .write(const SessionsCompanion(activeLocationId: Value('loc-2')));
+
+      expect(await returnRepository.getReturnById(request.localId), isNull);
+      expect(
+        await returnRepository.getReturnById(request.localId, forSync: true),
+        isNotNull,
+      );
+    });
+
+    test('fails closed when there is no active location session', () async {
+      final sale = await purchase();
+      await (db.delete(db.sessions)..where((s) => s.id.equals('current'))).go();
+
+      await expectLater(
+        returnRepository.createReturn(
+          originalSaleLocalId: sale.localId,
+          items: const [
+            ReturnItemRequest(productLocalId: productAId, quantity: 1),
+          ],
+          returnReason: 'Test return',
+          refundMethod: 'cash',
+          autoApprove: true,
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await db.select(db.returnRequests).get(), isEmpty);
+    });
     test('computes the refund amount from the sale\'s own unit price',
         () async {
       final sale = await purchase();
@@ -538,7 +585,7 @@ void main() {
     test('reduces an outstanding credit balance by the refund amount, '
         'capped at what is actually still owed', () async {
       final customer = await customerRepository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: locationId),
       );
       // 8000 total, 3000 paid up front — 5000 still owed on credit.
       final sale = await purchase(customerId: customer.localId, amountPaid: moneyFromMajor(3000));
@@ -559,7 +606,7 @@ void main() {
     test('does not touch the credit balance when the sale was already '
         'fully paid', () async {
       final customer = await customerRepository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: locationId),
       );
       final sale = await purchase(customerId: customer.localId); // fully paid
 
@@ -654,7 +701,7 @@ void main() {
     test('reduces an outstanding credit balance the same way a completed '
         'return does', () async {
       final customer = await customerRepository.createCustomer(
-        const CustomerDraft(name: 'Test Customer'),
+        const CustomerDraft(name: 'Test Customer', locationId: locationId),
       );
       final sale = await purchase(customerId: customer.localId, amountPaid: moneyFromMajor(3000));
 

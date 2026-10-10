@@ -3,14 +3,13 @@ import 'package:fulus_mobile/core/money/money.dart';
 
 part 'customer.g.dart';
 
-/// Mirrors the Customers table exactly — business-wide per Architecture
-/// Section 7a's explicit carve-out ("a customer's identity, credit
-/// balance, and purchase history belong to the whole business"), no
-/// locationId.
+/// Mirrors the location-owned customer record. Null locationId is reserved
+/// for legacy records whose ownership still needs explicit reconciliation.
 class Customer {
   const Customer({
     required this.localId,
     this.serverId,
+    this.locationId,
     required this.name,
     this.phone,
     this.email,
@@ -29,6 +28,7 @@ class Customer {
 
   final String localId;
   final String? serverId;
+  final String? locationId;
   final String name;
   final String? phone;
   final String? email;
@@ -87,6 +87,7 @@ class Customer {
   CustomerCreateDto toCreateDto({required String clientReference}) {
     return CustomerCreateDto(
       name: name,
+      locationId: locationId,
       phone: phone,
       email: email,
       address: address,
@@ -104,6 +105,7 @@ class Customer {
 class CustomerDraft {
   const CustomerDraft({
     required this.name,
+    this.locationId,
     this.phone,
     this.email,
     this.address,
@@ -114,6 +116,7 @@ class CustomerDraft {
   });
 
   final String name;
+  final String? locationId;
   final String? phone;
   final String? email;
   final String? address;
@@ -123,10 +126,11 @@ class CustomerDraft {
   final int? loyaltyThreshold;
   final String? photoPath;
 
-  Customer toCustomerEntity({required String localId}) {
+  Customer toCustomerEntity({required String localId, String? locationIdOverride}) {
     final now = DateTime.now();
     return Customer(
       localId: localId,
+      locationId: locationIdOverride ?? locationId,
       name: name,
       phone: phone,
       email: email,
@@ -156,6 +160,7 @@ class CustomerCreateDto {
     this.address,
     this.notes,
     this.clientReference,
+    this.locationId,
   });
 
   final String name;
@@ -164,6 +169,7 @@ class CustomerCreateDto {
   final String? address;
   final String? notes;
   final String? clientReference;
+  final String? locationId;
 
   Map<String, dynamic> toJson() => _$CustomerCreateDtoToJson(this);
 }
@@ -189,6 +195,7 @@ class CustomerResponseDto {
     this.notes,
     required this.outstandingBalance,
     this.duplicateWarning,
+    this.locationId,
   });
 
   final String id;
@@ -200,6 +207,7 @@ class CustomerResponseDto {
   @MoneyJsonConverter()
   final Money outstandingBalance;
   final String? duplicateWarning;
+  final String? locationId;
 
   factory CustomerResponseDto.fromJson(Map<String, dynamic> json) =>
       _$CustomerResponseDtoFromJson(json);

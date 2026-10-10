@@ -41,7 +41,10 @@ class ReturnSyncHandler implements SyncHandler {
   @override
   Future<void> sync(SyncQueueItem item) async {
     if (item.operation != 'create') throw StateError('ReturnSyncHandler supports only create.');
-    final request = await _returnRepository.getReturnById(item.entityLocalId);
+    final request = await _returnRepository.getReturnById(
+      item.entityLocalId,
+      forSync: true,
+    );
     if (request == null) throw StateError('No local return found for ${item.entityLocalId}.');
     if (request.serverId?.isNotEmpty == true) return;
     final businessId = _fulusConnectionState.selectedBusinessId;

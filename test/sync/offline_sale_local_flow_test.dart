@@ -86,8 +86,21 @@ void main() {
       updatedAt: now,
       syncStatus: SyncStatus.settled,
     ));
+    await db.into(db.users).insert(UsersCompanion.insert(
+      localId: 'offline-user',
+      fullName: 'Offline User',
+      role: AuthRole.owner,
+      createdAt: now,
+      updatedAt: now,
+    ));
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'offline-user',
+      activeLocationId: const Value(locationId),
+    ));
     await db.into(db.products).insert(ProductsCompanion.insert(
       localId: productId,
+      locationId: const Value(locationId),
       name: 'Test Product',
       sku: 'SKU-1',
       costPrice: 100,

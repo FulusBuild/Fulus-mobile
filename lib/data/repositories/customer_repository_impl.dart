@@ -22,7 +22,23 @@ class CustomerRepositoryImpl implements CustomerRepository {
   @override
   Future<Customer> createCustomer(CustomerDraft draft) async {
     final localId = Ulid().toString();
-    final customer = draft.toCustomerEntity(localId: localId);
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session == null || session.activeLocationId == null) {
+      throw StateError('Select an active location before creating a customer.');
+    }
+    if (draft.locationId != null &&
+        draft.locationId != session.activeLocationId) {
+      throw StateError('Customers can only be created in the active location.');
+    }
+    final customer = draft.toCustomerEntity(
+      localId: localId,
+      locationIdOverride: session.activeLocationId,
+    );
+    if (customer.locationId == null) {
+      throw StateError('Customer ownership requires an explicit location.');
+    }
 
     await _db.transaction(() async {
       await _db.into(_db.customers).insert(customer.toDriftCompanion());
@@ -34,23 +50,58 @@ class CustomerRepositoryImpl implements CustomerRepository {
 
   @override
   Stream<List<Customer>> watchCustomers({bool archivedOnly = false}) {
-    final query = _db.select(_db.customers)
-      ..where((c) => archivedOnly ? c.deletedAt.isNotNull() : c.deletedAt.isNull())
-      ..orderBy([(c) => OrderingTerm.asc(c.name)]);
-    return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
+    final query = _db.select(_db.customers).join([
+      leftOuterJoin(_db.sessions, _db.sessions.id.equals('current')),
+    ])
+      ..where(
+        _db.sessions.id.equals('current') &
+            _db.customers.locationId.equalsExp(_db.sessions.activeLocationId),
+      )
+      ..where(
+        archivedOnly
+            ? _db.customers.deletedAt.isNotNull()
+            : _db.customers.deletedAt.isNull(),
+      )
+      ..orderBy([OrderingTerm.asc(_db.customers.name)]);
+    return query.watch().map(
+          (rows) => rows
+              .map((row) => row.readTable(_db.customers).toDomain())
+              .toList(),
+        );
   }
 
   @override
-  Future<Customer?> getCustomerById(String localId) async {
+  Future<Customer?> getCustomerById(
+    String localId, {
+    bool forSync = false,
+  }) async {
     final row = await (_db.select(_db.customers)
           ..where((c) => c.localId.equals(localId)))
         .getSingleOrNull();
-    return row?.toDomain();
+    if (row == null) return null;
+    if (!forSync) {
+      final session = await (_db.select(_db.sessions)
+            ..where((session) => session.id.equals('current')))
+          .getSingleOrNull();
+      if (session == null ||
+          session.activeLocationId == null ||
+          row.locationId != session.activeLocationId) {
+        return null;
+      }
+    }
+    return row.toDomain();
   }
 
   @override
   Future<Customer> updateCustomer(String localId, CustomerDraft draft) async {
-    final updated = draft.toCustomerEntity(localId: localId);
+    final existing = await getCustomerById(localId);
+    if (existing == null) {
+      throw StateError('Customer $localId is outside the active location or does not exist.');
+    }
+    final updated = draft.toCustomerEntity(
+      localId: localId,
+      locationIdOverride: existing.locationId,
+    );
     await _db.transaction(() async {
       await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
         CustomersCompanion(
@@ -72,6 +123,9 @@ class CustomerRepositoryImpl implements CustomerRepository {
 
   @override
   Future<void> archiveCustomer(String localId) async {
+    if (await getCustomerById(localId) == null) {
+      throw StateError('Customer $localId is outside the active location or does not exist.');
+    }
     final now = DateTime.now();
     await _db.transaction(() async {
       await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
@@ -87,6 +141,9 @@ class CustomerRepositoryImpl implements CustomerRepository {
 
   @override
   Future<void> restoreCustomer(String localId) async {
+    if (await getCustomerById(localId) == null) {
+      throw StateError('Customer $localId is outside the active location or does not exist.');
+    }
     final now = DateTime.now();
     await _db.transaction(() async {
       await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
@@ -110,6 +167,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
     String? notes,
     required Money outstandingBalance,
     String? duplicateWarning,
+    String? locationId,
     required DateTime updatedAt,
     DateTime? deletedAt,
   }) async {
@@ -117,6 +175,16 @@ class CustomerRepositoryImpl implements CustomerRepository {
           ..where((c) => c.serverId.equals(serverId)))
         .getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
+    final resolvedIncomingLocationId = await _resolveLocationLocalId(locationId);
+    if (locationId != null && resolvedIncomingLocationId == null) {
+      throw StateError('Customer owner location is not available locally yet.');
+    }
+    final effectiveLocationId =
+        resolvedIncomingLocationId ?? existing?.locationId;
+    if (existing?.locationId != null &&
+        effectiveLocationId != existing!.locationId) {
+      throw StateError('Canonical customer ownership cannot move between locations.');
+    }
 
     await _db.transaction(() async {
       if (existing == null) {
@@ -124,6 +192,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
               CustomersCompanion.insert(
                 localId: localId,
                 serverId: Value(serverId),
+                locationId: Value(effectiveLocationId),
                 name: name,
                 phone: Value(phone),
                 email: Value(email),
@@ -141,6 +210,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
         await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
           CustomersCompanion(
             serverId: Value(serverId),
+            locationId: Value(effectiveLocationId),
             name: Value(name),
             phone: Value(phone),
             email: Value(email),
@@ -155,6 +225,18 @@ class CustomerRepositoryImpl implements CustomerRepository {
         );
       }
     });
+  }
+
+  Future<String?> _resolveLocationLocalId(String? id) async {
+    if (id == null || id.isEmpty) return null;
+    final local = await (_db.select(_db.locations)
+          ..where((location) => location.localId.equals(id)))
+        .getSingleOrNull();
+    if (local != null) return local.localId;
+    final server = await (_db.select(_db.locations)
+          ..where((location) => location.serverId.equals(id)))
+        .getSingleOrNull();
+    return server?.localId;
   }
 
   @override

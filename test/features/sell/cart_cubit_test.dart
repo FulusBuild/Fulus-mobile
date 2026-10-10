@@ -105,6 +105,7 @@ void main() {
     await db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: localId,
+            locationId: const Value(locationId),
             name: localId,
             sku: sku,
             costPrice: costPrice,
@@ -130,6 +131,11 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     await seedLocation(db, localId: locationId);
     await seedUser(db, localId: 'user-cashier-1');
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'user-cashier-1',
+      activeLocationId: const Value(locationId),
+    ));
     await seedProduct(localId: plentyProductId, sku: 'SKU-PLENTY', stock: 500);
     await seedProduct(localId: limitedProductId, sku: 'SKU-LIMITED', stock: 2);
 

@@ -59,6 +59,50 @@ class SaleRepositoryImpl implements SaleRepository {
   /// by Sales" — it never was. See `_recordCreditSaleIfNeeded` below.
   final CustomerCreditRepository _customerCreditRepository;
 
+  Future<void> _assertSaleLocationOwnership(SaleDraft draft) async {
+    final session = await (_db.select(_db.sessions)
+          ..where((row) => row.id.equals('current')))
+        .getSingleOrNull();
+    if (session == null ||
+        session.activeLocationId == null ||
+        session.activeLocationId != draft.locationId) {
+      throw StateError('A valid active location is required for a sale.');
+    }
+
+    for (final item in draft.items) {
+      final productLocalId = item.productLocalId;
+      if (productLocalId == null) continue; // Quick Sale line.
+      final product = await (_db.select(_db.products)
+            ..where((row) => row.localId.equals(productLocalId)))
+          .getSingleOrNull();
+      if (product == null) {
+        throw StateError('Sale references an unknown product $productLocalId.');
+      }
+      if (product.locationId == null) {
+        throw StateError('Unassigned legacy products cannot be sold until reconciled.');
+      }
+      if (product.locationId != draft.locationId) {
+        throw StateError('Sale contains a product owned by another location.');
+      }
+    }
+
+    final customerLocalId = draft.customerId;
+    if (customerLocalId != null) {
+      final customer = await (_db.select(_db.customers)
+            ..where((row) => row.localId.equals(customerLocalId)))
+          .getSingleOrNull();
+      if (customer == null) {
+        throw StateError('Sale references an unknown customer $customerLocalId.');
+      }
+      if (customer.locationId == null) {
+        throw StateError('Unassigned legacy customers cannot be used until reconciled.');
+      }
+      if (customer.locationId != draft.locationId) {
+        throw StateError('Sale contains a customer owned by another location.');
+      }
+    }
+  }
+
   @override
   Future<Sale> createSale(SaleDraft draft) async {
     final localId = Ulid().toString();
@@ -88,6 +132,7 @@ class SaleRepositoryImpl implements SaleRepository {
       data: {'Sale ID': localId},
     );
     await _db.transaction(() async {
+      await _assertSaleLocationOwnership(draft);
       await _db.into(_db.sales).insert(sale.toDriftCompanion());
       for (final item in sale.items) {
         await _db

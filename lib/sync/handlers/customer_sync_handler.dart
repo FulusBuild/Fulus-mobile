@@ -3,6 +3,7 @@ import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/customer_repository.dart';
+import '../../domain/repositories/location_repository.dart';
 import '../sync_handler.dart';
 
 /// Syncs customers through the Fulus Cloud transport when cloud sync is
@@ -13,13 +14,16 @@ class CustomerSyncHandler implements SyncHandler {
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
     required CustomerRepository customerRepository,
+    required LocationRepository locationRepository,
   })  : _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
-        _customerRepository = customerRepository;
+        _customerRepository = customerRepository,
+        _locationRepository = locationRepository;
 
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
   final CustomerRepository _customerRepository;
+  final LocationRepository _locationRepository;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
@@ -29,7 +33,10 @@ class CustomerSyncHandler implements SyncHandler {
       );
     }
 
-    final customer = await _customerRepository.getCustomerById(item.entityLocalId);
+    final customer = await _customerRepository.getCustomerById(
+      item.entityLocalId,
+      forSync: true,
+    );
     if (customer == null) {
       throw StateError('No local customer found for ${item.entityLocalId}.');
     }
@@ -41,6 +48,20 @@ class CustomerSyncHandler implements SyncHandler {
     }
 
     final isUpdate = item.operation == 'update';
+    final ownerLocationLocalId = customer.locationId;
+    if (ownerLocationLocalId == null || ownerLocationLocalId.isEmpty) {
+      throw StateError(
+        'Customer ${customer.localId} has no safely resolved owner location. '
+        'Reconcile legacy ownership before syncing this customer.',
+      );
+    }
+    final ownerLocation = await _locationRepository.getLocationById(
+      ownerLocationLocalId,
+    );
+    final ownerLocationServerId = ownerLocation?.serverId;
+    if (ownerLocationServerId == null || ownerLocationServerId.isEmpty) {
+      throw StateError('Customer owner location has no server identity yet.');
+    }
     final existingServerId = customer.serverId;
     if (isUpdate && (existingServerId == null || existingServerId.isEmpty)) {
       throw StateError(
@@ -59,6 +80,7 @@ class CustomerSyncHandler implements SyncHandler {
         'operation_id': item.id,
         'client_reference': customer.localId,
         'name': customer.name,
+        'location_id': ownerLocationServerId,
         'phone': customer.phone,
         'email': customer.email,
         'address': customer.address,
@@ -96,6 +118,7 @@ class CustomerSyncHandler implements SyncHandler {
           'client_reference': customer.localId,
           'server_id': serverId,
           'name': customer.name,
+          'location_id': ownerLocationServerId,
           'phone': customer.phone,
           'email': customer.email,
           'address': customer.address,
@@ -129,7 +152,7 @@ class CustomerSyncHandler implements SyncHandler {
       localId: customer.localId,
       serverId: serverId,
       duplicateWarning: data['duplicate_warning'] as String?,
-    operationId: item.id,
+      operationId: item.id,
     );
   }
 }

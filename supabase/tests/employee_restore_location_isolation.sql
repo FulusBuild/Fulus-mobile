@@ -65,6 +65,25 @@ insert into public.location_memberships (business_id, location_id, user_id, stat
 select business_id, location_a_id, worker_id, 'active'
 from _employee_restore_test_ids;
 
+insert into public.products (
+  business_id, location_id, name, sku, cost_price, selling_price,
+  low_stock_threshold, is_active
+)
+select business_id, location_a_id, 'Location A Product', 'RESTORE-A-SKU', 100, 200, 2, true
+from _employee_restore_test_ids
+union all
+select business_id, location_b_id, 'Location B Product', 'RESTORE-B-SKU', 100, 200, 2, true
+from _employee_restore_test_ids;
+
+insert into public.customers (
+  business_id, location_id, name, credit_limit, outstanding_balance, is_active
+)
+select business_id, location_a_id, 'Location A Customer', 1000, 0, true
+from _employee_restore_test_ids
+union all
+select business_id, location_b_id, 'Location B Customer', 1000, 0, true
+from _employee_restore_test_ids;
+
 insert into public.employees (
   id, business_id, client_reference, membership_id, auth_user_id,
   full_name, role, email, location_id, is_active
@@ -115,6 +134,27 @@ begin
 
   if jsonb_array_length(snapshot -> 'employees') <> 1 then
     raise exception 'FAIL: employee restore returned more than the signed-in employee';
+  end if;
+
+  if not (snapshot -> 'products' @> jsonb_build_array(
+    jsonb_build_object('name', 'Location A Product')
+  )) then
+    raise exception 'FAIL: employee restore omitted the assigned location product';
+  end if;
+  if snapshot -> 'products' @> jsonb_build_array(
+    jsonb_build_object('name', 'Location B Product')
+  ) then
+    raise exception 'FAIL: employee restore exposed another location product';
+  end if;
+  if not (snapshot -> 'customers' @> jsonb_build_array(
+    jsonb_build_object('name', 'Location A Customer')
+  )) then
+    raise exception 'FAIL: employee restore omitted the assigned location customer';
+  end if;
+  if snapshot -> 'customers' @> jsonb_build_array(
+    jsonb_build_object('name', 'Location B Customer')
+  ) then
+    raise exception 'FAIL: employee restore exposed another location customer';
   end if;
 end
 $$;

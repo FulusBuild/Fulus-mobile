@@ -208,19 +208,16 @@ class Sessions extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Products — mirrors ProductBase + ProductOut, verified directly
-/// against backend/app/schemas/inventory.py. Catalog fields (name, sku,
-/// barcode, pricing) are business-wide; stock is per-location, which is
-/// why current_stock does NOT live on this table at all — see
-/// ProductStockLevels below. Splitting these two concerns into two
-/// tables (rather than one Products table with a location_id, which
-/// would duplicate every catalog field per location) means only the
-/// stock count differs per location, joined in at query time rather
-/// than duplicating the whole product row per location.
+/// Products are owned by one location; stock quantity remains a separate
+/// projection in ProductStockLevels. A nullable locationId is reserved for
+/// legacy records whose ownership cannot be inferred safely during migration.
 /// @DataClassName('ProductRow') — same collision-avoidance reasoning as
 /// Locations above, against domain/entities/product.dart's own Product.
 @DataClassName('ProductRow')
 class Products extends Table with SyncableColumns {
+  /// Owner location for this catalog entry. Nullable only for legacy rows
+  /// whose ownership cannot be inferred safely during migration.
+  TextColumn get locationId => text().nullable().references(Locations, #localId)();
   TextColumn get name => text().withLength(min: 1, max: 150)();
   TextColumn get sku => text().withLength(min: 1, max: 64)();
   TextColumn get barcode => text().nullable()();
@@ -284,6 +281,9 @@ class ProductStockLevels extends Table {
 /// Customer.
 @DataClassName('CustomerRow')
 class Customers extends Table with SyncableColumns {
+  /// Owner location for this customer. Legacy rows remain null until an
+  /// explicit, evidence-backed reconciliation assigns their ownership.
+  TextColumn get locationId => text().nullable().references(Locations, #localId)();
   TextColumn get name => text().withLength(min: 1, max: 150)();
   TextColumn get phone => text().nullable()();
   TextColumn get email => text().nullable()();
