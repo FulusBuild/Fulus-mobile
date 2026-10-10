@@ -30,7 +30,7 @@ class _LocationOwnershipReviewScreenState
     if (businessId == null || businessId.isEmpty) {
       throw StateError('Connect this device to a business before reviewing ownership.');
     }
-    return ref.read(fulusStaffAccessApiProvider).listLocationOwnershipReviews(
+    return await ref.read(fulusStaffAccessApiProvider).listLocationOwnershipReviews(
           businessId: businessId,
         );
   }
