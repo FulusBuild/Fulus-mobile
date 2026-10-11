@@ -248,8 +248,33 @@ class BackupRepositoryImpl implements BackupRepository {
     await _lifecycle.closeForMaintenance();
     try {
       try {
+        // Recheck the durable outbox after the maintenance fence has been
+        // acquired and the app's database connection is closed. The earlier
+        // preflight alone races with a sale/write that commits while the
+        // backup is being staged; replacing the file in that case would lose
+        // newly queued business work.
         final live = File(dbPath);
         if (await live.exists()) {
+          final closedDb = sqlite3.sqlite3.open(
+            dbPath,
+            mode: sqlite3.OpenMode.readOnly,
+          );
+          try {
+            final pendingRows = closedDb.select(
+              'SELECT COUNT(*) AS count FROM sync_queue_items',
+            );
+            final pendingCount = pendingRows.isEmpty
+                ? 0
+                : int.tryParse(pendingRows.first.values.first.toString()) ?? 0;
+            if (pendingCount > 0) {
+              throw BackupException(
+                'Restore is blocked because $pendingCount unsynced operation(s) '
+                'were queued while the backup was being staged. Sync them first.',
+              );
+            }
+          } finally {
+            closedDb.close();
+          }
           await live.rename(previousPath);
         }
         try {
