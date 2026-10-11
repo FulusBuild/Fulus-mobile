@@ -720,9 +720,11 @@ class AppDatabase extends _$AppDatabase {
           final hasNewQuantity = stockMovementColumns.any(
             (row) => row.data['name'] == 'new_quantity',
           );
-          final quantityColumn = stockMovementColumns
+          final quantityColumns = stockMovementColumns
               .where((row) => row.data['name'] == 'quantity')
-              .firstOrNull;
+              .toList();
+          final quantityColumn =
+              quantityColumns.isEmpty ? null : quantityColumns.first;
           final quantityIsNotNull =
               quantityColumn != null && quantityColumn.data['notnull'] == 1;
           if (stockMovementColumns.isNotEmpty &&
