@@ -39,12 +39,12 @@ part 'database.g.dart';
 /// genuinely new tables (Categories, Suppliers, CustomerLedgerEntries,
 /// SalePayments, ReturnRequests, ReturnItems, DraftCarts, DraftCartItems,
 /// DraftCartPayments, ExpenseCategories, SupplierLedgerEntries,
-/// TaxRemittances, CashDrawerShifts) plus new columns on five tables
+/// TaxRemittances, CashDrawerShifts) plus new columns on four tables
 /// that already existed at version 1 (Products, Customers, Sales,
-/// SaleItems, Suppliers) — see each column's own doc comment in
-/// tables.dart for exactly what it is and why, and onUpgrade's own
-/// `from < 3` block below for how each gets migrated. All thirteen new
-/// tables and every column change belong to this same single delivery
+/// SaleItems) — see each column's own doc comment in tables.dart for
+/// exactly what it is and why, and onUpgrade's own `from < 3` block
+/// below for how each gets migrated. All thirteen new tables and every
+/// column change belong to this same single delivery
 /// (Stages 5-8 built and reconciled together in one working pass, never
 /// individually shipped) — one version bump, not one per file edited
 /// along the way.
