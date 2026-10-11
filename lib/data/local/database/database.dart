@@ -526,6 +526,18 @@ class AppDatabase extends _$AppDatabase {
             'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
           );
         }
+        if (from >= 2 && from < 15) {
+          // Employees were introduced in v2. A direct v1 upgrade creates the
+          // table from the current definition above; existing v2-v14 tables
+          // need the durable cloud identity/sync metadata added here.
+          // Preserve the physical id column because attendance/leave foreign
+          // keys depend on it.
+          await m.addColumn(employees, employees.serverId);
+          await m.addColumn(employees, employees.membershipId);
+          await m.addColumn(employees, employees.cloudUserId);
+          await m.addColumn(employees, employees.syncStatus);
+        }
+
         if (from < 17) {
           // Financial migration: every monetary SQLite REAL column is now an
           // INTEGER minor-unit column. Existing values are converted exactly
@@ -536,16 +548,24 @@ class AppDatabase extends _$AppDatabase {
                 'CAST(ROUND(${column.name} * 100) AS INTEGER)',
               );
 
-          await m.alterTable(TableMigration(products, columnTransformer: {
-            products.costPrice: moneyColumnTransform(products.costPrice),
-            products.sellingPrice: moneyColumnTransform(products.sellingPrice),
-          }));
-          await m.alterTable(TableMigration(customers, columnTransformer: {
-            customers.outstandingBalance:
-                moneyColumnTransform(customers.outstandingBalance),
-            customers.creditLimit:
-                moneyColumnTransform(customers.creditLimit),
-          }));
+          await m.alterTable(TableMigration(
+            products,
+            newColumns: [products.locationId],
+            columnTransformer: {
+              products.costPrice: moneyColumnTransform(products.costPrice),
+              products.sellingPrice: moneyColumnTransform(products.sellingPrice),
+            },
+          ));
+          await m.alterTable(TableMigration(
+            customers,
+            newColumns: [customers.locationId],
+            columnTransformer: {
+              customers.outstandingBalance:
+                  moneyColumnTransform(customers.outstandingBalance),
+              customers.creditLimit:
+                  moneyColumnTransform(customers.creditLimit),
+            },
+          ));
           await m.alterTable(TableMigration(sales, columnTransformer: {
             sales.subtotal: moneyColumnTransform(sales.subtotal),
             sales.wholeCartDiscount:
@@ -626,17 +646,6 @@ class AppDatabase extends _$AppDatabase {
             employees.salary: moneyColumnTransform(employees.salary),
           }));
         }
-        if (from >= 2 && from < 15) {
-          // Employees were introduced in v2. A direct v1 upgrade creates the
-          // table from the current definition above; existing v2-v14 tables
-          // need the durable cloud identity/sync metadata added here.
-          // Preserve the physical id column because attendance/leave foreign
-          // keys depend on it.
-          await m.addColumn(employees, employees.serverId);
-          await m.addColumn(employees, employees.membershipId);
-          await m.addColumn(employees, employees.cloudUserId);
-          await m.addColumn(employees, employees.syncStatus);
-        }
         if (from < 14) {
           // Cross-runtime Cloud Sync execution lease. This is purely sync
           // coordination metadata; no business data is transformed or removed.
@@ -703,8 +712,20 @@ class AppDatabase extends _$AppDatabase {
           // catalog/customer rows: leave location_id NULL for explicit
           // reconciliation rather than silently assigning records to whichever
           // location happens to be active on upgrade.
-          await m.addColumn(products, products.locationId);
-          await m.addColumn(customers, customers.locationId);
+          // A pre-v17 upgrade rebuilds Products/Customers as part of the
+          // money conversion. Those TableMigrations already add the current
+          // locationId column as NULL for legacy rows, so check the physical
+          // schema before adding it here for v17-v24 installs.
+          final productColumns =
+              await customSelect('PRAGMA table_info(products)').get();
+          if (!productColumns.any((row) => row.data['name'] == 'location_id')) {
+            await m.addColumn(products, products.locationId);
+          }
+          final customerColumns =
+              await customSelect('PRAGMA table_info(customers)').get();
+          if (!customerColumns.any((row) => row.data['name'] == 'location_id')) {
+            await m.addColumn(customers, customers.locationId);
+          }
 
           // v6's unique SKU/barcode indexes were business-wide. Rebuild them
           // around explicit owner location; unassigned legacy rows stay out
