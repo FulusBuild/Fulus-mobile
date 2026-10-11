@@ -207,9 +207,15 @@ void main() {
           await lease.releaseMaintenanceOn(recoveryDb!);
         } catch (_) {}
       }
-      await failedDb?.close();
-      await recoveryDb?.close();
-      await originalDb.close();
+      try {
+        await failedDb?.close();
+      } catch (_) {}
+      try {
+        await recoveryDb?.close();
+      } catch (_) {}
+      try {
+        await originalDb.close();
+      } catch (_) {}
       await directory.delete(recursive: true);
     });
 
