@@ -563,14 +563,16 @@ class AppDatabase extends _$AppDatabase {
             columnTransformer: {
               customers.outstandingBalance:
                   moneyColumnTransform(customers.outstandingBalance),
-              customers.creditLimit:
-                  moneyColumnTransform(customers.creditLimit),
+              if (from >= 3)
+                customers.creditLimit:
+                    moneyColumnTransform(customers.creditLimit),
             },
           ));
           await m.alterTable(TableMigration(sales, columnTransformer: {
             sales.subtotal: moneyColumnTransform(sales.subtotal),
-            sales.wholeCartDiscount:
-                moneyColumnTransform(sales.wholeCartDiscount),
+            if (from >= 3)
+              sales.wholeCartDiscount:
+                  moneyColumnTransform(sales.wholeCartDiscount),
             sales.discount: moneyColumnTransform(sales.discount),
             sales.tax: moneyColumnTransform(sales.tax),
             sales.total: moneyColumnTransform(sales.total),
@@ -580,72 +582,89 @@ class AppDatabase extends _$AppDatabase {
             saleItems.unitPrice: moneyColumnTransform(saleItems.unitPrice),
             saleItems.costPriceAtSale:
                 moneyColumnTransform(saleItems.costPriceAtSale),
-            saleItems.lineDiscount:
-                moneyColumnTransform(saleItems.lineDiscount),
+            if (from >= 3)
+              saleItems.lineDiscount:
+                  moneyColumnTransform(saleItems.lineDiscount),
           }));
-          await m.alterTable(TableMigration(salePayments, columnTransformer: {
-            salePayments.amount: moneyColumnTransform(salePayments.amount),
-          }));
-          await m.alterTable(TableMigration(customerLedgerEntries,
-              columnTransformer: {
-            customerLedgerEntries.amount:
-                moneyColumnTransform(customerLedgerEntries.amount),
-          }));
-          await m.alterTable(TableMigration(returnRequests, columnTransformer: {
-            returnRequests.refundAmount:
-                moneyColumnTransform(returnRequests.refundAmount),
-          }));
-          await m.alterTable(TableMigration(draftCarts, columnTransformer: {
-            draftCarts.wholeCartDiscount:
-                moneyColumnTransform(draftCarts.wholeCartDiscount),
-            draftCarts.tax: moneyColumnTransform(draftCarts.tax),
-          }));
-          await m.alterTable(TableMigration(draftCartItems,
-              columnTransformer: {
-            draftCartItems.unitPrice:
-                moneyColumnTransform(draftCartItems.unitPrice),
-            draftCartItems.costPriceAtSale:
-                moneyColumnTransform(draftCartItems.costPriceAtSale),
-            draftCartItems.lineDiscount:
-                moneyColumnTransform(draftCartItems.lineDiscount),
-          }));
-          await m.alterTable(TableMigration(draftCartPayments,
-              columnTransformer: {
-            draftCartPayments.amount:
-                moneyColumnTransform(draftCartPayments.amount),
-          }));
+          // These tables were introduced in v3. A direct v1/v2 upgrade
+          // creates them from today's definitions (already integer minor
+          // units), rather than their historical pre-v17 REAL definitions.
+          // Only convert them when they existed before this upgrade began.
+          if (from >= 3) {
+            await m.alterTable(TableMigration(salePayments, columnTransformer: {
+              salePayments.amount: moneyColumnTransform(salePayments.amount),
+            }));
+            await m.alterTable(TableMigration(customerLedgerEntries,
+                columnTransformer: {
+              customerLedgerEntries.amount:
+                  moneyColumnTransform(customerLedgerEntries.amount),
+            }));
+            await m.alterTable(TableMigration(returnRequests, columnTransformer: {
+              returnRequests.refundAmount:
+                  moneyColumnTransform(returnRequests.refundAmount),
+            }));
+            await m.alterTable(TableMigration(draftCarts, columnTransformer: {
+              draftCarts.wholeCartDiscount:
+                  moneyColumnTransform(draftCarts.wholeCartDiscount),
+              draftCarts.tax: moneyColumnTransform(draftCarts.tax),
+            }));
+            await m.alterTable(TableMigration(draftCartItems,
+                columnTransformer: {
+              draftCartItems.unitPrice:
+                  moneyColumnTransform(draftCartItems.unitPrice),
+              draftCartItems.costPriceAtSale:
+                  moneyColumnTransform(draftCartItems.costPriceAtSale),
+              draftCartItems.lineDiscount:
+                  moneyColumnTransform(draftCartItems.lineDiscount),
+            }));
+            await m.alterTable(TableMigration(draftCartPayments,
+                columnTransformer: {
+              draftCartPayments.amount:
+                  moneyColumnTransform(draftCartPayments.amount),
+            }));
+          }
           await m.alterTable(TableMigration(expenses, columnTransformer: {
             expenses.amount: moneyColumnTransform(expenses.amount),
           }));
           await m.alterTable(TableMigration(incomeRecords, columnTransformer: {
             incomeRecords.amount: moneyColumnTransform(incomeRecords.amount),
           }));
-          await m.alterTable(TableMigration(suppliers, columnTransformer: {
-            suppliers.outstandingBalance:
-                moneyColumnTransform(suppliers.outstandingBalance),
-          }));
-          await m.alterTable(TableMigration(supplierLedgerEntries,
-              columnTransformer: {
-            supplierLedgerEntries.amount:
-                moneyColumnTransform(supplierLedgerEntries.amount),
-          }));
-          await m.alterTable(TableMigration(taxRemittances,
-              columnTransformer: {
-            taxRemittances.amountRemitted:
-                moneyColumnTransform(taxRemittances.amountRemitted),
-          }));
-          await m.alterTable(TableMigration(cashDrawerShifts,
-              columnTransformer: {
-            cashDrawerShifts.openingCash:
-                moneyColumnTransform(cashDrawerShifts.openingCash),
-            cashDrawerShifts.closingCash:
-                moneyColumnTransform(cashDrawerShifts.closingCash),
-            cashDrawerShifts.cashDifference:
-                moneyColumnTransform(cashDrawerShifts.cashDifference),
-          }));
-          await m.alterTable(TableMigration(employees, columnTransformer: {
-            employees.salary: moneyColumnTransform(employees.salary),
-          }));
+          // These tables were introduced in v3 and are created with today's
+          // integer minor-unit definitions during a direct v1/v2 upgrade.
+          if (from >= 3) {
+            await m.alterTable(TableMigration(suppliers, columnTransformer: {
+              suppliers.outstandingBalance:
+                  moneyColumnTransform(suppliers.outstandingBalance),
+            }));
+            await m.alterTable(TableMigration(supplierLedgerEntries,
+                columnTransformer: {
+              supplierLedgerEntries.amount:
+                  moneyColumnTransform(supplierLedgerEntries.amount),
+            }));
+            await m.alterTable(TableMigration(taxRemittances,
+                columnTransformer: {
+              taxRemittances.amountRemitted:
+                  moneyColumnTransform(taxRemittances.amountRemitted),
+            }));
+            await m.alterTable(TableMigration(cashDrawerShifts,
+                columnTransformer: {
+              cashDrawerShifts.openingCash:
+                  moneyColumnTransform(cashDrawerShifts.openingCash),
+              cashDrawerShifts.closingCash:
+                  moneyColumnTransform(cashDrawerShifts.closingCash),
+              cashDrawerShifts.cashDifference:
+                  moneyColumnTransform(cashDrawerShifts.cashDifference),
+            }));
+          }
+
+          // Employees were introduced in v2. A direct v1 upgrade creates
+          // them from the current integer minor-unit schema; only v2-v16
+          // databases contain the legacy REAL salary that needs conversion.
+          if (from >= 2) {
+            await m.alterTable(TableMigration(employees, columnTransformer: {
+              employees.salary: moneyColumnTransform(employees.salary),
+            }));
+          }
         }
         if (from < 14) {
           // Cross-runtime Cloud Sync execution lease. This is purely sync
