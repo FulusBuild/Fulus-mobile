@@ -204,8 +204,10 @@ void main() {
     addTearDown(() async {
       if (!released) {
         try {
-          recoveryDb ??= AppDatabase.forTesting(openExecutor());
-          await lease.releaseMaintenanceOn(recoveryDb);
+          final recovery =
+              recoveryDb ?? AppDatabase.forTesting(openExecutor());
+          recoveryDb = recovery;
+          await lease.releaseMaintenanceOn(recovery);
         } catch (_) {}
       }
       try {
@@ -226,16 +228,18 @@ void main() {
     // A database missing the lease table forces the delete to fail. The
     // filesystem marker must remain so another runtime cannot enter while
     // restore is rolling back.
-    failedDb = AppDatabase.forTesting(
+    final failed = AppDatabase.forTesting(
       NativeDatabase(File('${directory.path}/failed-release.db')),
     );
-    await failedDb.customSelect('SELECT 1').get();
-    await failedDb.customStatement('DROP TABLE sync_runtime_leases');
-    await expectLater(lease.releaseMaintenanceOn(failedDb), throwsA(anything));
+    failedDb = failed;
+    await failed.customSelect('SELECT 1').get();
+    await failed.customStatement('DROP TABLE sync_runtime_leases');
+    await expectLater(lease.releaseMaintenanceOn(failed), throwsA(anything));
     expect(await File('$path.sync-runtime.maintenance').exists(), isTrue);
 
-    recoveryDb = AppDatabase.forTesting(openExecutor());
-    await lease.releaseMaintenanceOn(recoveryDb);
+    final recovery = AppDatabase.forTesting(openExecutor());
+    recoveryDb = recovery;
+    await lease.releaseMaintenanceOn(recovery);
     released = true;
     expect(await File('$path.sync-runtime.maintenance').exists(), isFalse);
   });
