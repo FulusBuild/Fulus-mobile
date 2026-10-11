@@ -287,11 +287,11 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(pairedPrinters);
         }
         if (from < 3) {
-          // Nine genuinely new tables — purely additive, same
+          // Twelve genuinely new tables — purely additive, same
           // createTable-per-table discipline as the from < 2 block
-          // above.
+          // above. Suppliers already existed in schema v1; only its
+          // outstandingBalance column is added below.
           await m.createTable(categories);
-          await m.createTable(suppliers);
           await m.createTable(customerLedgerEntries);
           await m.createTable(salePayments);
           await m.createTable(returnRequests);
