@@ -294,6 +294,13 @@ class BackupRepositoryImpl implements BackupRepository {
 
         final live = File(dbPath);
         if (await live.exists()) await live.delete();
+        // The failed reopened database may have created fresh WAL/SHM
+        // sidecars. Remove them before restoring the previous main file so
+        // they cannot replay writes from the failed replacement into it.
+        for (final suffix in ['-wal', '-shm']) {
+          final sidecar = File('$dbPath$suffix');
+          if (await sidecar.exists()) await sidecar.delete();
+        }
         await previous.rename(dbPath);
         await _lifecycle.reopenAfterMaintenance();
         installed = false;
