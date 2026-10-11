@@ -287,11 +287,11 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(pairedPrinters);
         }
         if (from < 3) {
-          // Twelve genuinely new tables — purely additive, same
+          // Thirteen genuinely new tables — purely additive, same
           // createTable-per-table discipline as the from < 2 block
-          // above. Suppliers already existed in schema v1; only its
-          // outstandingBalance column is added below.
+          // above.
           await m.createTable(categories);
+          await m.createTable(suppliers);
           await m.createTable(customerLedgerEntries);
           await m.createTable(salePayments);
           await m.createTable(returnRequests);
@@ -317,7 +317,9 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(customers, customers.photoPath);
           await m.addColumn(customers, customers.lastSyncWarning);
           await m.addColumn(sales, sales.wholeCartDiscount);
-          await m.addColumn(suppliers, suppliers.outstandingBalance);
+          // Suppliers is created above with its current full schema, so
+          // outstandingBalance is already present and must not be added
+          // a second time here.
 
           // SaleItems is the one exception in this block — addColumn
           // alone isn't enough, because productLocalId's own constraint
