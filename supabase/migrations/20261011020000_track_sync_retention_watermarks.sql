@@ -35,7 +35,7 @@ begin
       returning business_id, sequence
     ),
     updated_watermarks as (
-      insert into public.sync_change_retention_watermarks (
+      insert into public.sync_change_retention_watermarks as current_watermark (
         business_id,
         pruned_through_sequence,
         updated_at
@@ -45,7 +45,7 @@ begin
       group by business_id
       on conflict (business_id) do update
       set pruned_through_sequence = greatest(
-            public.sync_change_retention_watermarks.pruned_through_sequence,
+            current_watermark.pruned_through_sequence,
             excluded.pruned_through_sequence
           ),
           updated_at = now()
