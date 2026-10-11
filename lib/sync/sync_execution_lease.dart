@@ -124,16 +124,19 @@ class SyncExecutionLease {
     _maintenanceMarkerHeartbeatTimer?.cancel();
     _maintenanceMarkerHeartbeatTimer = null;
     if (!_maintenanceHeld) return;
-    try {
-      await (db.delete(db.syncRuntimeLeases)
-            ..where((row) =>
-                row.name.equals(maintenanceLeaseName) &
-                row.ownerId.equals(_ownerId)))
-          .go();
-    } finally {
-      _maintenanceHeld = false;
-      await _releaseHeldMaintenanceMarker();
-    }
+
+    // Keep the filesystem fence and the held-state flag if deleting the
+    // SQLite lease fails. Restore rollback may need to replace the database
+    // file again; releasing the marker in a finally block would allow a
+    // background isolate to open the path during that rollback.
+    await (db.delete(db.syncRuntimeLeases)
+          ..where((row) =>
+              row.name.equals(maintenanceLeaseName) &
+              row.ownerId.equals(_ownerId)))
+        .go();
+
+    _maintenanceHeld = false;
+    await _releaseHeldMaintenanceMarker();
   }
 
   /// Stops renewing the SQLite maintenance row while the live database
