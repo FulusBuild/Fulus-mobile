@@ -436,7 +436,9 @@ $$;
 insert into public.product_stock_levels(product_id, location_id, current_stock, updated_at)
 select p.id, t.location_a_id, 17, now()
 from _authz_test_ids t
-join public.products p on p.business_id = t.business_id and p.sku = 'AUTHZ-PRODUCT-A';
+join public.products p on p.business_id = t.business_id and p.sku = 'AUTHZ-PRODUCT-A'
+on conflict (product_id, location_id) do update
+set current_stock = excluded.current_stock, updated_at = excluded.updated_at;
 
 do $stock_level_guard$
 declare
