@@ -386,8 +386,8 @@ class AppDatabase extends _$AppDatabase {
         if (from < 4) {
           // Sales.cashierUserId — purely additive and nullable, so a
           // plain addColumn is the right tool (same reasoning as the
-          // Products/Customers/Suppliers columns in the from < 3 block
-          // above), unlike the two FK changes right below it.
+          // Products/Customers columns in the from < 3 block above),
+          // unlike the two FK changes right below it.
           await m.addColumn(sales, sales.cashierUserId);
 
           // Employees.authUserId and LeaveRecords.decidedBy: the
