@@ -440,11 +440,10 @@ class AppDatabase extends _$AppDatabase {
             // Pre-existing duplicate barcode on this device — skip the index.
           }
         }
-        if (from < 7) {
-          // Purely additive, nullable-with-default — every existing
-          // return row simply starts out as "not a void" (correct: it
-          // predates the concept, and every return created before this
-          // was a customer return by definition).
+        if (from >= 3 && from < 7) {
+          // ReturnRequests was introduced in v3. A direct v1/v2 upgrade
+          // creates it from the current definition, which already includes
+          // isVoid; existing v3-v6 tables need the additive column.
           await m.addColumn(returnRequests, returnRequests.isVoid);
         }
         if (from < 8) {
@@ -486,21 +485,27 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(syncQueueItems, syncQueueItems.actorUserId);
         }
         if (from < 19) {
-          // Persist the distinction between cash physically tendered and the
-          // amount actually applied to the sale. Existing rows default to
-          // applied amount, preserving historical sales exactly.
+          // Sales existed in schema v1, so these columns are genuinely new
+          // for every pre-v19 install.
           await customStatement(
             'ALTER TABLE sales ADD COLUMN cash_tendered INTEGER NOT NULL DEFAULT 0',
           );
           await customStatement(
             'ALTER TABLE sales ADD COLUMN cash_change INTEGER NOT NULL DEFAULT 0',
           );
-          await customStatement(
-            'ALTER TABLE sale_payments ADD COLUMN tendered_amount INTEGER',
-          );
-          await customStatement(
-            'ALTER TABLE draft_cart_payments ADD COLUMN tendered_amount INTEGER',
-          );
+
+          // Payment-leg tables were introduced in v3. A direct v1/v2 upgrade
+          // creates them from the current table definitions above, which
+          // already include tendered_amount; only existing v3-v18 tables need
+          // this ALTER TABLE.
+          if (from >= 3) {
+            await customStatement(
+              'ALTER TABLE sale_payments ADD COLUMN tendered_amount INTEGER',
+            );
+            await customStatement(
+              'ALTER TABLE draft_cart_payments ADD COLUMN tendered_amount INTEGER',
+            );
+          }
         }
         if (from < 18) {
           // Durable cardinality guards: the repository already serializes
@@ -621,10 +626,12 @@ class AppDatabase extends _$AppDatabase {
             employees.salary: moneyColumnTransform(employees.salary),
           }));
         }
-        if (from < 15) {
-          // Employees were historically local-only. Preserve the existing
-          // physical id column (attendance/leave foreign keys depend on it)
-          // and add only the durable cloud identity/sync metadata.
+        if (from >= 2 && from < 15) {
+          // Employees were introduced in v2. A direct v1 upgrade creates the
+          // table from the current definition above; existing v2-v14 tables
+          // need the durable cloud identity/sync metadata added here.
+          // Preserve the physical id column because attendance/leave foreign
+          // keys depend on it.
           await m.addColumn(employees, employees.serverId);
           await m.addColumn(employees, employees.membershipId);
           await m.addColumn(employees, employees.cloudUserId);
@@ -641,7 +648,11 @@ class AppDatabase extends _$AppDatabase {
           // the separate SharedPreferences durability boundary.
           await m.createTable(syncCursors);
         }
-        if (from < 22) {
+        if (from >= 20 && from < 22) {
+          // v20 introduced SyncCursors. A direct pre-v20 upgrade creates the
+          // table from the current definition in the from<20 block, which
+          // already includes these columns; only v20-v21 installs need them
+          // added explicitly.
           await m.addColumn(syncCursors, syncCursors.blockedSequence);
           await m.addColumn(syncCursors, syncCursors.blockedChangeId);
           await m.addColumn(syncCursors, syncCursors.blockedEntityType);
