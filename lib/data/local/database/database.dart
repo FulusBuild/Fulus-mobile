@@ -383,6 +383,18 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
+        if (from >= 2 && from < 15) {
+          // Employees were introduced in v2. A direct v1 upgrade creates the
+          // table from the current definition above; existing v2-v14 tables
+          // need the durable cloud identity/sync metadata added here.
+          // Preserve the physical id column because attendance/leave foreign
+          // keys depend on it.
+          await m.addColumn(employees, employees.serverId);
+          await m.addColumn(employees, employees.membershipId);
+          await m.addColumn(employees, employees.cloudUserId);
+          await m.addColumn(employees, employees.syncStatus);
+        }
+
         if (from < 4) {
           // Sales.cashierUserId — purely additive and nullable, so a
           // plain addColumn is the right tool (same reasoning as the
@@ -525,17 +537,6 @@ class AppDatabase extends _$AppDatabase {
             'CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_drawer_shifts_open_location '
             'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
           );
-        }
-        if (from >= 2 && from < 15) {
-          // Employees were introduced in v2. A direct v1 upgrade creates the
-          // table from the current definition above; existing v2-v14 tables
-          // need the durable cloud identity/sync metadata added here.
-          // Preserve the physical id column because attendance/leave foreign
-          // keys depend on it.
-          await m.addColumn(employees, employees.serverId);
-          await m.addColumn(employees, employees.membershipId);
-          await m.addColumn(employees, employees.cloudUserId);
-          await m.addColumn(employees, employees.syncStatus);
         }
 
         if (from < 17) {
