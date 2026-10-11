@@ -340,41 +340,8 @@ class AppDatabase extends _$AppDatabase {
             ),
           );
         }
-        if (from < 22) {
-          // Durable canonical-change poison/barrier metadata was added to
-          // SyncCursors in v22. The table already exists on every v21 install;
-          // add the columns explicitly for upgrades from the pre-barrier schema.
-          await m.addColumn(syncCursors, syncCursors.blockedSequence);
-          await m.addColumn(syncCursors, syncCursors.blockedChangeId);
-          await m.addColumn(syncCursors, syncCursors.blockedEntityType);
-          await m.addColumn(syncCursors, syncCursors.blockedEntityId);
-          await m.addColumn(syncCursors, syncCursors.blockedOperation);
-          await m.addColumn(syncCursors, syncCursors.blockedFirstSeenAt);
-          await m.addColumn(syncCursors, syncCursors.blockedLastAttemptedAt);
-          await m.addColumn(syncCursors, syncCursors.blockedAttemptCount);
-          await m.addColumn(syncCursors, syncCursors.blockedErrorCode);
-          await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
-        }
         if (from < 23) {
           await m.createTable(localCloudBindings);
-        }
-        if (from < 24) {
-          // v22-v23 wrote blocked DateTime values through raw SQL using
-          // millisecondsSinceEpoch, while Drift's default dateTime() storage
-          // expects Unix seconds. Repair only values that are unambiguously
-          // in millisecond scale before the typed v24 writer takes over.
-          await customStatement(
-            'UPDATE sync_cursors SET '
-            'blocked_first_seen_at = CAST(blocked_first_seen_at / 1000 AS INTEGER) '
-            'WHERE blocked_first_seen_at IS NOT NULL '
-            'AND ABS(blocked_first_seen_at) > 100000000000',
-          );
-          await customStatement(
-            'UPDATE sync_cursors SET '
-            'blocked_last_attempted_at = CAST(blocked_last_attempted_at / 1000 AS INTEGER) '
-            'WHERE blocked_last_attempted_at IS NOT NULL '
-            'AND ABS(blocked_last_attempted_at) > 100000000000',
-          );
         }
 
         if (from < 21) {
@@ -685,6 +652,24 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
         }
 
+        if (from < 24) {
+          // v22-v23 wrote blocked DateTime values through raw SQL using
+          // millisecondsSinceEpoch, while Drift's default dateTime() storage
+          // expects Unix seconds. Repair only values that are unambiguously
+          // in millisecond scale before the typed v24 writer takes over.
+          await customStatement(
+            'UPDATE sync_cursors SET '
+            'blocked_first_seen_at = CAST(blocked_first_seen_at / 1000 AS INTEGER) '
+            'WHERE blocked_first_seen_at IS NOT NULL '
+            'AND ABS(blocked_first_seen_at) > 100000000000',
+          );
+          await customStatement(
+            'UPDATE sync_cursors SET '
+            'blocked_last_attempted_at = CAST(blocked_last_attempted_at / 1000 AS INTEGER) '
+            'WHERE blocked_last_attempted_at IS NOT NULL '
+            'AND ABS(blocked_last_attempted_at) > 100000000000',
+          );
+        }
         if (from < 11) {
           // Perf pass: sale_items has no index on sale_local_id, so
           // every "get the line items for this sale" lookup — receipt
