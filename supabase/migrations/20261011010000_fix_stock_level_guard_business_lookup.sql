@@ -101,7 +101,8 @@ begin
 
     if v_product_location is null
        or v_product_location is distinct from new.location_id
-       or v_product_business is distinct from v_location_business then
+       or v_product_business is distinct from new.business_id
+       or v_location_business is distinct from new.business_id then
       raise exception using errcode = '42501',
         message = 'Movement product and location must belong to the same business and owner location';
     end if;
