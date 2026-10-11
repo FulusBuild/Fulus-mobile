@@ -204,7 +204,7 @@ void main() {
     addTearDown(() async {
       if (!released && recoveryDb != null) {
         try {
-          await lease.releaseMaintenanceOn(recoveryDb!);
+          await lease.releaseMaintenanceOn(recoveryDb);
         } catch (_) {}
       }
       try {
@@ -225,12 +225,12 @@ void main() {
     // A closed Drift handle forces the delete to fail. The filesystem marker
     // must remain so another runtime cannot enter while restore is rolling back.
     failedDb = AppDatabase.forTesting(openExecutor());
-    await failedDb!.close();
-    await expectLater(lease.releaseMaintenanceOn(failedDb!), throwsA(anything));
+    await failedDb.close();
+    await expectLater(lease.releaseMaintenanceOn(failedDb), throwsA(anything));
     expect(await File('$path.sync-runtime.maintenance').exists(), isTrue);
 
     recoveryDb = AppDatabase.forTesting(openExecutor());
-    await lease.releaseMaintenanceOn(recoveryDb!);
+    await lease.releaseMaintenanceOn(recoveryDb);
     released = true;
     expect(await File('$path.sync-runtime.maintenance').exists(), isFalse);
   });
