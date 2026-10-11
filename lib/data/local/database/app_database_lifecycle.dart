@@ -103,9 +103,19 @@ class AppDatabaseLifecycle implements DatabaseLifecycle {
     }
 
     final lease = _maintenanceLease;
-    _maintenanceLease = null;
     if (lease != null) {
-      await lease.releaseMaintenanceOn(fresh);
+      try {
+        await lease.releaseMaintenanceOn(fresh);
+      } catch (_) {
+        // Do not leave a live connection open if the maintenance lease could
+        // not be released. Keep _maintenanceLease attached so restore rollback
+        // can reopen the restored previous file and retry the release.
+        try {
+          await fresh.close();
+        } catch (_) {}
+        rethrow;
+      }
     }
+    _maintenanceLease = null;
   }
 }
