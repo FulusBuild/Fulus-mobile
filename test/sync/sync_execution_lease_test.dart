@@ -202,8 +202,9 @@ void main() {
     AppDatabase? recoveryDb;
     var released = false;
     addTearDown(() async {
-      if (!released && recoveryDb != null) {
+      if (!released) {
         try {
+          recoveryDb ??= AppDatabase.forTesting(openExecutor());
           await lease.releaseMaintenanceOn(recoveryDb);
         } catch (_) {}
       }
