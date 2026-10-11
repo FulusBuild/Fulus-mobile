@@ -222,10 +222,14 @@ void main() {
     expect(await lease.acquireMaintenance(), isTrue);
     await originalDb.close();
 
-    // A closed Drift handle forces the delete to fail. The filesystem marker
-    // must remain so another runtime cannot enter while restore is rolling back.
-    failedDb = AppDatabase.forTesting(openExecutor());
-    await failedDb.close();
+    // A database missing the lease table forces the delete to fail. The
+    // filesystem marker must remain so another runtime cannot enter while
+    // restore is rolling back.
+    failedDb = AppDatabase.forTesting(
+      NativeDatabase(File('${directory.path}/failed-release.db')),
+    );
+    await failedDb.customSelect('SELECT 1').get();
+    await failedDb.customStatement('DROP TABLE sync_runtime_leases');
     await expectLater(lease.releaseMaintenanceOn(failedDb), throwsA(anything));
     expect(await File('$path.sync-runtime.maintenance').exists(), isTrue);
 
