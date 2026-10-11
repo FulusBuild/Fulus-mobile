@@ -20,6 +20,15 @@ grep -F 'const readableEntities = ["products", "customers", "categories", "suppl
 grep -F 'action === "catalog_list" ? readableEntities : mutableEntities' supabase/functions/fulus-api/index.ts >/dev/null
 grep -F 'entity === "customers" ? "customers.read" : "catalog.read"' supabase/functions/fulus-api/index.ts >/dev/null
 
+# The feed sequence is global, so stale-cursor detection must use the
+# per-business retention watermark rather than the oldest retained sequence.
+grep -F '.from("sync_change_retention_watermarks")' supabase/functions/fulus-api/index.ts >/dev/null
+grep -F 'cursor < prunedThroughSequence' supabase/functions/fulus-api/index.ts >/dev/null
+if grep -F 'oldestSequence - 1' supabase/functions/fulus-api/index.ts >/dev/null; then
+  echo "Sync cursor guard still assumes per-business sequences are contiguous"
+  exit 1
+fi
+
 echo "PASS: cloud API authorization contracts are present"
 
 # Client-facing Cloud API error responses must not expose raw Postgres/Supabase
