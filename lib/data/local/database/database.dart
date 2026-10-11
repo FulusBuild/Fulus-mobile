@@ -213,9 +213,9 @@ class AppDatabase extends _$AppDatabase {
   /// business cursor. The cursor and blocked change therefore survive process
   /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
-  static const int schemaVersionForRestoreValidation = 25;
+  static const int schemaVersionForRestoreValidation = 26;
 
   @override
   MigrationStrategy get migration {
@@ -706,6 +706,36 @@ class AppDatabase extends _$AppDatabase {
             'CREATE INDEX IF NOT EXISTS idx_sale_items_sale_local_id '
             'ON sale_items(sale_local_id)',
           );
+        }
+
+        if (from < 26) {
+          // StockMovements.quantity was originally required and the later
+          // adjustment flow introduced nullable quantity + newQuantity. That
+          // shape change had no migration in earlier schema versions. Repair
+          // only databases whose physical table still lacks the new column or
+          // retains NOT NULL on quantity; fresh v25 installs already have the
+          // current shape and may already contain valid adjustment rows.
+          final stockMovementColumns =
+              await customSelect('PRAGMA table_info(stock_movements)').get();
+          final hasNewQuantity = stockMovementColumns.any(
+            (row) => row.data['name'] == 'new_quantity',
+          );
+          final quantityColumn = stockMovementColumns
+              .where((row) => row.data['name'] == 'quantity')
+              .firstOrNull;
+          final quantityIsNotNull =
+              quantityColumn != null && quantityColumn.data['notnull'] == 1;
+          if (stockMovementColumns.isNotEmpty &&
+              (!hasNewQuantity || quantityIsNotNull)) {
+            await m.alterTable(
+              TableMigration(
+                stockMovements,
+                newColumns: hasNewQuantity
+                    ? <GeneratedColumn>[]
+                    : [stockMovements.newQuantity],
+              ),
+            );
+          }
         }
 
         if (from < 25) {
