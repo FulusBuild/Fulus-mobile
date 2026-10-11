@@ -1,11 +1,8 @@
--- Fix the stock-level guard: product_stock_levels has no business_id column.
--- Tenant ownership must be derived from the referenced product and location.
--- Correct the stock-level location guard: product_stock_levels has no business_id column.
--- Enforce tenant isolation using the authoritative business IDs of the product and location.
--- Close cross-business reference gaps in the location ownership guards.
--- Location equality alone is insufficient: privileged direct writes must not
--- be able to connect rows from different businesses even if a caller supplies
--- otherwise matching IDs. Existing historical rows are not rewritten.
+-- Repair the location ownership trigger after identifying that
+-- product_stock_levels has no business_id column. Stock-level tenant ownership
+-- is derived from the referenced product and location; inventory movements
+-- continue to validate both references against their explicit business_id.
+-- Existing historical rows are not rewritten.
 create or replace function public.guard_location_transaction_references()
 returns trigger
 language plpgsql
