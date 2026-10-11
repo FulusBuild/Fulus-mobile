@@ -244,55 +244,61 @@ class BackupRepositoryImpl implements BackupRepository {
     }
 
     var installed = false;
+    var reopenedSuccessfully = false;
     await _lifecycle.closeForMaintenance();
     try {
-      final live = File(dbPath);
-      if (await live.exists()) {
-        await live.rename(previousPath);
-      }
       try {
-        await staged.rename(dbPath);
-        installed = true;
-      } catch (_) {
-        // The replacement never became live; put the previous database
-        // back before surfacing the failure.
-        if (await previous.exists() && !await live.exists()) {
-          await previous.rename(dbPath);
+        final live = File(dbPath);
+        if (await live.exists()) {
+          await live.rename(previousPath);
         }
-        rethrow;
-      }
-
-      // A stale -wal/-shm from the connection that was just closed could
-      // otherwise be replayed against the restored main file, applying
-      // writes that predate the backup and defeating the restore.
-      for (final suffix in ['-wal', '-shm']) {
-        final sidecar = File('$dbPath$suffix');
-        if (await sidecar.exists()) await sidecar.delete();
-      }
-    } finally {
-      // Always attempt to reopen. If installation succeeded but reopening
-      // fails, roll back to the known-good previous database and try once
-      // more; this turns an interrupted restore into a recoverable state
-      // instead of leaving the app pointing at an unusable file.
-      try {
-        await _lifecycle.reopenAfterMaintenance();
-        await _probeReopenedDatabase?.call();
-      } catch (_) {
-        if (installed && await previous.exists()) {
-          // The maintenance fence is still held when reopening fails. Do not
-          // call closeForMaintenance() again: that would try to acquire a
-          // second fence and fail with "maintenance is already in progress".
-          // Roll the database file back under the existing physical fence,
-          // then ask the lifecycle to reopen the known-good previous file.
-          final live = File(dbPath);
-          if (await live.exists()) await live.delete();
-          await previous.rename(dbPath);
-          await _lifecycle.reopenAfterMaintenance();
-          installed = false;
+        try {
+          await staged.rename(dbPath);
+          installed = true;
+        } catch (_) {
+          // The replacement never became live; put the previous database
+          // back before surfacing the failure.
+          if (await previous.exists() && !await live.exists()) {
+            await previous.rename(dbPath);
+          }
           rethrow;
         }
-        rethrow;
+
+        // A stale -wal/-shm from the connection that was just closed could
+        // otherwise be replayed against the restored main file, applying
+        // writes that predate the backup and defeating the restore.
+        for (final suffix in ['-wal', '-shm']) {
+          final sidecar = File('$dbPath$suffix');
+          if (await sidecar.exists()) await sidecar.delete();
+        }
+      } finally {
+        // Always try to establish a connection, even if the file swap fails.
+        // The flag distinguishes a successful reopen followed by a failed
+        // health probe from a failure during reopen itself.
+        await _lifecycle.reopenAfterMaintenance();
+        reopenedSuccessfully = true;
       }
+
+      await _probeReopenedDatabase?.call();
+    } catch (_) {
+      if (installed && await previous.exists()) {
+        // If the connection reopened successfully, the probe (or a later
+        // operation) failed after the original maintenance lease was released.
+        // Reacquire the fence and close that fresh connection before replacing
+        // the file again; deleting a database while Drift has it open is unsafe.
+        // If reopen itself failed, the original lifecycle maintenance fence is
+        // expected to remain held, so do not acquire it a second time.
+        if (reopenedSuccessfully) {
+          await _lifecycle.closeForMaintenance();
+        }
+
+        final live = File(dbPath);
+        if (await live.exists()) await live.delete();
+        await previous.rename(dbPath);
+        await _lifecycle.reopenAfterMaintenance();
+        installed = false;
+      }
+      rethrow;
     }
 
     // The old live file is now redundant because the explicit
