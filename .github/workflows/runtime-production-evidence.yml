@@ -10,7 +10,7 @@ permissions:
 # Avoid cancelling an active evidence run; a newer manual dispatch may
 # replace only a pending evidence run, never a production deployment.
 concurrency:
-  group: fulus-runtime-production-evidence
+  group: fulus-production-supabase-migrations
   cancel-in-progress: false
 
 env:
