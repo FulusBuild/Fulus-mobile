@@ -52,6 +52,7 @@ declare
   business_a uuid;
   business_b uuid;
   business_sparse uuid;
+  business_empty uuid;
   expected_a bigint;
   expected_b bigint;
   actual_watermark bigint;
@@ -63,6 +64,8 @@ begin
     returning id into business_b;
   insert into public.businesses (name) values ('sync-retention-test-sparse')
     returning id into business_sparse;
+  insert into public.businesses (name) values ('sync-retention-test-empty')
+    returning id into business_empty;
 
   -- Interleave business rows so each feed has gaps in the global identity.
   insert into public.sync_changes
@@ -110,6 +113,12 @@ begin
     where business_id = business_sparse
   ) then
     raise exception 'A sparse feed with no pruned rows must not receive a retention watermark';
+  end if;
+  if exists (
+    select 1 from public.sync_change_retention_watermarks
+    where business_id = business_empty
+  ) then
+    raise exception 'An empty feed must not receive a retention watermark';
   end if;
 
   -- Explicitly prove monotonicity even if a later pruning batch's maximum is
