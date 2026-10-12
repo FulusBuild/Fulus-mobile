@@ -182,6 +182,68 @@ void main() {
     await blocked.release();
   });
 
+  test('maintenance marker survives a failed SQLite lease release and can be retried', () async {
+    final directory = await Directory.systemTemp.createTemp('fulus-maintenance-release-');
+    final path = '${directory.path}/fulus.db';
+    QueryExecutor openExecutor() => NativeDatabase(
+      File(path),
+      setup: (database) {
+        database.execute('PRAGMA journal_mode=WAL');
+        database.execute('PRAGMA busy_timeout=1000');
+      },
+    );
+
+    final originalDb = AppDatabase.forTesting(openExecutor());
+    final lease = SyncExecutionLease(
+      originalDb,
+      acquisitionTimeout: const Duration(milliseconds: 300),
+    );
+    AppDatabase? failedDb;
+    AppDatabase? recoveryDb;
+    var released = false;
+    addTearDown(() async {
+      if (!released) {
+        try {
+          final recovery =
+              recoveryDb ?? AppDatabase.forTesting(openExecutor());
+          recoveryDb = recovery;
+          await lease.releaseMaintenanceOn(recovery);
+        } catch (_) {}
+      }
+      try {
+        await failedDb?.close();
+      } catch (_) {}
+      try {
+        await recoveryDb?.close();
+      } catch (_) {}
+      try {
+        await originalDb.close();
+      } catch (_) {}
+      await directory.delete(recursive: true);
+    });
+
+    expect(await lease.acquireMaintenance(), isTrue);
+    await originalDb.close();
+
+    // A database missing the lease table forces the delete to fail. The
+    // filesystem marker must remain so another runtime cannot enter while
+    // restore is rolling back.
+    final failed = AppDatabase.forTesting(
+      NativeDatabase(File('${directory.path}/failed-release.db')),
+    );
+    failedDb = failed;
+    await failed.customSelect('SELECT 1').get();
+    await failed.customStatement('DROP TABLE sync_runtime_leases');
+    await expectLater(lease.releaseMaintenanceOn(failed), throwsA(anything));
+    expect(await File('$path.sync-runtime.maintenance').exists(), isTrue);
+
+    final recovery = AppDatabase.forTesting(openExecutor());
+    recoveryDb = recovery;
+    await lease.releaseMaintenanceOn(recovery);
+    released = true;
+    expect(await File('$path.sync-runtime.maintenance').exists(), isFalse);
+  });
+
   test('detects a newer queued mutation for the same entity', () async {
     final lease = SyncExecutionLease(db);
     addTearDown(lease.release);

@@ -62,21 +62,26 @@ Deno.serve(async req => {
     if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
     const cursor = Number(u.searchParams.get("cursor") ?? "0"), limit = Number(u.searchParams.get("limit") ?? "100");
     if (!Number.isSafeInteger(cursor) || cursor < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 500) return out({ error: { code: "INVALID_SYNC_CURSOR", message: "Invalid cursor or limit" } }, 400);
-    const { data: oldestRows, error: oldestError } = await serviceDb
-      .from("sync_changes")
-      .select("sequence")
+    // sync_changes.sequence is a global identity shared by every business.
+    // Gaps between this business's retained rows are normal, so its oldest
+    // retained sequence cannot be compared to a per-business cursor. The
+    // retention job records the highest sequence actually pruned per business.
+    const { data: retentionWatermark, error: watermarkError } = await serviceDb
+      .from("sync_change_retention_watermarks")
+      .select("pruned_through_sequence")
       .eq("business_id", bid)
-      .order("sequence", { ascending: true })
-      .limit(1);
-    if (oldestError) return out({ error: { code: "SYNC_CURSOR_CHECK_FAILED", message: "Unable to validate sync cursor" } }, 500);
-    const oldestSequence = oldestRows?.length ? Number(oldestRows[0].sequence) : null;
-    if (oldestSequence != null && cursor < oldestSequence - 1) {
+      .maybeSingle();
+    if (watermarkError) return out({ error: { code: "SYNC_CURSOR_CHECK_FAILED", message: "Unable to validate sync cursor" } }, 500);
+    const prunedThroughSequence = retentionWatermark
+      ? Number(retentionWatermark.pruned_through_sequence)
+      : 0;
+    if (cursor < prunedThroughSequence) {
       return out({
         error: {
           code: "SYNC_CURSOR_TOO_OLD",
-          message: "The stored sync cursor is older than the retained change feed. A bootstrap/restore reconciliation is required before incremental sync can continue.",
+          message: "The stored sync cursor predates changes pruned from this business's retained feed. A bootstrap/restore reconciliation is required before incremental sync can continue.",
           cursor,
-          oldest_sequence: oldestSequence,
+          pruned_through_sequence: prunedThroughSequence,
           bootstrap_required: true,
         },
       }, 410);

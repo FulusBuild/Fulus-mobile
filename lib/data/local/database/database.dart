@@ -39,12 +39,12 @@ part 'database.g.dart';
 /// genuinely new tables (Categories, Suppliers, CustomerLedgerEntries,
 /// SalePayments, ReturnRequests, ReturnItems, DraftCarts, DraftCartItems,
 /// DraftCartPayments, ExpenseCategories, SupplierLedgerEntries,
-/// TaxRemittances, CashDrawerShifts) plus new columns on five tables
+/// TaxRemittances, CashDrawerShifts) plus new columns on four tables
 /// that already existed at version 1 (Products, Customers, Sales,
-/// SaleItems, Suppliers) — see each column's own doc comment in
-/// tables.dart for exactly what it is and why, and onUpgrade's own
-/// `from < 3` block below for how each gets migrated. All thirteen new
-/// tables and every column change belong to this same single delivery
+/// SaleItems) — see each column's own doc comment in tables.dart for
+/// exactly what it is and why, and onUpgrade's own `from < 3` block
+/// below for how each gets migrated. All thirteen new tables and every
+/// column change belong to this same single delivery
 /// (Stages 5-8 built and reconciled together in one working pass, never
 /// individually shipped) — one version bump, not one per file edited
 /// along the way.
@@ -213,9 +213,9 @@ class AppDatabase extends _$AppDatabase {
   /// business cursor. The cursor and blocked change therefore survive process
   /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
-  static const int schemaVersionForRestoreValidation = 25;
+  static const int schemaVersionForRestoreValidation = 26;
 
   @override
   MigrationStrategy get migration {
@@ -287,7 +287,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(pairedPrinters);
         }
         if (from < 3) {
-          // Nine genuinely new tables — purely additive, same
+          // Thirteen genuinely new tables — purely additive, same
           // createTable-per-table discipline as the from < 2 block
           // above.
           await m.createTable(categories);
@@ -317,7 +317,9 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(customers, customers.photoPath);
           await m.addColumn(customers, customers.lastSyncWarning);
           await m.addColumn(sales, sales.wholeCartDiscount);
-          await m.addColumn(suppliers, suppliers.outstandingBalance);
+          // Suppliers is created above with its current full schema, so
+          // outstandingBalance is already present and must not be added
+          // a second time here.
 
           // SaleItems is the one exception in this block — addColumn
           // alone isn't enough, because productLocalId's own constraint
@@ -340,41 +342,8 @@ class AppDatabase extends _$AppDatabase {
             ),
           );
         }
-        if (from < 22) {
-          // Durable canonical-change poison/barrier metadata was added to
-          // SyncCursors in v22. The table already exists on every v21 install;
-          // add the columns explicitly for upgrades from the pre-barrier schema.
-          await m.addColumn(syncCursors, syncCursors.blockedSequence);
-          await m.addColumn(syncCursors, syncCursors.blockedChangeId);
-          await m.addColumn(syncCursors, syncCursors.blockedEntityType);
-          await m.addColumn(syncCursors, syncCursors.blockedEntityId);
-          await m.addColumn(syncCursors, syncCursors.blockedOperation);
-          await m.addColumn(syncCursors, syncCursors.blockedFirstSeenAt);
-          await m.addColumn(syncCursors, syncCursors.blockedLastAttemptedAt);
-          await m.addColumn(syncCursors, syncCursors.blockedAttemptCount);
-          await m.addColumn(syncCursors, syncCursors.blockedErrorCode);
-          await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
-        }
         if (from < 23) {
           await m.createTable(localCloudBindings);
-        }
-        if (from < 24) {
-          // v22-v23 wrote blocked DateTime values through raw SQL using
-          // millisecondsSinceEpoch, while Drift's default dateTime() storage
-          // expects Unix seconds. Repair only values that are unambiguously
-          // in millisecond scale before the typed v24 writer takes over.
-          await customStatement(
-            'UPDATE sync_cursors SET '
-            'blocked_first_seen_at = CAST(blocked_first_seen_at / 1000 AS INTEGER) '
-            'WHERE blocked_first_seen_at IS NOT NULL '
-            'AND ABS(blocked_first_seen_at) > 100000000000',
-          );
-          await customStatement(
-            'UPDATE sync_cursors SET '
-            'blocked_last_attempted_at = CAST(blocked_last_attempted_at / 1000 AS INTEGER) '
-            'WHERE blocked_last_attempted_at IS NOT NULL '
-            'AND ABS(blocked_last_attempted_at) > 100000000000',
-          );
         }
 
         if (from < 21) {
@@ -414,11 +383,23 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
+        if (from >= 2 && from < 15) {
+          // Employees were introduced in v2. A direct v1 upgrade creates the
+          // table from the current definition above; existing v2-v14 tables
+          // need the durable cloud identity/sync metadata added here.
+          // Preserve the physical id column because attendance/leave foreign
+          // keys depend on it.
+          await m.addColumn(employees, employees.serverId);
+          await m.addColumn(employees, employees.membershipId);
+          await m.addColumn(employees, employees.cloudUserId);
+          await m.addColumn(employees, employees.syncStatus);
+        }
+
         if (from < 4) {
           // Sales.cashierUserId — purely additive and nullable, so a
           // plain addColumn is the right tool (same reasoning as the
-          // Products/Customers/Suppliers columns in the from < 3 block
-          // above), unlike the two FK changes right below it.
+          // Products/Customers columns in the from < 3 block above),
+          // unlike the two FK changes right below it.
           await m.addColumn(sales, sales.cashierUserId);
 
           // Employees.authUserId and LeaveRecords.decidedBy: the
@@ -471,11 +452,10 @@ class AppDatabase extends _$AppDatabase {
             // Pre-existing duplicate barcode on this device — skip the index.
           }
         }
-        if (from < 7) {
-          // Purely additive, nullable-with-default — every existing
-          // return row simply starts out as "not a void" (correct: it
-          // predates the concept, and every return created before this
-          // was a customer return by definition).
+        if (from >= 3 && from < 7) {
+          // ReturnRequests was introduced in v3. A direct v1/v2 upgrade
+          // creates it from the current definition, which already includes
+          // isVoid; existing v3-v6 tables need the additive column.
           await m.addColumn(returnRequests, returnRequests.isVoid);
         }
         if (from < 8) {
@@ -517,21 +497,27 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(syncQueueItems, syncQueueItems.actorUserId);
         }
         if (from < 19) {
-          // Persist the distinction between cash physically tendered and the
-          // amount actually applied to the sale. Existing rows default to
-          // applied amount, preserving historical sales exactly.
+          // Sales existed in schema v1, so these columns are genuinely new
+          // for every pre-v19 install.
           await customStatement(
             'ALTER TABLE sales ADD COLUMN cash_tendered INTEGER NOT NULL DEFAULT 0',
           );
           await customStatement(
             'ALTER TABLE sales ADD COLUMN cash_change INTEGER NOT NULL DEFAULT 0',
           );
-          await customStatement(
-            'ALTER TABLE sale_payments ADD COLUMN tendered_amount INTEGER',
-          );
-          await customStatement(
-            'ALTER TABLE draft_cart_payments ADD COLUMN tendered_amount INTEGER',
-          );
+
+          // Payment-leg tables were introduced in v3. A direct v1/v2 upgrade
+          // creates them from the current table definitions above, which
+          // already include tendered_amount; only existing v3-v18 tables need
+          // this ALTER TABLE.
+          if (from >= 3) {
+            await customStatement(
+              'ALTER TABLE sale_payments ADD COLUMN tendered_amount INTEGER',
+            );
+            await customStatement(
+              'ALTER TABLE draft_cart_payments ADD COLUMN tendered_amount INTEGER',
+            );
+          }
         }
         if (from < 18) {
           // Durable cardinality guards: the repository already serializes
@@ -552,6 +538,7 @@ class AppDatabase extends _$AppDatabase {
             'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
           );
         }
+
         if (from < 17) {
           // Financial migration: every monetary SQLite REAL column is now an
           // INTEGER minor-unit column. Existing values are converted exactly
@@ -562,20 +549,30 @@ class AppDatabase extends _$AppDatabase {
                 'CAST(ROUND(${column.name} * 100) AS INTEGER)',
               );
 
-          await m.alterTable(TableMigration(products, columnTransformer: {
-            products.costPrice: moneyColumnTransform(products.costPrice),
-            products.sellingPrice: moneyColumnTransform(products.sellingPrice),
-          }));
-          await m.alterTable(TableMigration(customers, columnTransformer: {
-            customers.outstandingBalance:
-                moneyColumnTransform(customers.outstandingBalance),
-            customers.creditLimit:
-                moneyColumnTransform(customers.creditLimit),
-          }));
+          await m.alterTable(TableMigration(
+            products,
+            newColumns: [products.locationId],
+            columnTransformer: {
+              products.costPrice: moneyColumnTransform(products.costPrice),
+              products.sellingPrice: moneyColumnTransform(products.sellingPrice),
+            },
+          ));
+          await m.alterTable(TableMigration(
+            customers,
+            newColumns: [customers.locationId],
+            columnTransformer: {
+              customers.outstandingBalance:
+                  moneyColumnTransform(customers.outstandingBalance),
+              if (from >= 3)
+                customers.creditLimit:
+                    moneyColumnTransform(customers.creditLimit),
+            },
+          ));
           await m.alterTable(TableMigration(sales, columnTransformer: {
             sales.subtotal: moneyColumnTransform(sales.subtotal),
-            sales.wholeCartDiscount:
-                moneyColumnTransform(sales.wholeCartDiscount),
+            if (from >= 3)
+              sales.wholeCartDiscount:
+                  moneyColumnTransform(sales.wholeCartDiscount),
             sales.discount: moneyColumnTransform(sales.discount),
             sales.tax: moneyColumnTransform(sales.tax),
             sales.total: moneyColumnTransform(sales.total),
@@ -585,81 +582,89 @@ class AppDatabase extends _$AppDatabase {
             saleItems.unitPrice: moneyColumnTransform(saleItems.unitPrice),
             saleItems.costPriceAtSale:
                 moneyColumnTransform(saleItems.costPriceAtSale),
-            saleItems.lineDiscount:
-                moneyColumnTransform(saleItems.lineDiscount),
+            if (from >= 3)
+              saleItems.lineDiscount:
+                  moneyColumnTransform(saleItems.lineDiscount),
           }));
-          await m.alterTable(TableMigration(salePayments, columnTransformer: {
-            salePayments.amount: moneyColumnTransform(salePayments.amount),
-          }));
-          await m.alterTable(TableMigration(customerLedgerEntries,
-              columnTransformer: {
-            customerLedgerEntries.amount:
-                moneyColumnTransform(customerLedgerEntries.amount),
-          }));
-          await m.alterTable(TableMigration(returnRequests, columnTransformer: {
-            returnRequests.refundAmount:
-                moneyColumnTransform(returnRequests.refundAmount),
-          }));
-          await m.alterTable(TableMigration(draftCarts, columnTransformer: {
-            draftCarts.wholeCartDiscount:
-                moneyColumnTransform(draftCarts.wholeCartDiscount),
-            draftCarts.tax: moneyColumnTransform(draftCarts.tax),
-          }));
-          await m.alterTable(TableMigration(draftCartItems,
-              columnTransformer: {
-            draftCartItems.unitPrice:
-                moneyColumnTransform(draftCartItems.unitPrice),
-            draftCartItems.costPriceAtSale:
-                moneyColumnTransform(draftCartItems.costPriceAtSale),
-            draftCartItems.lineDiscount:
-                moneyColumnTransform(draftCartItems.lineDiscount),
-          }));
-          await m.alterTable(TableMigration(draftCartPayments,
-              columnTransformer: {
-            draftCartPayments.amount:
-                moneyColumnTransform(draftCartPayments.amount),
-          }));
+          // These tables were introduced in v3. A direct v1/v2 upgrade
+          // creates them from today's definitions (already integer minor
+          // units), rather than their historical pre-v17 REAL definitions.
+          // Only convert them when they existed before this upgrade began.
+          if (from >= 3) {
+            await m.alterTable(TableMigration(salePayments, columnTransformer: {
+              salePayments.amount: moneyColumnTransform(salePayments.amount),
+            }));
+            await m.alterTable(TableMigration(customerLedgerEntries,
+                columnTransformer: {
+              customerLedgerEntries.amount:
+                  moneyColumnTransform(customerLedgerEntries.amount),
+            }));
+            await m.alterTable(TableMigration(returnRequests, columnTransformer: {
+              returnRequests.refundAmount:
+                  moneyColumnTransform(returnRequests.refundAmount),
+            }));
+            await m.alterTable(TableMigration(draftCarts, columnTransformer: {
+              draftCarts.wholeCartDiscount:
+                  moneyColumnTransform(draftCarts.wholeCartDiscount),
+              draftCarts.tax: moneyColumnTransform(draftCarts.tax),
+            }));
+            await m.alterTable(TableMigration(draftCartItems,
+                columnTransformer: {
+              draftCartItems.unitPrice:
+                  moneyColumnTransform(draftCartItems.unitPrice),
+              draftCartItems.costPriceAtSale:
+                  moneyColumnTransform(draftCartItems.costPriceAtSale),
+              draftCartItems.lineDiscount:
+                  moneyColumnTransform(draftCartItems.lineDiscount),
+            }));
+            await m.alterTable(TableMigration(draftCartPayments,
+                columnTransformer: {
+              draftCartPayments.amount:
+                  moneyColumnTransform(draftCartPayments.amount),
+            }));
+          }
           await m.alterTable(TableMigration(expenses, columnTransformer: {
             expenses.amount: moneyColumnTransform(expenses.amount),
           }));
           await m.alterTable(TableMigration(incomeRecords, columnTransformer: {
             incomeRecords.amount: moneyColumnTransform(incomeRecords.amount),
           }));
-          await m.alterTable(TableMigration(suppliers, columnTransformer: {
-            suppliers.outstandingBalance:
-                moneyColumnTransform(suppliers.outstandingBalance),
-          }));
-          await m.alterTable(TableMigration(supplierLedgerEntries,
-              columnTransformer: {
-            supplierLedgerEntries.amount:
-                moneyColumnTransform(supplierLedgerEntries.amount),
-          }));
-          await m.alterTable(TableMigration(taxRemittances,
-              columnTransformer: {
-            taxRemittances.amountRemitted:
-                moneyColumnTransform(taxRemittances.amountRemitted),
-          }));
-          await m.alterTable(TableMigration(cashDrawerShifts,
-              columnTransformer: {
-            cashDrawerShifts.openingCash:
-                moneyColumnTransform(cashDrawerShifts.openingCash),
-            cashDrawerShifts.closingCash:
-                moneyColumnTransform(cashDrawerShifts.closingCash),
-            cashDrawerShifts.cashDifference:
-                moneyColumnTransform(cashDrawerShifts.cashDifference),
-          }));
-          await m.alterTable(TableMigration(employees, columnTransformer: {
-            employees.salary: moneyColumnTransform(employees.salary),
-          }));
-        }
-        if (from < 15) {
-          // Employees were historically local-only. Preserve the existing
-          // physical id column (attendance/leave foreign keys depend on it)
-          // and add only the durable cloud identity/sync metadata.
-          await m.addColumn(employees, employees.serverId);
-          await m.addColumn(employees, employees.membershipId);
-          await m.addColumn(employees, employees.cloudUserId);
-          await m.addColumn(employees, employees.syncStatus);
+          // These tables were introduced in v3 and are created with today's
+          // integer minor-unit definitions during a direct v1/v2 upgrade.
+          if (from >= 3) {
+            await m.alterTable(TableMigration(suppliers, columnTransformer: {
+              suppliers.outstandingBalance:
+                  moneyColumnTransform(suppliers.outstandingBalance),
+            }));
+            await m.alterTable(TableMigration(supplierLedgerEntries,
+                columnTransformer: {
+              supplierLedgerEntries.amount:
+                  moneyColumnTransform(supplierLedgerEntries.amount),
+            }));
+            await m.alterTable(TableMigration(taxRemittances,
+                columnTransformer: {
+              taxRemittances.amountRemitted:
+                  moneyColumnTransform(taxRemittances.amountRemitted),
+            }));
+            await m.alterTable(TableMigration(cashDrawerShifts,
+                columnTransformer: {
+              cashDrawerShifts.openingCash:
+                  moneyColumnTransform(cashDrawerShifts.openingCash),
+              cashDrawerShifts.closingCash:
+                  moneyColumnTransform(cashDrawerShifts.closingCash),
+              cashDrawerShifts.cashDifference:
+                  moneyColumnTransform(cashDrawerShifts.cashDifference),
+            }));
+          }
+
+          // Employees were introduced in v2. A direct v1 upgrade creates
+          // them from the current integer minor-unit schema; only v2-v16
+          // databases contain the legacy REAL salary that needs conversion.
+          if (from >= 2) {
+            await m.alterTable(TableMigration(employees, columnTransformer: {
+              employees.salary: moneyColumnTransform(employees.salary),
+            }));
+          }
         }
         if (from < 14) {
           // Cross-runtime Cloud Sync execution lease. This is purely sync
@@ -672,7 +677,11 @@ class AppDatabase extends _$AppDatabase {
           // the separate SharedPreferences durability boundary.
           await m.createTable(syncCursors);
         }
-        if (from < 22) {
+        if (from >= 20 && from < 22) {
+          // v20 introduced SyncCursors. A direct pre-v20 upgrade creates the
+          // table from the current definition in the from<20 block, which
+          // already includes these columns; only v20-v21 installs need them
+          // added explicitly.
           await m.addColumn(syncCursors, syncCursors.blockedSequence);
           await m.addColumn(syncCursors, syncCursors.blockedChangeId);
           await m.addColumn(syncCursors, syncCursors.blockedEntityType);
@@ -685,6 +694,24 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
         }
 
+        if (from < 24) {
+          // v22-v23 wrote blocked DateTime values through raw SQL using
+          // millisecondsSinceEpoch, while Drift's default dateTime() storage
+          // expects Unix seconds. Repair only values that are unambiguously
+          // in millisecond scale before the typed v24 writer takes over.
+          await customStatement(
+            'UPDATE sync_cursors SET '
+            'blocked_first_seen_at = CAST(blocked_first_seen_at / 1000 AS INTEGER) '
+            'WHERE blocked_first_seen_at IS NOT NULL '
+            'AND ABS(blocked_first_seen_at) > 100000000000',
+          );
+          await customStatement(
+            'UPDATE sync_cursors SET '
+            'blocked_last_attempted_at = CAST(blocked_last_attempted_at / 1000 AS INTEGER) '
+            'WHERE blocked_last_attempted_at IS NOT NULL '
+            'AND ABS(blocked_last_attempted_at) > 100000000000',
+          );
+        }
         if (from < 11) {
           // Perf pass: sale_items has no index on sale_local_id, so
           // every "get the line items for this sale" lookup — receipt
@@ -700,13 +727,57 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
+        if (from < 26) {
+          // StockMovements.quantity was originally required and the later
+          // adjustment flow introduced nullable quantity + newQuantity. That
+          // shape change had no migration in earlier schema versions. Repair
+          // only databases whose physical table still lacks the new column or
+          // retains NOT NULL on quantity; fresh v25 installs already have the
+          // current shape and may already contain valid adjustment rows.
+          final stockMovementColumns =
+              await customSelect('PRAGMA table_info(stock_movements)').get();
+          final hasNewQuantity = stockMovementColumns.any(
+            (row) => row.data['name'] == 'new_quantity',
+          );
+          final quantityColumns = stockMovementColumns
+              .where((row) => row.data['name'] == 'quantity')
+              .toList();
+          final quantityColumn =
+              quantityColumns.isEmpty ? null : quantityColumns.first;
+          final quantityIsNotNull =
+              quantityColumn != null && quantityColumn.data['notnull'] == 1;
+          if (stockMovementColumns.isNotEmpty &&
+              (!hasNewQuantity || quantityIsNotNull)) {
+            await m.alterTable(
+              TableMigration(
+                stockMovements,
+                newColumns: hasNewQuantity
+                    ? <GeneratedColumn>[]
+                    : [stockMovements.newQuantity],
+              ),
+            );
+          }
+        }
+
         if (from < 25) {
           // Location ownership is additive. Do not guess ownership for legacy
           // catalog/customer rows: leave location_id NULL for explicit
           // reconciliation rather than silently assigning records to whichever
           // location happens to be active on upgrade.
-          await m.addColumn(products, products.locationId);
-          await m.addColumn(customers, customers.locationId);
+          // A pre-v17 upgrade rebuilds Products/Customers as part of the
+          // money conversion. Those TableMigrations already add the current
+          // locationId column as NULL for legacy rows, so check the physical
+          // schema before adding it here for v17-v24 installs.
+          final productColumns =
+              await customSelect('PRAGMA table_info(products)').get();
+          if (!productColumns.any((row) => row.data['name'] == 'location_id')) {
+            await m.addColumn(products, products.locationId);
+          }
+          final customerColumns =
+              await customSelect('PRAGMA table_info(customers)').get();
+          if (!customerColumns.any((row) => row.data['name'] == 'location_id')) {
+            await m.addColumn(customers, customers.locationId);
+          }
 
           // v6's unique SKU/barcode indexes were business-wide. Rebuild them
           // around explicit owner location; unassigned legacy rows stay out

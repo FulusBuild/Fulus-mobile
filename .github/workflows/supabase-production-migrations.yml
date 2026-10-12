@@ -18,14 +18,12 @@ permissions:
   contents: read
   actions: read
 
-# Production deployment is commit-exact. If main advances while an older
-# deployment is waiting for its exact Mobile CI run, the older deployment
-# must be cancelled rather than treating the deliberately-cancelled CI run
-# as a migration failure. The newer main commit will run the full deployment
-# contract against the latest repository state.
+# Serialize production deployments and live runtime-evidence runs. Never cancel
+# an active migration/function deployment: if main advances, let the active
+# commit finish and then run the newest pending commit against the latest state.
 concurrency:
   group: fulus-production-supabase-migrations
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -92,11 +90,17 @@ jobs:
               "/repos/${GITHUB_REPOSITORY}/actions/workflows/supabase-migrations.yml/runs?head_sha=${COMMIT_SHA}&per_page=20")"
 
             ci_count="$(jq --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push")] | length' <<<"$ci_runs")"
-            migration_count="$(jq --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | length' <<<"$migration_runs")"
+            migration_push_count="$(jq --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push")] | length' <<<"$migration_runs")"
+            if [ "$migration_push_count" -gt 0 ]; then
+              migration_event="push"
+            else
+              migration_event="workflow_dispatch"
+            fi
+            migration_count="$(jq --arg sha "$COMMIT_SHA" --arg event "$migration_event" '[.workflow_runs[] | select(.head_sha == $sha and .event == $event)] | length' <<<"$migration_runs")"
 
             if [ "$ci_count" -gt 0 ]; then
-              ci_conclusion="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | sort_by(.created_at) | last | .conclusion // empty' <<<"$ci_runs")"
-              ci_status="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | sort_by(.created_at) | last | .status // empty' <<<"$ci_runs")"
+              ci_conclusion="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push")] | sort_by(.created_at) | last | .conclusion // empty' <<<"$ci_runs")"
+              ci_status="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push")] | sort_by(.created_at) | last | .status // empty' <<<"$ci_runs")"
               echo "Fulus Mobile CI status=$ci_status conclusion=$ci_conclusion"
               case "$ci_conclusion" in
                 failure|cancelled|timed_out|action_required|stale)
@@ -109,8 +113,8 @@ jobs:
             fi
 
             if [ "$migration_count" -gt 0 ]; then
-              migration_conclusion="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | sort_by(.created_at) | last | .conclusion // empty' <<<"$migration_runs")"
-              migration_status="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha and (.event == "push" or .event == "workflow_dispatch"))] | sort_by(.created_at) | last | .status // empty' <<<"$migration_runs")"
+              migration_conclusion="$(jq -r --arg sha "$COMMIT_SHA" --arg event "$migration_event" '[.workflow_runs[] | select(.head_sha == $sha and .event == $event)] | sort_by(.created_at) | last | .conclusion // empty' <<<"$migration_runs")"
+              migration_status="$(jq -r --arg sha "$COMMIT_SHA" --arg event "$migration_event" '[.workflow_runs[] | select(.head_sha == $sha and .event == $event)] | sort_by(.created_at) | last | .status // empty' <<<"$migration_runs")"
               echo "Supabase Migration Chain status=$migration_status conclusion=$migration_conclusion"
               case "$migration_conclusion" in
                 failure|cancelled|timed_out|action_required|stale)

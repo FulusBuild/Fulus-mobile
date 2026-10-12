@@ -53,11 +53,21 @@ void fulusBackgroundSyncCallback() {
     } finally {
       final current = container;
       if (current != null) {
-        final syncService = current.read(syncServiceProvider);
-        syncService.dispose();
+        // Capture the database before disposing the container, then close it
+        // even if sync-service disposal or provider-container teardown throws.
+        // A WorkManager isolate must not leave a connection open across task
+        // completion, because the next worker may run in a fresh isolate and
+        // contend with the previous runtime's SQLite lease.
         final db = current.read(databaseProvider);
-        current.dispose();
-        await db.close();
+        try {
+          current.read(syncServiceProvider).dispose();
+        } finally {
+          try {
+            current.dispose();
+          } finally {
+            await db.close();
+          }
+        }
       }
     }
   });
