@@ -306,7 +306,13 @@ class BackupRepositoryImpl implements BackupRepository {
 
       await _probeReopenedDatabase?.call();
     } catch (_) {
-      if (installed && await previous.exists()) {
+      // A staged-file rename can fail after the previous live database has
+      // already been moved aside. Its immediate best-effort rename-back can
+      // also fail; in that case `installed` is still false, but rollback is
+      // still mandatory. Recover whenever the previous file exists and the
+      // live path is absent, as well as after a replacement was installed.
+      if (await previous.exists() &&
+          (installed || !await File(dbPath).exists())) {
         // If the connection reopened successfully, the probe (or a later
         // operation) failed after the original maintenance lease was released.
         // Reacquire the fence and close that fresh connection before replacing
