@@ -114,6 +114,13 @@ begin
   ) then
     raise exception 'A sparse feed with no pruned rows must not receive a retention watermark';
   end if;
+  if not exists (
+    select 1 from public.sync_changes
+    where business_id = business_sparse
+      and created_at >= now() - interval '90 days'
+  ) then
+    raise exception 'Pruning must preserve retained changes for a sparse business feed';
+  end if;
   if exists (
     select 1 from public.sync_change_retention_watermarks
     where business_id = business_empty
