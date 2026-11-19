@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/diagnostics/capture/current_screen_tracker.dart';
+import '../core/auth/auth_route_guard.dart';
 import '../core/onboarding/onboarding_routing.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/theme/fulus_art.dart';
@@ -163,6 +164,11 @@ final appRouter = GoRouter(
     if (user == null) return null;
 
     final location = state.matchedLocation;
+    final authRedirect = redirectSignedInUserFromLogin(
+      user: user,
+      matchedLocation: location,
+    );
+    if (authRedirect != null) return authRedirect;
     if (location.startsWith('/more/settings/cloud')) {
       return user.role == AuthRole.owner ? null : '/';
     }

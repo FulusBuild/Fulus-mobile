@@ -125,6 +125,25 @@ void main() {
         throwsA(isA<BusinessRuleFailure>()),
       );
     });
+
+    test('does not expose an in-memory session when session persistence fails',
+        () async {
+      await db.customStatement('''
+        CREATE TRIGGER fail_session_insert
+        BEFORE INSERT ON sessions
+        BEGIN
+          SELECT RAISE(ABORT, 'injected session persistence failure');
+        END
+      ''');
+
+      await expectLater(
+        repository.createFirstOwner(fullName: 'Chidinma Okafor'),
+        throwsA(anything),
+      );
+
+      expect(repository.currentUser, isNull);
+      expect(await db.select(db.sessions).get(), isEmpty);
+    });
   });
 
   group('setOwnLoginPin', () {
@@ -364,6 +383,27 @@ void main() {
             module: 'AUTH',
             details: {'user_id': coOwnerId},
           )).called(1);
+    });
+
+    test('does not switch the in-memory user when session persistence fails',
+        () async {
+      final ownerId = repository.currentUser!.id;
+      await db.customStatement('''
+        CREATE TRIGGER fail_session_insert
+        BEFORE INSERT ON sessions
+        BEGIN
+          SELECT RAISE(ABORT, 'injected session persistence failure');
+        END
+      ''');
+
+      await expectLater(
+        repository.switchLocalUser(userId: coOwnerId, pin: '2222'),
+        throwsA(anything),
+      );
+
+      expect(repository.currentUser?.id, ownerId);
+      final durable = await db.select(db.sessions).getSingle();
+      expect(durable.userId, ownerId);
     });
 
     test('locks the identity after 5 failed attempts', () async {

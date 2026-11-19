@@ -10,6 +10,7 @@ This index prevents point-in-time audits from being mistaken for current verific
 | `../README.md` | Current entry point, updated 2026-11-19 | Feature descriptions still need ongoing comparison with the current UI; readiness claims now defer to evidence. |
 | `QA_MASTER_PLAN.md` | Current protocol | Update the campaign status and link the latest report at each handoff. |
 | `product-audit/PART-A-STARTUP-ONBOARDING-NAVIGATION.md` | Current Part A audit, 2026-11-19 | Update after physical Android cases and any follow-up fixes. |
+| `product-audit/PART-B-AUTHENTICATION-SESSIONS.md` | Current Part B audit, 2026-11-19 | Source and focused automated checks pass; complete listed Android and live-auth scenarios before closing runtime evidence. |
 | `../PLAN.md` | Engineering work plan; historical status text may be stale | Track engineering priorities here; verify each item against current code before execution. |
 | `testing/RUNTIME_PRODUCTION_EVIDENCE.md` | Active evidence process; individual workflow evidence is time-sensitive | Recheck the workflow and latest run before citing a pass. |
 | `INSTANT_UI_CONTRACT.md`, `architecture/FULUS_RELIABILITY_SLOS.md` | Current intended contracts/targets, not proof of implementation | Keep targets distinct from measured production behavior. |
