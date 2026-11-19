@@ -37,7 +37,6 @@ Future<void> main() async {
     },
     validateStatus: (_) => true,
   ));
-
   String? secondaryServerId;
   try {
     secondaryServerId = await _registerDevice(
@@ -46,9 +45,10 @@ Future<void> main() async {
       deviceId: secondaryDeviceId,
     );
 
-    final primaryBaseline = await _restoreBoundary(
+    final primaryBaseline = await _syncBoundary(
       dio,
       businessId: businessId,
+      cursor: 0,
     );
 
     final firstOperation = 'e2e-device-a-$suffix';
@@ -69,9 +69,10 @@ Future<void> main() async {
       direction: 'device A → device B',
     );
 
-    final secondaryBaseline = await _restoreBoundary(
+    final secondaryBaseline = await _syncBoundary(
       dio,
       businessId: businessId,
+      cursor: primaryBaseline,
     );
 
     final secondOperation = 'e2e-device-b-$suffix';
@@ -93,6 +94,12 @@ Future<void> main() async {
     );
 
 
+    final financialBaseline = await _syncBoundary(
+      dio,
+      businessId: businessId,
+      cursor: secondaryBaseline,
+    );
+
     // Financial convergence scenario: two independent device identities create
     // financial work before either device is used to consume the other's feed.
     // This is intentionally API-level evidence: it exercises the production
@@ -101,6 +108,7 @@ Future<void> main() async {
     final financial = await _runFinancialConvergenceScenario(
       dio,
       businessId: businessId,
+      startingBoundary: financialBaseline,
       primaryDeviceId: primaryDeviceId,
       secondaryDeviceId: secondaryDeviceId,
       suffix: suffix,
@@ -159,30 +167,57 @@ Future<void> _createCategory(
   }
 }
 
-Future<int> _restoreBoundary(
+Future<int> _syncBoundary(
   Dio dio, {
   required String businessId,
+  required int cursor,
 }) async {
-  final response = await dio.post('', data: {
-    'action': 'restore_snapshot',
-    'business_id': businessId,
-  });
-  final status = response.statusCode ?? 0;
-  if (status < 200 || status >= 300) {
-    throw StateError(
-      'restore_snapshot failed with HTTP $status: ${response.data}',
+  var boundary = cursor;
+  for (var page = 0; page < 1000; page++) {
+    final response = await dio.get('', queryParameters: {
+      'business_id': businessId,
+      'cursor': boundary,
+      'limit': 500,
+    });
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) {
+      throw StateError(
+        'sync boundary lookup failed with HTTP $status: ${response.data}',
+      );
+    }
+    final root = response.data;
+    final data = root is Map ? root['data'] : null;
+    final nextBoundary = _sequenceValue(
+      data is Map ? data['next_cursor'] : null,
     );
+    if (nextBoundary == null || nextBoundary < boundary) {
+      throw StateError(
+        'sync boundary lookup returned an invalid cursor: ${response.data}',
+      );
+    }
+    final hasMore = data is Map && data['has_more'] == true;
+    if (!hasMore) return nextBoundary;
+    if (nextBoundary == boundary) {
+      throw StateError(
+        'sync boundary lookup did not advance its cursor: ${response.data}',
+      );
+    }
+    boundary = nextBoundary;
   }
-  final root = response.data;
-  final data = root is Map ? root['data'] : null;
-  final boundary = data is Map ? data['sync_boundary'] : null;
-  if (boundary is! num || boundary.toInt() < 0) {
-    throw StateError(
-      'restore_snapshot returned invalid sync_boundary: ${response.data}',
-    );
-  }
-  return boundary.toInt();
+  throw StateError('sync boundary lookup exceeded the 500,000-change safety limit');
 }
+
+int? _sequenceValue(dynamic value) => switch (value) {
+      int sequence when sequence >= 0 && sequence <= 9007199254740991 =>
+        sequence,
+      num sequence when sequence.isFinite &&
+          sequence == sequence.toInt() &&
+          sequence >= 0 &&
+          sequence <= 9007199254740991 =>
+        sequence.toInt(),
+      String sequence => int.tryParse(sequence),
+      _ => null,
+    };
 
 Future<void> _expectChange(
   Dio dio, {
@@ -233,6 +268,7 @@ Future<void> _expectChange(
 Future<String> _runFinancialConvergenceScenario(
   Dio dio, {
   required String businessId,
+  required int startingBoundary,
   required String primaryDeviceId,
   required String secondaryDeviceId,
   required String suffix,
@@ -310,7 +346,7 @@ Future<String> _runFinancialConvergenceScenario(
       // transaction rather than failing on an empty inventory row.
       'tracks_stock': true,
       'initial_stock': 2,
-      'location_id': await _firstLocationId(dio, businessId),
+      'location_id': locationId,
     },
   });
   _expect2xx(productResponse, 'P16 product.create');
@@ -339,7 +375,7 @@ Future<String> _runFinancialConvergenceScenario(
   ));
 
   final repaymentOperation = 'e2e-p16-repayment-$suffix';
-  final saleLocationId = await _firstLocationId(primaryDio, businessId);
+  final saleLocationId = locationId;
   final saleFuture = primaryDio.post('', data: {
     'action': 'sale_create',
     'business_id': businessId,
@@ -405,7 +441,7 @@ Future<String> _runFinancialConvergenceScenario(
     'business_id': businessId,
     'operation_id': saleOperation,
     'client_reference': saleOperation,
-    'location_id': await _firstLocationId(primaryDio, businessId),
+    'location_id': locationId,
     'customer_id': customerId,
     'sale_date': saleDate,
      'discount': '0.00',
@@ -491,9 +527,17 @@ Future<String> _runFinancialConvergenceScenario(
   // Both devices consume the canonical feed from the same pre-scenario
   // boundary. The feed must expose the sale and repayment exactly once.
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
-  final primaryBoundary = await _restoreBoundary(dio, businessId: businessId);
+  final primaryBoundary = await _syncBoundary(
+    dio,
+    businessId: businessId,
+    cursor: startingBoundary,
+  );
   dio.options.headers['x-fulus-device-id'] = secondaryDeviceId;
-  final secondaryBoundary = await _restoreBoundary(dio, businessId: businessId);
+  final secondaryBoundary = await _syncBoundary(
+    dio,
+    businessId: businessId,
+    cursor: startingBoundary,
+  );
 
   if (primaryBoundary != secondaryBoundary) {
     throw StateError(
@@ -545,9 +589,9 @@ Future<String> _runFinancialConvergenceScenario(
     );
   }
 
-  // Re-read the authoritative snapshot after both mutations. This verifies
-  // the final server financial invariants and gives the mobile canonical
-  // reconcilers one deterministic boundary to consume.
+  // Keep one full restore in the scenario so it still verifies the canonical
+  // snapshot. The earlier restore calls were only used for cursor/location
+  // lookups and unnecessarily built the full payload several more times.
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
   final snapshot = await dio.post('', data: {
     'action': 'restore_snapshot',
@@ -591,19 +635,22 @@ Future<String> _runFinancialConvergenceScenario(
 
 Future<String> _firstLocationId(Dio dio, String businessId) async {
   final response = await dio.post('', data: {
-    'action': 'restore_snapshot',
+    'action': 'location_ownership_review_list',
     'business_id': businessId,
   });
-  _expect2xx(response, 'P16 location snapshot');
-  final data = response.data is Map ? response.data['data'] : null;
+  _expect2xx(response, 'P16 location lookup');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
   final locations = data is Map ? data['locations'] : null;
   if (locations is! List || locations.isEmpty) {
     throw StateError('P16 business has no locations');
   }
-  final first = locations.first;
-  final id = first is Map ? first['id'] : null;
+  final activeLocations = locations.whereType<Map>().toList()
+    ..sort((left, right) =>
+        (left['id'] ?? '').toString().compareTo((right['id'] ?? '').toString()));
+  final id = activeLocations.first['id'];
   if (id is! String || id.isEmpty) {
-    throw StateError('P16 snapshot location has no id');
+    throw StateError('P16 location has no id');
   }
   return id;
 }
@@ -740,3 +787,4 @@ String _required(String name) {
   }
   return value;
 }
+
