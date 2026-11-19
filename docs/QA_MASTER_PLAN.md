@@ -169,6 +169,7 @@ Use one of: `Not ready`, `Conditionally ready with listed gaps`, or `Evidence su
 - Android: debug APK built and launched on TECNO KI5k / Android 12. A read-only smoke test on the persisted Muhammed owner session was observed; ADB wireless disconnected during further navigation.
 - Supabase production was inspected read-only; no live business rows were changed. The Sync & Backup screen showed a possible status mismatch (“Everything is backed up” while no successful backup was recorded); recheck against current source/runtime.
 - Authenticated core workflows, safe QA mutations, offline/reconnect sync, restore, multi-device/role boundaries, hardware integrations, and complete route coverage remain unverified.
+- Part A source audit found and fixed the `businessSetup` → Essential Settings routing gap; 29 onboarding tests pass. Physical confirmation remains open. See [`product-audit/PART-A-STARTUP-ONBOARDING-NAVIGATION.md`](product-audit/PART-A-STARTUP-ONBOARDING-NAVIGATION.md).
 - AWS is paused; no AWS provisioning is in scope.
 
 These are dated observations, not claims about later builds. Update this section and link the detailed audit report at each campaign handoff.

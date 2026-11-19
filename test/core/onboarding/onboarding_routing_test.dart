@@ -70,6 +70,28 @@ void main() {
       );
     });
 
+    test('completed business setup resumes at essential settings', () {
+      expect(
+        resolvePostSignInStage(
+          businessConfigured: true,
+          firstRunPromptSeen: true,
+          walkthroughStep: OnboardingStep.businessSetup,
+        ),
+        PostSignInStage.showEssentialSettings,
+      );
+    });
+
+    test('incomplete business setup still resumes before the walkthrough', () {
+      expect(
+        resolvePostSignInStage(
+          businessConfigured: false,
+          firstRunPromptSeen: true,
+          walkthroughStep: OnboardingStep.businessSetup,
+        ),
+        PostSignInStage.resumeBusinessSetup,
+      );
+    });
+
     test('essentialSettings check takes priority over an unseen first-run prompt', () {
       // Both conditions are true at once right after OwnerSetupScreen
       // arms the walkthrough — essentialSettings must win, not
