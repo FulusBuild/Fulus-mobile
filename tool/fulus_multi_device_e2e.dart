@@ -37,20 +37,6 @@ Future<void> main() async {
     },
     validateStatus: (_) => true,
   ));
-  // The E2E only needs the current feed cursor. Read it through the
-  // authenticated Data API instead of building a full restore snapshot.
-  final dataApiDio = Dio(BaseOptions(
-    baseUrl: authUrl.replaceFirst(RegExp(r'/+$'), ''),
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 20),
-    headers: {
-      'apikey': publishableKey,
-      'Authorization': 'Bearer $token',
-      'accept': 'application/json',
-    },
-    validateStatus: (_) => true,
-  ));
-
   String? secondaryServerId;
   try {
     secondaryServerId = await _registerDevice(
@@ -60,8 +46,9 @@ Future<void> main() async {
     );
 
     final primaryBaseline = await _syncBoundary(
-      dataApiDio,
+      dio,
       businessId: businessId,
+      cursor: 0,
     );
 
     final firstOperation = 'e2e-device-a-$suffix';
@@ -83,8 +70,9 @@ Future<void> main() async {
     );
 
     final secondaryBaseline = await _syncBoundary(
-      dataApiDio,
+      dio,
       businessId: businessId,
+      cursor: primaryBaseline,
     );
 
     final secondOperation = 'e2e-device-b-$suffix';
@@ -106,6 +94,12 @@ Future<void> main() async {
     );
 
 
+    final financialBaseline = await _syncBoundary(
+      dio,
+      businessId: businessId,
+      cursor: secondaryBaseline,
+    );
+
     // Financial convergence scenario: two independent device identities create
     // financial work before either device is used to consume the other's feed.
     // This is intentionally API-level evidence: it exercises the production
@@ -113,8 +107,8 @@ Future<void> main() async {
     // snapshot boundaries without inventing a second Flutter runtime.
     final financial = await _runFinancialConvergenceScenario(
       dio,
-      dataApiDio: dataApiDio,
       businessId: businessId,
+      startingBoundary: financialBaseline,
       primaryDeviceId: primaryDeviceId,
       secondaryDeviceId: secondaryDeviceId,
       suffix: suffix,
@@ -176,42 +170,54 @@ Future<void> _createCategory(
 Future<int> _syncBoundary(
   Dio dio, {
   required String businessId,
+  required int cursor,
 }) async {
-  final response = await dio.get('/rest/v1/sync_changes', queryParameters: {
-    'select': 'sequence',
-    'business_id': 'eq.$businessId',
-    'order': 'sequence.desc',
-    'limit': '1',
-  });
-  final status = response.statusCode ?? 0;
-  if (status < 200 || status >= 300) {
-    throw StateError(
-      'sync boundary lookup failed with HTTP $status: ${response.data}',
+  var boundary = cursor;
+  for (var page = 0; page < 1000; page++) {
+    final response = await dio.get('', queryParameters: {
+      'business_id': businessId,
+      'cursor': boundary,
+      'limit': 500,
+    });
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) {
+      throw StateError(
+        'sync boundary lookup failed with HTTP $status: ${response.data}',
+      );
+    }
+    final root = response.data;
+    final data = root is Map ? root['data'] : null;
+    final nextBoundary = _sequenceValue(
+      data is Map ? data['next_cursor'] : null,
     );
+    if (nextBoundary == null || nextBoundary < boundary) {
+      throw StateError(
+        'sync boundary lookup returned an invalid cursor: ${response.data}',
+      );
+    }
+    final hasMore = data is Map && data['has_more'] == true;
+    if (!hasMore) return nextBoundary;
+    if (nextBoundary == boundary) {
+      throw StateError(
+        'sync boundary lookup did not advance its cursor: ${response.data}',
+      );
+    }
+    boundary = nextBoundary;
   }
-  final rows = response.data;
-  if (rows is! List || rows.length > 1) {
-    throw StateError(
-      'sync boundary lookup returned an invalid response: ${response.data}',
-    );
-  }
-  if (rows.isEmpty) return 0;
-
-  final row = rows.single;
-  final rawBoundary = row is Map ? row['sequence'] : null;
-  final boundary = switch (rawBoundary) {
-    int value => value,
-    num value when value.isFinite && value == value.toInt() => value.toInt(),
-    String value => int.tryParse(value),
-    _ => null,
-  };
-  if (boundary == null || boundary < 0 || boundary > 9007199254740991) {
-    throw StateError(
-      'sync boundary lookup returned an invalid sequence: ${response.data}',
-    );
-  }
-  return boundary;
+  throw StateError('sync boundary lookup exceeded the 500,000-change safety limit');
 }
+
+int? _sequenceValue(dynamic value) => switch (value) {
+      int sequence when sequence >= 0 && sequence <= 9007199254740991 =>
+        sequence,
+      num sequence when sequence.isFinite &&
+          sequence == sequence.toInt() &&
+          sequence >= 0 &&
+          sequence <= 9007199254740991 =>
+        sequence.toInt(),
+      String sequence => int.tryParse(sequence),
+      _ => null,
+    };
 
 Future<void> _expectChange(
   Dio dio, {
@@ -261,14 +267,14 @@ Future<void> _expectChange(
 
 Future<String> _runFinancialConvergenceScenario(
   Dio dio, {
-  required Dio dataApiDio,
   required String businessId,
+  required int startingBoundary,
   required String primaryDeviceId,
   required String secondaryDeviceId,
   required String suffix,
 }) async {
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
-  final locationId = await _firstLocationId(dataApiDio, businessId);
+  final locationId = await _firstLocationId(dio, businessId);
 
   final customerCreate = await dio.post('', data: {
     'action': 'customer_create',
@@ -340,7 +346,7 @@ Future<String> _runFinancialConvergenceScenario(
       // transaction rather than failing on an empty inventory row.
       'tracks_stock': true,
       'initial_stock': 2,
-      'location_id': await _firstLocationId(dataApiDio, businessId),
+      'location_id': locationId,
     },
   });
   _expect2xx(productResponse, 'P16 product.create');
@@ -369,7 +375,7 @@ Future<String> _runFinancialConvergenceScenario(
   ));
 
   final repaymentOperation = 'e2e-p16-repayment-$suffix';
-  final saleLocationId = await _firstLocationId(dataApiDio, businessId);
+  final saleLocationId = locationId;
   final saleFuture = primaryDio.post('', data: {
     'action': 'sale_create',
     'business_id': businessId,
@@ -435,7 +441,7 @@ Future<String> _runFinancialConvergenceScenario(
     'business_id': businessId,
     'operation_id': saleOperation,
     'client_reference': saleOperation,
-    'location_id': await _firstLocationId(dataApiDio, businessId),
+    'location_id': locationId,
     'customer_id': customerId,
     'sale_date': saleDate,
      'discount': '0.00',
@@ -522,13 +528,15 @@ Future<String> _runFinancialConvergenceScenario(
   // boundary. The feed must expose the sale and repayment exactly once.
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
   final primaryBoundary = await _syncBoundary(
-    dataApiDio,
+    dio,
     businessId: businessId,
+    cursor: startingBoundary,
   );
   dio.options.headers['x-fulus-device-id'] = secondaryDeviceId;
   final secondaryBoundary = await _syncBoundary(
-    dataApiDio,
+    dio,
     businessId: businessId,
+    cursor: startingBoundary,
   );
 
   if (primaryBoundary != secondaryBoundary) {
@@ -626,43 +634,25 @@ Future<String> _runFinancialConvergenceScenario(
 }
 
 Future<String> _firstLocationId(Dio dio, String businessId) async {
-  final location = await _maybeSingleRow(dio, '/rest/v1/locations', {
-    'select': 'id',
-    'business_id': 'eq.$businessId',
-    'status': 'eq.active',
-    'order': 'id.asc',
-    'limit': '1',
+  final response = await dio.post('', data: {
+    'action': 'location_ownership_review_list',
+    'business_id': businessId,
   });
-  if (location == null) {
+  _expect2xx(response, 'P16 location lookup');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  final locations = data is Map ? data['locations'] : null;
+  if (locations is! List || locations.isEmpty) {
     throw StateError('P16 business has no locations');
   }
-  final id = location['id'];
+  final activeLocations = locations.whereType<Map>().toList()
+    ..sort((left, right) =>
+        (left['id'] ?? '').toString().compareTo((right['id'] ?? '').toString()));
+  final id = activeLocations.first['id'];
   if (id is! String || id.isEmpty) {
     throw StateError('P16 location has no id');
   }
   return id;
-}
-
-Future<Map<String, dynamic>?> _maybeSingleRow(
-  Dio dio,
-  String path,
-  Map<String, dynamic> queryParameters,
-) async {
-  final response = await dio.get(path, queryParameters: queryParameters);
-  final status = response.statusCode ?? 0;
-  if (status < 200 || status >= 300) {
-    throw StateError('Data API lookup failed with HTTP $status: ${response.data}');
-  }
-  final rows = response.data;
-  if (rows is! List || rows.length > 1) {
-    throw StateError('Data API lookup returned an invalid response: ${response.data}');
-  }
-  if (rows.isEmpty) return null;
-  final row = rows.single;
-  if (row is! Map) {
-    throw StateError('Data API lookup returned an invalid row: $row');
-  }
-  return row.map((key, value) => MapEntry(key.toString(), value));
 }
 
 Future<List<dynamic>> _fetchChanges(
