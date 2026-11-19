@@ -323,7 +323,10 @@ void main() {
     expect(rows.single.cloudUserId, 'cloud-user-2');
     expect(rows.single.fullName, 'Amina Ibrahim');
     expect(rows.single.isActive, isFalse);
-    expect(rows.single.deletedAt, DateTime(2026, 9, 30, 12));
+    expect(
+      rows.single.deletedAt?.isAtSameMomentAs(DateTime.utc(2026, 9, 30, 12)),
+      isTrue,
+    );
     expect(rows.single.syncStatus, SyncStatus.settled);
   });
 
