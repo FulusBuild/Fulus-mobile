@@ -54,7 +54,7 @@ Baseline: current main e7f8ccad6c89877fb68a5b8edfdbce693d760414. The detailed tr
 
 | ID | Severity | Status | Finding / disposition | Verification |
 |---|---|---|---|---|
-| D-001 | Medium | Fixed in source | CSV SKU checks now match case-insensitive location uniqueness; generated SKU checks also normalize case. | Regression tests included in 91 passing focused tests. |
+| D-001 | Medium | Fixed in source | CSV SKU checks now match case-insensitive location uniqueness; generated SKU checks also normalize case. | Regression tests included in 105 passing focused tests. |
 | D-002 | Medium | Mobile source + SQL migration prepared; production unapplied | tracks_stock now flows through create/update and canonical reconcile; RPC migration persists it on create and update. | Mobile regression tests pass; SQL invariant not yet run. |
 | D-003 | Medium | SQL migration prepared; production unapplied | Add location-scoped uniqueness for active nonblank product barcodes to prevent concurrent cloud duplicates. | Read-only production aggregate found zero duplicates; local Supabase SQL invariant pending. |
 | D-004 | Medium | Source fix made; widget behavior test pending | Add/edit form rejects invalid numeric inputs instead of silently saving defaults. | Scoped Flutter analyzer found no issues; focused catalog suite has no widget interaction test for these errors. |

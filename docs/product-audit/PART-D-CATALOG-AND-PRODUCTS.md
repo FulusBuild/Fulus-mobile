@@ -61,7 +61,7 @@ The add/edit screen turned an invalid cost into zero, an invalid threshold into 
 
 **Fix:** Reject non-finite/negative cost and selling prices, and invalid/negative whole-number thresholds or starting stock with field errors. When stock tracking is disabled, starting stock is not seeded.
 
-**Verification:** The scoped Flutter analyzer found no issues. The focused catalog tests do not include a widget interaction test for these form errors.
+**Verification:** The scoped Flutter analyzer, including `test/sync/sale_sync_handler_test.dart`, found no issues. CI initially exposed four sale-sync test fixtures missing the new required stock-tracking flag; the fixtures now explicitly use `tracksStock: true`. The focused catalog tests do not include a widget interaction test for these form errors.
 
 ### D-005 — Replacing or clearing photos leaves old public objects
 
@@ -101,7 +101,7 @@ Exact command (PowerShell; Git safe-directory environment variables scoped to th
 
     flutter test --no-pub test/unit/product_import_engine_test.dart test/unit/import_products_from_csv_test.dart test/repository/product_repository_test.dart test/repository/product_photo_repository_test.dart test/sync/product_sync_handler_archive_test.dart test/sync/product_photo_sync_handler_test.dart test/sync/fulus_product_canonical_reconciler_test.dart test/sync/fulus_category_canonical_reconciler_test.dart test/data/local/database/products_schema_test.dart
 
-**Result:** 91 tests passed; 0 failed; 0 skipped; approximately 11 seconds. This is local automated evidence, not end-to-end, phone, or live backend mutation evidence.
+**Result:** 105 tests passed; 0 failed; 0 skipped; approximately 20 seconds. This is local automated evidence, not end-to-end, phone, or live backend mutation evidence.
 
 **Generation:** flutter pub run build_runner build succeeded (519 outputs on the incremental run). Drift emitted existing duplicate-reference-name warnings for stockMovementsRefs and userPermissionsRefs. Generated outputs are ignored and not part of the change.
 
