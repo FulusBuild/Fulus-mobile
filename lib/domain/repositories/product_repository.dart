@@ -23,6 +23,7 @@ abstract class ProductRepository {
     Money? sellingPrice,
     int? lowStockThreshold,
     bool? isActive,
+    bool? tracksStock,
     String? photoPath,
     // Explicitly removes the photo. A null [photoPath] means "leave unchanged".
     bool clearPhoto = false,
@@ -46,6 +47,7 @@ abstract class ProductRepository {
     required Money sellingPrice,
     required int lowStockThreshold,
     required bool isActive,
+    required bool tracksStock,
     String? photoPath,
     String? locationId,
     required DateTime updatedAt,

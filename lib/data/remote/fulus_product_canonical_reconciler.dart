@@ -58,6 +58,7 @@ class FulusProductCanonicalReconciler {
       sellingPrice: _number(product['selling_price']),
       lowStockThreshold: _integer(product['low_stock_threshold']),
       isActive: product['is_active'] == true,
+      tracksStock: product['tracks_stock'] != false,
       photoPath: _nullableString(product['photo_path']),
       locationId: _nullableString(product['location_id']),
       updatedAt: updatedAt,

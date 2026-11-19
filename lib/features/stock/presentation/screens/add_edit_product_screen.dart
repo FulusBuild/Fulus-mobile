@@ -106,14 +106,32 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
     final price = double.tryParse(_priceController.text.trim());
     final errors = <String, String>{};
     if (name.isEmpty) errors['name'] = 'Give this product a name.';
-    if (price == null || price <= 0) {
+    if (price == null || !price.isFinite || price <= 0) {
       final currencySymbol = ref.read(moneyCurrencySymbolProvider).value ?? '₦';
       errors['price'] = "Price can't be ${currencySymbol}0.";
     }
 
-    final cost = double.tryParse(_costController.text.trim());
-    final threshold = int.tryParse(_thresholdController.text.trim()) ?? 10;
-    final initialStock = int.tryParse(_initialStockController.text.trim()) ?? 0;
+    final costText = _costController.text.trim();
+    final cost = costText.isEmpty ? 0.0 : double.tryParse(costText);
+    if (cost == null || !cost.isFinite || cost < 0) {
+      errors['cost'] = 'Enter a valid cost of 0 or more.';
+    }
+
+    final threshold = _tracksStock
+        ? int.tryParse(_thresholdController.text.trim())
+        : 10;
+    if (_tracksStock && (threshold == null || threshold < 0)) {
+      errors['threshold'] = 'Enter a whole number of 0 or more.';
+    }
+
+    final initialStock = _tracksStock && !widget.isEditing
+        ? int.tryParse(_initialStockController.text.trim())
+        : 0;
+    if (_tracksStock &&
+        !widget.isEditing &&
+        (initialStock == null || initialStock < 0)) {
+      errors['initialStock'] = 'Enter a whole number of 0 or more.';
+    }
 
     if (errors.isNotEmpty) {
       setState(() => _fieldErrors = errors);
@@ -142,9 +160,10 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
           categoryId: _categoryId,
           supplierId: _supplierId,
-          costPrice: moneyFromMajor(cost ?? 0),
+          costPrice: moneyFromMajor(cost!),
           sellingPrice: moneyFromMajor(price!),
-          lowStockThreshold: threshold,
+          lowStockThreshold: threshold ?? 10,
+          tracksStock: _tracksStock,
           photoPath: photoChanged ? _photoPath : null,
           clearPhoto: photoChanged && _photoPath == null,
         );
@@ -159,14 +178,15 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           ProductDraft(
             name: name,
             sku: sku,
-            costPrice: moneyFromMajor(cost ?? 0),
+            costPrice: moneyFromMajor(cost!),
             sellingPrice: moneyFromMajor(price!),
             locationId: locationId,
             barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
             categoryId: _categoryId,
             supplierId: _supplierId,
-            lowStockThreshold: threshold,
-            initialStock: initialStock,
+            lowStockThreshold: threshold ?? 10,
+            initialStock: initialStock ?? 0,
+            tracksStock: _tracksStock,
           ),
         );
         // A device-local photo queues its own upload task (see the repository).
@@ -237,7 +257,9 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
     for (var attempt = 0; attempt < 20; attempt++) {
       final suffix = (1000 + random.nextInt(9000)).toString();
       final candidate = '$prefix-$suffix';
-      if (!existing.contains(candidate)) return candidate;
+      if (!existing.any((sku) => sku.toLowerCase() == candidate.toLowerCase())) {
+        return candidate;
+      }
     }
     return '$prefix-${DateTime.now().millisecondsSinceEpoch}';
   }
@@ -370,7 +392,9 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
               label: 'Cost price',
               controller: _costController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              errorText: _fieldErrors['cost'],
               helperText: 'Optional — enables margin on reports.',
+              onChanged: (_) => _clearErrors(),
             ),
             const SizedBox(height: AppSpacing.lg),
             Row(
@@ -396,6 +420,8 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                 label: 'Low stock threshold',
                 controller: _thresholdController,
                 keyboardType: TextInputType.number,
+                errorText: _fieldErrors['threshold'],
+                onChanged: (_) => _clearErrors(),
               ),
               if (!widget.isEditing) ...[
                 const SizedBox(height: AppSpacing.lg),
@@ -403,7 +429,9 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                   label: 'Starting stock',
                   controller: _initialStockController,
                   keyboardType: TextInputType.number,
+                  errorText: _fieldErrors['initialStock'],
                   helperText: 'How many you already have on hand.',
+                  onChanged: (_) => _clearErrors(),
                 ),
               ],
             ],

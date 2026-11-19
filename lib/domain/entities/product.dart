@@ -61,6 +61,7 @@ class ProductDraft {
     this.supplierId,
     this.lowStockThreshold = 10,
     this.initialStock = 0,
+    this.tracksStock = true,
     this.photoPath,
   });
 
@@ -76,6 +77,7 @@ class ProductDraft {
   final String? supplierId;
   final int lowStockThreshold;
   final int initialStock;
+  final bool tracksStock;
   final String? photoPath;
 
   Product toProductEntity({required String localId}) {
@@ -92,6 +94,7 @@ class ProductDraft {
       sellingPrice: sellingPrice,
       lowStockThreshold: lowStockThreshold,
       isActive: true,
+      tracksStock: tracksStock,
       createdAt: now,
       updatedAt: now,
       photoPath: photoPath,
@@ -112,6 +115,7 @@ class ProductCreateDto {
     this.supplierId,
     this.lowStockThreshold = 10,
     this.initialStock = 0,
+    this.tracksStock = true,
     this.photoPath,
   });
 
@@ -127,6 +131,7 @@ class ProductCreateDto {
   final Money sellingPrice;
   final int lowStockThreshold;
   final int initialStock;
+  final bool tracksStock;
   final String? photoPath;
 
   Map<String, dynamic> toJson() => _$ProductCreateDtoToJson(this);
@@ -144,6 +149,7 @@ class ProductUpdateDto {
     this.sellingPrice,
     this.lowStockThreshold,
     this.isActive,
+    this.tracksStock,
     this.photoPath,
   });
 
@@ -158,6 +164,7 @@ class ProductUpdateDto {
   final Money? sellingPrice;
   final int? lowStockThreshold;
   final bool? isActive;
+  final bool? tracksStock;
   final String? photoPath;
 
   Map<String, dynamic> toJson() => _$ProductUpdateDtoToJson(this);
@@ -189,6 +196,7 @@ class ProductResponseDto {
     required this.isActive,
     required this.isLowStock,
     required this.stockValue,
+    this.tracksStock = true,
     this.locationId,
     this.photoPath,
   });
@@ -210,6 +218,8 @@ class ProductResponseDto {
   final bool isLowStock;
   @MoneyJsonConverter()
   final Money stockValue;
+  @JsonKey(defaultValue: true)
+  final bool tracksStock;
   final String? photoPath;
 
   factory ProductResponseDto.fromJson(Map<String, dynamic> json) =>
@@ -234,6 +244,7 @@ class ProductResponseDto {
       sellingPrice: sellingPrice,
       lowStockThreshold: lowStockThreshold,
       isActive: isActive,
+      tracksStock: tracksStock,
       createdAt: now,
       updatedAt: now,
       photoPath: photoPath,

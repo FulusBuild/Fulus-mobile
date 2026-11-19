@@ -101,6 +101,18 @@ void main() {
       expect(plan.rowErrors.single.field, 'sku');
     });
 
+    test('an existing SKU is rejected regardless of case', () {
+      final plan = engine.validate(
+        headers: headers,
+        rows: [row(sku: 'rice-5kg')],
+        existingSkus: const {'RICE-5KG'},
+        existingBarcodes: const {},
+      );
+
+      expect(plan.rowsToCreate, isEmpty);
+      expect(plan.rowErrors.single.field, 'sku');
+    });
+
     test('two rows in the same file sharing a SKU: first wins, second rejected', () {
       final plan = engine.validate(
         headers: headers,
@@ -113,6 +125,19 @@ void main() {
       expect(plan.rowsToCreate.single.name, 'Rice 5kg');
       expect(plan.rowErrors, hasLength(1));
       expect(plan.rowErrors.single.row, 2);
+    });
+
+    test('case-variant SKUs in one file are treated as duplicates', () {
+      final plan = engine.validate(
+        headers: headers,
+        rows: [row(sku: 'RICE-5KG'), row(sku: 'rice-5kg', name: 'Second one')],
+        existingSkus: const {},
+        existingBarcodes: const {},
+      );
+
+      expect(plan.rowsToCreate, hasLength(1));
+      expect(plan.rowErrors.single.row, 2);
+      expect(plan.rowErrors.single.field, 'sku');
     });
 
     test('an invalid selling_price is one error, not two', () {

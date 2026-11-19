@@ -558,6 +558,25 @@ void main() {
       expect(rows.single.syncStatus, SyncStatus.pending);
     });
 
+    test('persists a product with stock tracking disabled', () async {
+      await seedLocation();
+
+      final createdProduct = await repository.createProduct(const ProductDraft(
+        name: 'Service Item',
+        sku: 'SERVICE-1',
+        costPrice: 0,
+        sellingPrice: 600,
+        locationId: locationId,
+        tracksStock: false,
+      ));
+
+      final row = await (db.select(db.products)
+            ..where((row) => row.localId.equals(createdProduct.localId)))
+          .getSingle();
+      expect(createdProduct.tracksStock, isFalse);
+      expect(row.tracksStock, isFalse);
+    });
+
     test('seeds a ProductStockLevels row even when initialStock is 0', () async {
       await seedLocation();
 
@@ -748,6 +767,30 @@ void main() {
       expect(row.sellingPrice, 1200);
       expect(row.name, 'Original Name'); // untouched
       expect(row.sku, 'SKU-p1'); // untouched
+    });
+
+    test('persists a stock-tracking change with the product update', () async {
+      await seedLocation();
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: 'p-tracks-stock',
+        locationId: const Value(locationId),
+        serverId: const Value('server-p-tracks-stock'),
+        name: 'Service Item',
+        sku: 'SERVICE-TRACKS',
+        costPrice: 0,
+        sellingPrice: 600,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+
+      await repository.updateProduct(localId: 'p-tracks-stock', tracksStock: false);
+
+      final row = await (db.select(db.products)
+            ..where((row) => row.localId.equals('p-tracks-stock')))
+          .getSingle();
+      expect(row.tracksStock, isFalse);
+      expect(row.syncStatus, SyncStatus.pending);
     });
 
     test('marks the row pending and enqueues an update sync task', () async {

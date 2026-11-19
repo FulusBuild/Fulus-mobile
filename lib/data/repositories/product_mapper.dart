@@ -26,6 +26,7 @@ extension ProductToCompanion on Product {
       supplierId: Value(supplierId),
       lowStockThreshold: Value(lowStockThreshold),
       isActive: Value(isActive),
+      tracksStock: Value(tracksStock),
       photoPath: photoPath == null ? const Value.absent() : Value(photoPath),
       deletedAt: const Value(null),
     );
@@ -43,6 +44,7 @@ extension ProductToCompanion on Product {
       sellingPrice: sellingPrice,
       lowStockThreshold: lowStockThreshold,
       initialStock: initialStock,
+      tracksStock: tracksStock,
       photoPath: photoPath,
     );
   }
@@ -61,6 +63,7 @@ extension ProductToCompanion on Product {
       sellingPrice: sellingPrice,
       lowStockThreshold: lowStockThreshold,
       isActive: isActive,
+      tracksStock: tracksStock,
       photoPath: photoPath,
     );
   }
@@ -116,6 +119,7 @@ extension ProductResponseDtoToCompanion on ProductResponseDto {
       sellingPrice: sellingPrice,
       lowStockThreshold: Value(lowStockThreshold),
       isActive: Value(isActive),
+      tracksStock: Value(tracksStock),
       createdAt: now,
       updatedAt: now,
       syncStatus: SyncStatus.settled,
