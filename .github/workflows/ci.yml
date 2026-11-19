@@ -339,6 +339,37 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 2
+      - name: Run debug APK on Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install "system-images;android-31;google_apis;x86_64"
+          printf 'no\n' | avdmanager create avd --force --name fulus-ci-api-31 --package "system-images;android-31;google_apis;x86_64" --device "pixel_2"
+          emulator -avd fulus-ci-api-31 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect > /tmp/fulus-emulator.log 2>&1 &
+          adb wait-for-device
+          booted=""
+          for attempt in $(seq 1 60); do
+            booted="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+            if [ "$booted" = "1" ]; then break; fi
+            sleep 5
+          done
+          if [ "$booted" != "1" ]; then
+            cat /tmp/fulus-emulator.log
+            echo "::error::Android emulator did not finish booting."
+            exit 1
+          fi
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb install -r build/app/outputs/flutter-apk/app-debug.apk
+          adb shell am start -n com.fulus.app/.MainActivity
+          sleep 10
+          if ! adb shell pidof com.fulus.app >/dev/null; then
+            adb logcat -d -t 500
+            echo "::error::Fulus Mobile did not remain running after launch."
+            exit 1
+          fi
+          echo "Fulus Mobile launched and remained running on Android API 31."
 
   release_apk:
     name: Build release APK
