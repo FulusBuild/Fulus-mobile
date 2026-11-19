@@ -37,6 +37,19 @@ Future<void> main() async {
     },
     validateStatus: (_) => true,
   ));
+  // The E2E only needs the current feed cursor. Read it through the
+  // authenticated Data API instead of building a full restore snapshot.
+  final dataApiDio = Dio(BaseOptions(
+    baseUrl: authUrl.replaceFirst(RegExp(r'/+$'), ''),
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': publishableKey,
+      'Authorization': 'Bearer $token',
+      'accept': 'application/json',
+    },
+    validateStatus: (_) => true,
+  ));
 
   String? secondaryServerId;
   try {
@@ -46,8 +59,8 @@ Future<void> main() async {
       deviceId: secondaryDeviceId,
     );
 
-    final primaryBaseline = await _restoreBoundary(
-      dio,
+    final primaryBaseline = await _syncBoundary(
+      dataApiDio,
       businessId: businessId,
     );
 
@@ -69,8 +82,8 @@ Future<void> main() async {
       direction: 'device A → device B',
     );
 
-    final secondaryBaseline = await _restoreBoundary(
-      dio,
+    final secondaryBaseline = await _syncBoundary(
+      dataApiDio,
       businessId: businessId,
     );
 
@@ -100,6 +113,7 @@ Future<void> main() async {
     // snapshot boundaries without inventing a second Flutter runtime.
     final financial = await _runFinancialConvergenceScenario(
       dio,
+      dataApiDio: dataApiDio,
       businessId: businessId,
       primaryDeviceId: primaryDeviceId,
       secondaryDeviceId: secondaryDeviceId,
@@ -159,29 +173,44 @@ Future<void> _createCategory(
   }
 }
 
-Future<int> _restoreBoundary(
+Future<int> _syncBoundary(
   Dio dio, {
   required String businessId,
 }) async {
-  final response = await dio.post('', data: {
-    'action': 'restore_snapshot',
-    'business_id': businessId,
+  final response = await dio.get('/rest/v1/sync_changes', queryParameters: {
+    'select': 'sequence',
+    'business_id': 'eq.$businessId',
+    'order': 'sequence.desc',
+    'limit': '1',
   });
   final status = response.statusCode ?? 0;
   if (status < 200 || status >= 300) {
     throw StateError(
-      'restore_snapshot failed with HTTP $status: ${response.data}',
+      'sync boundary lookup failed with HTTP $status: ${response.data}',
     );
   }
-  final root = response.data;
-  final data = root is Map ? root['data'] : null;
-  final boundary = data is Map ? data['sync_boundary'] : null;
-  if (boundary is! num || boundary.toInt() < 0) {
+  final rows = response.data;
+  if (rows is! List || rows.length > 1) {
     throw StateError(
-      'restore_snapshot returned invalid sync_boundary: ${response.data}',
+      'sync boundary lookup returned an invalid response: ${response.data}',
     );
   }
-  return boundary.toInt();
+  if (rows.isEmpty) return 0;
+
+  final row = rows.single;
+  final rawBoundary = row is Map ? row['sequence'] : null;
+  final boundary = switch (rawBoundary) {
+    int value => value,
+    num value when value.isFinite && value == value.toInt() => value.toInt(),
+    String value => int.tryParse(value),
+    _ => null,
+  };
+  if (boundary == null || boundary < 0 || boundary > 9007199254740991) {
+    throw StateError(
+      'sync boundary lookup returned an invalid sequence: ${response.data}',
+    );
+  }
+  return boundary;
 }
 
 Future<void> _expectChange(
@@ -232,13 +261,14 @@ Future<void> _expectChange(
 
 Future<String> _runFinancialConvergenceScenario(
   Dio dio, {
+  required Dio dataApiDio,
   required String businessId,
   required String primaryDeviceId,
   required String secondaryDeviceId,
   required String suffix,
 }) async {
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
-  final locationId = await _firstLocationId(dio, businessId);
+  final locationId = await _firstLocationId(dataApiDio, businessId);
 
   final customerCreate = await dio.post('', data: {
     'action': 'customer_create',
@@ -310,7 +340,7 @@ Future<String> _runFinancialConvergenceScenario(
       // transaction rather than failing on an empty inventory row.
       'tracks_stock': true,
       'initial_stock': 2,
-      'location_id': await _firstLocationId(dio, businessId),
+      'location_id': await _firstLocationId(dataApiDio, businessId),
     },
   });
   _expect2xx(productResponse, 'P16 product.create');
@@ -339,7 +369,7 @@ Future<String> _runFinancialConvergenceScenario(
   ));
 
   final repaymentOperation = 'e2e-p16-repayment-$suffix';
-  final saleLocationId = await _firstLocationId(primaryDio, businessId);
+  final saleLocationId = await _firstLocationId(dataApiDio, businessId);
   final saleFuture = primaryDio.post('', data: {
     'action': 'sale_create',
     'business_id': businessId,
@@ -405,7 +435,7 @@ Future<String> _runFinancialConvergenceScenario(
     'business_id': businessId,
     'operation_id': saleOperation,
     'client_reference': saleOperation,
-    'location_id': await _firstLocationId(primaryDio, businessId),
+    'location_id': await _firstLocationId(dataApiDio, businessId),
     'customer_id': customerId,
     'sale_date': saleDate,
      'discount': '0.00',
@@ -491,9 +521,15 @@ Future<String> _runFinancialConvergenceScenario(
   // Both devices consume the canonical feed from the same pre-scenario
   // boundary. The feed must expose the sale and repayment exactly once.
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
-  final primaryBoundary = await _restoreBoundary(dio, businessId: businessId);
+  final primaryBoundary = await _syncBoundary(
+    dataApiDio,
+    businessId: businessId,
+  );
   dio.options.headers['x-fulus-device-id'] = secondaryDeviceId;
-  final secondaryBoundary = await _restoreBoundary(dio, businessId: businessId);
+  final secondaryBoundary = await _syncBoundary(
+    dataApiDio,
+    businessId: businessId,
+  );
 
   if (primaryBoundary != secondaryBoundary) {
     throw StateError(
@@ -545,9 +581,9 @@ Future<String> _runFinancialConvergenceScenario(
     );
   }
 
-  // Re-read the authoritative snapshot after both mutations. This verifies
-  // the final server financial invariants and gives the mobile canonical
-  // reconcilers one deterministic boundary to consume.
+  // Keep one full restore in the scenario so it still verifies the canonical
+  // snapshot. The earlier restore calls were only used for cursor/location
+  // lookups and unnecessarily built the full payload several more times.
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
   final snapshot = await dio.post('', data: {
     'action': 'restore_snapshot',
@@ -590,22 +626,43 @@ Future<String> _runFinancialConvergenceScenario(
 }
 
 Future<String> _firstLocationId(Dio dio, String businessId) async {
-  final response = await dio.post('', data: {
-    'action': 'restore_snapshot',
-    'business_id': businessId,
+  final location = await _maybeSingleRow(dio, '/rest/v1/locations', {
+    'select': 'id',
+    'business_id': 'eq.$businessId',
+    'status': 'eq.active',
+    'order': 'id.asc',
+    'limit': '1',
   });
-  _expect2xx(response, 'P16 location snapshot');
-  final data = response.data is Map ? response.data['data'] : null;
-  final locations = data is Map ? data['locations'] : null;
-  if (locations is! List || locations.isEmpty) {
+  if (location == null) {
     throw StateError('P16 business has no locations');
   }
-  final first = locations.first;
-  final id = first is Map ? first['id'] : null;
+  final id = location['id'];
   if (id is! String || id.isEmpty) {
-    throw StateError('P16 snapshot location has no id');
+    throw StateError('P16 location has no id');
   }
   return id;
+}
+
+Future<Map<String, dynamic>?> _maybeSingleRow(
+  Dio dio,
+  String path,
+  Map<String, dynamic> queryParameters,
+) async {
+  final response = await dio.get(path, queryParameters: queryParameters);
+  final status = response.statusCode ?? 0;
+  if (status < 200 || status >= 300) {
+    throw StateError('Data API lookup failed with HTTP $status: ${response.data}');
+  }
+  final rows = response.data;
+  if (rows is! List || rows.length > 1) {
+    throw StateError('Data API lookup returned an invalid response: ${response.data}');
+  }
+  if (rows.isEmpty) return null;
+  final row = rows.single;
+  if (row is! Map) {
+    throw StateError('Data API lookup returned an invalid row: $row');
+  }
+  return row.map((key, value) => MapEntry(key.toString(), value));
 }
 
 Future<List<dynamic>> _fetchChanges(
@@ -740,3 +797,4 @@ String _required(String name) {
   }
   return value;
 }
+
