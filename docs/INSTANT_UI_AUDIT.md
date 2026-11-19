@@ -1,5 +1,7 @@
 # Fulus Instant UI Audit
 
+> **Historical snapshot:** This audit was performed on `audit/instant-ui` against `main` without a recorded current baseline here. Reproduce each finding on the current commit and physical device before treating it as open or fixed. See [documentation status](DOCUMENTATION_STATUS.md) and [the QA master plan](QA_MASTER_PLAN.md).
+
 **Branch:** `audit/instant-ui`  
 **Base:** `main`  
 **Scope:** investigate why redesigned screens can flash legacy-looking frames and why navigation can show prolonged loading/white states.

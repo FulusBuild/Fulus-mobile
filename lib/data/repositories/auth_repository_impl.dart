@@ -141,8 +141,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
     // Collapsed into one step rather than create-then-separately-log-in
     // — see AuthRepository.createFirstOwner's own doc comment for why.
-    _currentUser = user;
     await _persistSession(user);
+    _currentUser = user;
     // Mirrors the backend's own BOOTSTRAP_ADMIN action name exactly
     // (verified directly against routers/auth.py); details payload
     // changed from created_username to created_full_name since the
@@ -301,8 +301,8 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     final user = _toAuthUser(userRow);
-    _currentUser = user;
     await _persistSession(user);
+    _currentUser = user;
     await _logAudit(action: 'LOGIN', module: 'AUTH', userId: user.id);
     return user;
   }

@@ -154,6 +154,15 @@ class ApiClient {
       if (accessToken == null || accessToken.isEmpty) {
         throw StateError('Supabase refresh returned no access token.');
       }
+      final responseUserId =
+          (data['user'] is Map) ? (data['user'] as Map)['id']?.toString() : null;
+      if (responseUserId != userId) {
+        // A credential stored for one cloud identity must never produce a
+        // bearer token cached under another identity. Reject before saving
+        // either the rotated refresh token or the access token.
+        _scopedAccessTokens.remove(userId);
+        return null;
+      }
       if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
         await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
       }

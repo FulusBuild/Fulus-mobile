@@ -1,5 +1,7 @@
 # Fulus Benchmark Work Handoff and Engineering State
 
+> **Historical handoff:** The PR and CI status below are a point-in-time snapshot. Do not assume the PR is still open or that the listed blockers remain current; check GitHub and the current source baseline. See [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 **Repository:** FulusBuild/Fulus-mobile  
 **PR:** #179, `fix/benchmark-money-restore-hardening`  
 **Base:** `main` at `bce6f3a11e59827e7d0139e03916184d261aeb0a`  

@@ -1,5 +1,7 @@
 # Fulus Deep Code Audit — Final Reconciliation Report
 
+> **Historical report:** The source revalidation below is dated 2026-10-06 and is not current runtime or production evidence. Recheck against the current branch/SHA before relying on statuses. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md).
+
 ## Status
 
 **Source audit:** Parts 01–20 inspected/reconciled; current-main source revalidation completed 2026-10-06.

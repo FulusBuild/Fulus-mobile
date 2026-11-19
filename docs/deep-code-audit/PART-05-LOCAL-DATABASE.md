@@ -1,5 +1,8 @@
 # Part 05 — Local Database & Persistence Audit
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 **Part:** 05 — Local Database & Persistence  
 **Baseline SHA:** `7cf4f36ac466a50cf4acd47ead9a593277c55226`  
 **Audit branch:** `audit/deep-code-part-05-local-database`  

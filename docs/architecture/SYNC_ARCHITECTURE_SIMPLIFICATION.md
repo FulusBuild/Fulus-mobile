@@ -1,5 +1,8 @@
 # Fulus Sync Architecture Simplification Audit
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 **Status:** Source-level simplification is complete. The public facade, internal runtime boundary, cloud-session bootstrap coordinator, service-owned readiness state, and final call-path ownership audit are closed. Remaining work is production/runtime evidence only.  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`

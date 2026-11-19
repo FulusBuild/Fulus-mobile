@@ -252,7 +252,7 @@ void main() {
     expect(storedUserRefreshTokens, isEmpty);
   });
 
-  test('per-user refresh rejects a response for a different cloud identity',
+  test('startup refresh rejects a response for a different cloud identity',
       () async {
     client.setActiveCloudUser('user-a');
     storedUserRefreshTokens['user-a'] = 'refresh-a';
@@ -279,6 +279,54 @@ void main() {
     );
 
     expect(storedUserRefreshTokens['user-a'], 'refresh-a');
+  });
+
+  test('scoped access-token refresh rejects a response for another user',
+      () async {
+    storedUserRefreshTokens['user-a'] = 'refresh-a';
+
+    server.listen((request) async {
+      if (request.uri.path == '/auth/v1/token') {
+        await _json(request.response, 200, {
+          'access_token': 'user-b-access',
+          'refresh_token': 'refresh-b',
+          'expires_in': 3600,
+          'user': {'id': 'user-b'},
+        });
+        return;
+      }
+
+      await _json(request.response, 404, {'message': 'not found'});
+    });
+
+    final token = await client.accessTokenForUser('user-a');
+
+    expect(token, isNull);
+    expect(storedUserRefreshTokens['user-a'], 'refresh-a');
+  });
+
+  test('scoped access-token refresh accepts and rotates the matching user',
+      () async {
+    storedUserRefreshTokens['user-a'] = 'refresh-a';
+
+    server.listen((request) async {
+      if (request.uri.path == '/auth/v1/token') {
+        await _json(request.response, 200, {
+          'access_token': 'user-a-access',
+          'refresh_token': 'refresh-a-next',
+          'expires_in': 3600,
+          'user': {'id': 'user-a'},
+        });
+        return;
+      }
+
+      await _json(request.response, 404, {'message': 'not found'});
+    });
+
+    final token = await client.accessTokenForUser('user-a');
+
+    expect(token, 'user-a-access');
+    expect(storedUserRefreshTokens['user-a'], 'refresh-a-next');
   });
 
   test('transient refresh server failure preserves the durable refresh token',

@@ -128,6 +128,13 @@ PostSignInStage resolvePostSignInStage({
   required OnboardingStep? walkthroughStep,
 }) {
   if (!businessConfigured) return PostSignInStage.resumeBusinessSetup;
+  // GetStartedScreen records businessSetup before opening the account/setup
+  // form. Once the business exists, this is the durable resume point for the
+  // next guided step. Handle it before the legacy first-run prompt so both
+  // local setup and cloud account creation enter the same walkthrough.
+  if (walkthroughStep == OnboardingStep.businessSetup) {
+    return PostSignInStage.showEssentialSettings;
+  }
   if (walkthroughStep == OnboardingStep.essentialSettings) {
     return PostSignInStage.showEssentialSettings;
   }

@@ -1,5 +1,8 @@
 # Fulus Deep Code Audit — Findings Ledger
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 | ID | Part | Severity | Status | File | Function/Class | Finding | Fix | Test | CI | Runtime |
 |---|---|---|---|---|---|---|---|---|---|---|
 | P01-001 | 01 | Medium | Closed; tests and required CI green | lib/sync/sync_triggers.dart | SyncTriggers disposal | Disposed trigger could be re-entered by later callbacks | Added terminal _disposed state and guards | Added post-disposal lifecycle tests | CI run 36992869058 green | Runtime process-death evidence pending |
