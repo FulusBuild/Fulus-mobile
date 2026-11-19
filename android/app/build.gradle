@@ -8,8 +8,22 @@ plugins {
 
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
+def releaseSigningConfigured = keystorePropertiesFile.exists()
+if (releaseSigningConfigured) {
     keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
+// Gradle configures every build type even when the requested task is debug.
+// Defer the release-key requirement until the resolved task graph actually
+// contains a release task so debug builds do not need production credentials.
+gradle.taskGraph.whenReady { taskGraph ->
+    if (!releaseSigningConfigured && taskGraph.allTasks.any { task ->
+        task.path.toLowerCase().contains("release")
+    }) {
+        throw new GradleException(
+            "Release signing is not configured. Provide android/key.properties from key.properties.example."
+        )
+    }
 }
 
 android {
@@ -63,8 +77,8 @@ android {
     }
 
     signingConfigs {
-        release {
-            if (keystorePropertiesFile.exists()) {
+        if (releaseSigningConfigured) {
+            release {
                 keyAlias = keystoreProperties["keyAlias"]
                 keyPassword = keystoreProperties["keyPassword"]
                 storeFile = file(keystoreProperties["storeFile"])
@@ -76,13 +90,9 @@ android {
     buildTypes {
         release {
             // Production artifacts must never be signed with the debug key.
-            // CI/local release builds require android/key.properties.
-            if (!keystorePropertiesFile.exists()) {
-                throw new GradleException(
-                    "Release signing is not configured. Provide android/key.properties from key.properties.example."
-                )
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.release
             }
-            signingConfig = signingConfigs.release
         }
     }
 }
