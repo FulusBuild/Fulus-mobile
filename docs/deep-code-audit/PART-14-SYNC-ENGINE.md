@@ -1,5 +1,8 @@
 # Part 14 — Sync Engine
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 **Status:** In progress — source audit complete for the core sync runtime; CI/runtime verification pending  
 **Baseline SHA:** 481d8a928ea0839b91ab5121dcc11eb370b9148f  
 **Audit branch:** audit/part-14-sync-engine

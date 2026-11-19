@@ -1,8 +1,10 @@
 # Fulus — Production Engineering Plan
 
+> **Plan relationship (2026-11-19):** This file tracks engineering priorities and execution. It is not the canonical testing protocol or evidence of completion. Use [docs/QA_MASTER_PLAN.md](docs/QA_MASTER_PLAN.md) for product/code/device/backend audit scope, evidence, documentation upkeep, and release gates. Treat historical status statements below as unverified until checked against the current branch and recorded evidence.
+
 ## Purpose
 
-This is the single working plan for taking Fulus from the current development state to a stable, secure, tested, and production-ready release.
+This is an engineering work plan for taking Fulus toward a stable, secure, tested release.
 
 The goal is not simply to add features. The goal is to establish a reliable product, a clean codebase, controlled releases, and evidence that the system works under real conditions.
 

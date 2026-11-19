@@ -1,5 +1,7 @@
 # Part 20 — Security & Production Hardening
 
+> **Historical evidence notice (2026-11-19):** The production observations below were collected on 2026-10-03 and are not current-state proof. Recheck the project, configuration, advisor output, grants, and deployed functions before relying on these conclusions. Preserve this record as historical evidence.
+
 ## Scope
 This pass audits Supabase RLS, SECURITY DEFINER exposure, Edge Function authentication, business/location isolation boundaries, grants, production advisors, and security configuration.
 

@@ -1,5 +1,8 @@
 # Part 12 — Customers & Credit
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 ## Scope
 
 Deep audit of customer records, credit balances, customer ledger entries, repayments, refunds/credit reversals, offline mutations, canonical reconciliation, idempotency, and local/cloud contract alignment.

@@ -1,5 +1,8 @@
 # Part 18 — UI, Navigation & Application State
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 ## Scope
 This pass audits authenticated workspace rendering, route ownership, navigation state, permission-aware navigation, first-frame behavior, branch preservation, back-stack safety, and local hydration.
 

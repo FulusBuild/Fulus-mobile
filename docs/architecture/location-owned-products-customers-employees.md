@@ -1,5 +1,8 @@
 # Location-Owned Products, Customers, and Employees
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 ## Requirement
 
 Products, customers, and employee roster records belong to one location. Switching the active location must switch the records available for browsing, selection, mutation, restore, and synchronization. This is an ownership boundary, not a presentation-only filter.

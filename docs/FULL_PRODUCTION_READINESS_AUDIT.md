@@ -1,5 +1,7 @@
 # Fulus Full Production Readiness Audit
 
+> **Historical snapshot:** This audit is dated 2026-09-28 and refers to an older branch/SHA. Its closed/open labels are not current-state evidence. Revalidate against the current baseline; see [documentation status](DOCUMENTATION_STATUS.md) and [the QA master plan](QA_MASTER_PLAN.md).
+
 **Audit branch:** `audit/full-production-readiness`  
 **Baseline:** `main` after PR #95 merge (`d0e8030877e91e6c2e06fed90f2e3e05772a0588`)  
 **Date:** 2026-09-28  

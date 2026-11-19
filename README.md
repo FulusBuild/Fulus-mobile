@@ -14,9 +14,9 @@ Fulus is designed to be understood in under a minute by someone who has never us
 
 ## Project Status
 
-**The core app — the Business Engine and the full user interface built against it — is complete.** Home, Sell, Stock, Money, and the More section (Employees, Reports, Settings, Backup) are all built, routed, and reachable today. Every core workflow — selling, stock and catalog management, customer credit, finance tracking, employee records, receipt printing, backup, and optional synchronization — runs end to end, on-device.
+**Implementation status is not a readiness claim.** The repository contains Home, Sell, Stock, Money, and additional business-management features. Their presence in source does not establish that every workflow has passed current device, offline, backend, and recovery testing. See [the verification master plan](docs/QA_MASTER_PLAN.md) and current audit report for dated evidence, open findings, and untested paths.
 
-Current work is production-readiness refinement: accessibility, data-integrity hardening, and the remaining items tracked ahead of a wider commercial release.
+See [documentation status](docs/DOCUMENTATION_STATUS.md) to distinguish current contracts from historical audit evidence.
 
 ## Key Features
 
@@ -169,7 +169,7 @@ flutter pub get
 
 ### Running the App
 
-Generated code (Drift's database layer and JSON serialization) isn't checked into this repository — build it first, or nothing below will compile:
+Some generated sources may be ignored or absent in a fresh checkout. Check the repository state first; if generated files required by the build are missing, generate them with:
 
 ```bash
 dart run build_runner build --delete-conflicting-outputs

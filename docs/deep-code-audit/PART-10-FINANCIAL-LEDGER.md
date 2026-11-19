@@ -1,5 +1,8 @@
 # Part 10 — Financial & Ledger Integrity
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 **Status:** Source audit complete; one High drawer-reconciliation defect fixed with regression coverage. The coordinated integer-money migration remains an open High finding and must not be split into ad-hoc field conversions.
 **Baseline SHA:** 24063ca8a4fe3235e1adb65e6b9b0258fddbdc5e
 **Audit branch:** audit/deep-code-part-10-financial-ledger

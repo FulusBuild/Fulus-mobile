@@ -1,5 +1,8 @@
 # Part 01 — App Bootstrap & Lifecycle
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 Baseline SHA: a71af8d4678c49f2dd5afa46018dffc0c4eaf799
 Audit branch: audit/deep-code-part-01-bootstrap-lifecycle
 Status: Code audit and CI verification complete for the audited scope; runtime/production evidence remains pending.

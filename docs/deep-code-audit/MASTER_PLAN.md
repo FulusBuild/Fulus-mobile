@@ -1,6 +1,7 @@
 # Fulus Deep Code Audit — Master Plan
 
 **Status:** Active  
+**Coordination:** Follow [the product verification master plan](../QA_MASTER_PLAN.md) for current scope, device/backend safety, documentation hygiene, and release gates. This file defines the deeper source-audit method. Existing part findings are point-in-time and must be revalidated against the current branch/SHA before use.
 **Audit model:** 20 parts × 4 inspection passes  
 **Goal:** line-by-line, function-by-function, class-by-class verification with evidence-backed fixes and verification.
 

@@ -1,5 +1,8 @@
 # Fulus Benchmark / Source Revalidation — 2026-10-06
 
+
+> **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
+
 ## Status
 
 **Source-level revalidation:** complete against current `main` at `034a03a7f9325aea8f178e8f5773477512697657`.
