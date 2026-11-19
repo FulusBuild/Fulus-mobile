@@ -3,9 +3,11 @@
 
 > **Historical evidence notice (2026-11-19):** This document records a prior branch, source baseline, or decision. Its findings/status are not current-state proof. Revalidate against the current branch/SHA before relying on them. See [`../QA_MASTER_PLAN.md`](../QA_MASTER_PLAN.md) and [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
 
-**Status:** Complete for source-level audit; no new standalone high-confidence production defect requiring a Part 08 code fix.
+**Status:** Historical source audit; current catalog conclusions superseded by [`../product-audit/PART-D-CATALOG-AND-PRODUCTS.md`](../product-audit/PART-D-CATALOG-AND-PRODUCTS.md).
 **Baseline SHA:** ea7adc295e15cff0b776c39f3ca257a149ffa4a7
 **Audit branch:** audit/deep-code-part-08-product-catalog
+
+**Current-source correction (2026-11-19):** The following statements below are historical and no longer describe current source: SKU/barcode identity is location-scoped (not business-wide), product photos sync through Supabase Storage (not device-local only), and product/location ownership has since been introduced. The original evidence and other findings remain retained; use Part D for current conclusions.
 
 ## Scope
 

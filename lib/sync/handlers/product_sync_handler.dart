@@ -103,6 +103,7 @@ class ProductSyncHandler implements SyncHandler {
       'selling_price': moneyToWire(product.sellingPrice),
       'low_stock_threshold': product.lowStockThreshold,
       'is_active': product.isActive,
+      'tracks_stock': product.tracksStock,
       if (photoPath != null) 'photo_path': photoPath,
       'initial_stock': stock?.currentStock ?? 0,
       // The server seeds this exact location atomically with product creation.
@@ -189,6 +190,7 @@ class ProductSyncHandler implements SyncHandler {
     final payload = <String, dynamic>{
       'server_id': serverId,
       ...product.toUpdateDto().toJson(),
+      'tracks_stock': product.tracksStock,
       'category_id': categoryId,
       'supplier_id': supplierId,
       if (baseCursor != null) 'base_cursor': baseCursor,

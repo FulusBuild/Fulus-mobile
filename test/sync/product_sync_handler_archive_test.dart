@@ -67,6 +67,7 @@ void main() {
         locationId: const Value('loc-1'),
         name: 'Money boundary',
         sku: 'MONEY-BOUNDARY-1',
+        tracksStock: const Value(false),
         costPrice: 12500,
         sellingPrice: 30000,
         createdAt: now,
@@ -106,6 +107,7 @@ void main() {
         )).captured.single as Map<String, dynamic>;
     expect(captured['cost_price'], '125.00');
     expect(captured['selling_price'], '300.00');
+    expect(captured['tracks_stock'], false);
   });
 
   test('creates then archives a pre-sync product without reusing the stale create cursor', () async {

@@ -228,22 +228,16 @@ class Products extends Table with SyncableColumns {
   IntColumn get lowStockThreshold => integer().withDefault(const Constant(10))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 
-  /// Stock tracking is opt-out per product, not mandatory. No backend
-  /// column exists for this today — verified directly against
-  /// backend/app/models/inventory.py. Added schema-ready ahead of
-  /// backend support, the same precedent StockMovements.toLocationId/
-  /// StockMovementType.transfer already set in this file: a real
-  /// product decision the backend hasn't caught up to persisting yet is
-  /// not the same claim as a field that shouldn't exist. Defaults true.
+  /// Stock tracking is opt-out per product, not mandatory. Persisted by
+  /// the cloud as `products.tracks_stock`; defaults true on both sides.
   BoolColumn get tracksStock => boolean().withDefault(const Constant(true))();
 
   /// Display-only, no backend column.
   TextColumn get unit => text().withDefault(const Constant('piece'))();
 
-  /// A local file path, not a URL — no photo-upload endpoint exists in
-  /// the backend for products today, so there is nowhere to sync this
-  /// field TO yet; it stays device-local until that changes, same
-  /// status as every other genuinely-local-only field in this schema.
+  /// Device-local file path while an upload is pending, then the public
+  /// Supabase Storage URL after canonical reconciliation. Photo bytes
+  /// upload separately; this field stores their local or cloud reference.
   TextColumn get photoPath => text().nullable()();
 
   @override

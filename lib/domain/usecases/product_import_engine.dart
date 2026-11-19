@@ -46,11 +46,10 @@ class ProductImportEngine {
     );
   }
 
-  /// [existingSkus] must be exact-match, case-sensitive — matches the
-  /// backend's own bare `sku in existing_skus` (no `.lower()` there,
-  /// unlike the category/supplier name matching ImportProductsFromCsv
-  /// does downstream of this class). [existingBarcodes] is the same
-  /// contract for the barcode-uniqueness check.
+  /// SKU matching is case-insensitive, matching the location-scoped
+  /// unique indexes and repository validation. Barcode matching remains
+  /// exact because both local and server constraints compare the stored
+  /// barcode value directly.
   ProductImportPlan validate({
     required List<String> headers,
     required List<Map<String, String>> rows,
@@ -80,6 +79,7 @@ class ProductImportEngine {
     // 500 rather than a clean per-row error — not a gap worth
     // reproducing faithfully.
     final skusSeenThisFile = <String>{};
+    final existingSkusNormalized = existingSkus.map((sku) => sku.toLowerCase()).toSet();
     final barcodesSeenThisFile = <String>{};
 
     for (var i = 0; i < rows.length; i++) {
@@ -95,7 +95,8 @@ class ProductImportEngine {
       }
 
       if (sku != null && sku.isNotEmpty) {
-        if (existingSkus.contains(sku) || skusSeenThisFile.contains(sku)) {
+        if (existingSkusNormalized.contains(sku.toLowerCase()) ||
+            skusSeenThisFile.contains(sku.toLowerCase())) {
           rowErrors.add(ProductImportRowError(row: rowNumber, field: 'sku', message: "SKU '$sku' already exists."));
         }
       } else {
@@ -155,7 +156,7 @@ class ProductImportEngine {
         continue;
       }
 
-      skusSeenThisFile.add(sku);
+      skusSeenThisFile.add(sku.toLowerCase());
       if (barcode != null && barcode.isNotEmpty) barcodesSeenThisFile.add(barcode);
 
       final categoryName = _field(row, 'category');
@@ -199,11 +200,13 @@ class ProductImportEngine {
   /// own header comment).
   String _generateSku(String name, Set<String> existingSkus, Set<String> skusSeenThisFile) {
     final prefix = name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '').padRight(3, 'X').substring(0, 3);
+    final existingSkusNormalized = existingSkus.map((sku) => sku.toLowerCase()).toSet();
     final random = Random();
     for (var attempt = 0; attempt < 20; attempt++) {
       final suffix = (1000 + random.nextInt(9000)).toString();
       final candidate = '$prefix-$suffix';
-      if (!existingSkus.contains(candidate) && !skusSeenThisFile.contains(candidate)) return candidate;
+      if (!existingSkusNormalized.contains(candidate.toLowerCase()) &&
+          !skusSeenThisFile.contains(candidate.toLowerCase())) return candidate;
     }
     // Same reasoning as AddEditProductScreen's own fallback: 20
     // collisions against a 9000-value space won't happen in practice,
