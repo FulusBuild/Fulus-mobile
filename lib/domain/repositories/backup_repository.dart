@@ -7,13 +7,10 @@ import '../entities/backup_record.dart';
 /// that this repository's implementation delegates to before touching
 /// the filesystem.
 abstract class BackupRepository {
-  /// Creates a timestamped snapshot of the live database. [label] is
-  /// one of 'manual' | 'scheduled' | 'pre_restore_safety' — mirrors
-  /// create_backup's own vocabulary. Safe to call while the app is in
-  /// normal use: performs a WAL checkpoint first so the copied file is
-  /// never mid-write (see backup_repository_impl.dart's doc comment for
-  /// why this is done via checkpoint+copy rather than any online-backup
-  /// API).
+  /// Creates a timestamped snapshot of the live database. [label] is one of
+  /// 'manual', 'scheduled', 'auto', 'imported', or 'pre_restore_safety'. The
+  /// native implementation uses SQLite `VACUUM INTO` on a separate read-only
+  /// connection; it does not checkpoint or copy the live database directly.
   Future<BackupResult> createBackup({String label = 'manual'});
 
   /// Lists backups newest-first, scanning the backup directory itself —
@@ -36,10 +33,7 @@ abstract class BackupRepository {
   /// backup directory.
   Future<void> deleteBackup(String fileName);
 
-  /// Copies [fileName] into a location the Android Share Sheet can read
-  /// (via share_plus) and returns that path — the mechanism Volume 11 /
-  /// the Implementation Bible call for ("Export uses Android Share
-  /// Sheet. No server.").
+  /// Returns the managed backup file path for the Android Share Sheet.
   Future<String> prepareForShare(String fileName);
 
   /// Runs create + prune in one call — the entry point for a background

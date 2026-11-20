@@ -7,13 +7,11 @@
 /// fresh connection to the replaced file — without BackupRepositoryImpl
 /// needing to know what `AppDatabase` actually looks like today.
 ///
-/// This module doesn't have visibility into the current AppDatabase/DI
-/// setup (owned by Stage 1, evolving under Stages 2-8 concurrently), so
-/// it can't wire the real implementation itself. See INTEGRATION.md for
-/// the concrete AppDatabase-backed implementation to drop in — it's a
-/// few lines (close the existing GeneratedDatabase, delete -wal/-shm
-/// sidecars, construct a new AppDatabase, and update whatever provider
-/// holds the live instance so the rest of the app picks it up).
+/// The native implementation is `AppDatabaseLifecycle`, wired during app
+/// bootstrap. Reopening creates a fresh Drift connection and updates the
+/// database handle used by newly resolved dependencies. Existing repositories
+/// can still retain the closed instance, so the UI requires an app restart
+/// after a successful restore.
 abstract class DatabaseLifecycle {
   /// Absolute path to the live SQLite file.
   Future<String> currentDatabasePath();

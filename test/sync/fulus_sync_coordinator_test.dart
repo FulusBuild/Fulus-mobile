@@ -99,20 +99,24 @@ void main() {
     final api = MockFulusSyncApi();
     when(() => api.pullChanges(businessId: 'b1', cursor: 1, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
       changes: [FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
-      cursor: 1, nextCursor: 2, hasMore: false,
+      // The API's scan cursor may pass intentionally filtered rows. A failed
+      // canonical apply must not acknowledge any part of that scanned range.
+      cursor: 1, nextCursor: 9, hasMore: false,
     ));
     final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (_) async => throw StateError('apply failed'));
     await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<SyncCanonicalChangeBlocked>()));
     expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
   });
 
-  test('uses the applied sequence for paging and never persists nextCursor early', () async {
+  test('uses the scanned cursor for paging only after returned rows apply', () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
     final api = MockFulusSyncApi();
     when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
       changes: [FulusSyncChange(sequence: 1, entityType: 'customer', entityId: 'c1', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
-      cursor: 0, nextCursor: 99, hasMore: true,
+      // A full page stops at its last returned row; later pages must start
+      // there rather than trusting an inconsistent scan cursor.
+      cursor: 0, nextCursor: 1, hasMore: true,
     ));
     when(() => api.pullChanges(businessId: 'b1', cursor: 1, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
       changes: [FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
@@ -133,6 +137,63 @@ void main() {
     expect(preferences.getInt('fulus_sync_cursor_b1'), 2);
     verify(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).called(1);
     verify(() => api.pullChanges(businessId: 'b1', cursor: 1, limit: 100)).called(1);
+  });
+
+  test('acknowledges filtered feed rows after all visible rows apply', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100))
+        .thenAnswer((_) async => FulusSyncPullResponse(
+              changes: [
+                FulusSyncChange(
+                  sequence: 2,
+                  entityType: 'customer',
+                  entityId: 'visible-customer',
+                  operation: 'upsert',
+                  payload: const {},
+                  createdAt: DateTime.utc(2026, 1, 1),
+                ),
+              ],
+              cursor: 0,
+              nextCursor: 9,
+              hasMore: false,
+            ));
+
+    final applied = <int>[];
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      applyChange: (change) async => applied.add(change.sequence),
+    );
+
+    final cursor = await coordinator.pullAndApply(businessId: 'b1');
+
+    expect(applied, [2]);
+    expect(cursor, 9);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 9);
+  });
+
+  test('acknowledges an empty filtered range without reporting a false failure', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100))
+        .thenAnswer((_) async => const FulusSyncPullResponse(
+              changes: [],
+              cursor: 0,
+              nextCursor: 150,
+              hasMore: false,
+            ));
+
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      applyChange: (_) async {},
+    );
+
+    expect(await coordinator.pullAndApply(businessId: 'b1'), 150);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 150);
   });
 
   test('skips replayed changes at or before the durable cursor', () async {

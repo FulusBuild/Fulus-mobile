@@ -107,6 +107,14 @@ jobs:
           test -n "$db_url"
           psql "$db_url" -v ON_ERROR_STOP=1 -f supabase/tests/sync_retention.sql
 
+      - name: Run sync change-feed ordering contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_url="$(supabase status -o env | sed -n 's/^DB_URL=//p' | tr -d '"')"
+          test -n "$db_url"
+          psql "$db_url" -v ON_ERROR_STOP=1 -f supabase/tests/sync_change_feed_ordering.sql
+
       - name: Run location foreign-key index contract tests
         shell: bash
         run: |

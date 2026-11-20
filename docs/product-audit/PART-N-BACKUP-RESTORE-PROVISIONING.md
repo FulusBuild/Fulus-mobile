@@ -1,7 +1,7 @@
 # Part N — Backup, Restore, and Provisioning
 
-**Status:** Source and regression findings revalidated; local restore tests are included in the focused run; live restore snapshot API path passed as part of multi-device CI; physical fresh-install restore remains unverified.
-**Baseline:** `main` at `65ef6460f5ed6d20306b34ba509623cd028118c3`
+**Status:** Deep source audit complete; interrupted-restore startup recovery and honest backup-location wording are fixed in the current uncommitted worktree with regression coverage. Restore/importer suites pass. Fresh-install physical Android restore and process-death validation remain unverified.
+**Baseline:** `main` at `04403935748d3c36894480d62655a0b06585ddf0`
 **Audit branch:** `codex/part-mn-sync-restore`
 **Audit date:** 2026-11-20
 **Environment:** Windows PowerShell; Flutter 3.44.9; no Android device attached to this worktree. Production Supabase and real business data were not used for mutation testing.
@@ -54,5 +54,35 @@ No local Docker/Supabase CLI execution or production writes were performed. The 
 - Verify restored cursor continuation and canonical post-restore convergence from the actual app on a second authorized device.
 - Exercise unauthorized business and employee-location restore attempts against an isolated QA project; source and SQL guards are not a substitute for full runtime authorization evidence.
 - Inspect server logs for a reproducible snapshot RPC failure if the historical 500 returns.
+
+## Deep re-audit — 2026-11-20
+
+The local-device pass traced snapshot creation (`VACUUM INTO` via a separate read-only SQLite connection), managed backup naming/pruning, Downloads export and rediscovery, import validation, staged restore validation, business binding, pre-restore snapshot, pending-outbox checks before and after maintenance acquisition, sidecar cleanup, database reopen/health probe, rollback, and restart gating. The cloud pass traced owner and location-scoped employee snapshot authorization through importer table ordering, identity remapping, money/schema conversion, foreign-key checks, durable cursor boundary, and device re-registration. Live production data was not changed. Android MediaStore behavior was not exercised on a device.
+
+### N-001 — Backup screen promised a durable Downloads copy when export is best-effort
+
+**Severity:** Medium
+**Status:** Copy updated to describe the optional export honestly; no device validation yet.
+
+`runAutoBackup()` creates a local snapshot, then prunes older automatic snapshots, then attempts a fixed-name Downloads export inside a silent catch. The app-wide trigger is activity-debounced and does not guarantee an initial export on every launch. The Backup screen previously said a Downloads copy “survives a reinstall” as though it always existed. The text now says it may exist and tells users to verify it before relying on an off-device copy. Physical MediaStore success, failure visibility, and reinstall rediscovery remain unverified.
+
+### N-002 — Process death could leave no live database path during restore replacement
+
+**Severity:** High
+**Status:** Startup recovery added with three filesystem regressions; physical process-death test remains open.
+
+Restore stages and validates the replacement, closes the app database under the maintenance fence, then renames the live database to a timestamped `.previous` file before moving the staged file into place. In-process exceptions roll back, but process death in that narrow rename interval leaves the live path absent. The native database resolver would then let Drift create a new empty database and did not scan for the preserved prior file. Startup now restores the newest correctly named `.previous` file only when the live path is absent; it never replaces a live database, and ignores `.tmp`/malformed files. Three tests cover recovery, no-overwrite after successful installation, and unrelated files. The safety file remains preserved if recovery rename itself fails.
+
+### Current deep-pass test evidence
+
+- `flutter test test/remote/cloud_restore_coordinator_test.dart`: **8 passed**, including pending queue/conflict, business binding, owner/session mapping, and fresh-install owner cases.
+- `flutter test test/remote/cloud_restore_importer_test.dart`: **10 passed**, including staff/cashier ordering, money unit conversion, repeatability, malformed payload rejection, and snapshot-version rejection.
+- `flutter test test/remote/cross_device_employee_restore_test.dart`: **1 passed**.
+- `flutter test test/unit/backup_engine_test.dart`: **11 passed**.
+- `flutter test test/unit/database_restore_startup_recovery_test.dart`: **3 passed**.
+- Targeted Dart analysis for changed app and test files: **No issues found**.
+- Part M's broad `flutter test test/sync` is **278 passed, 1 skipped, 1 known Windows subprocess-harness failure**; see the Part M test record.
+
+Local native backup repository integration tests do not currently exercise actual filesystem staging, SQLite integrity rejection, MediaStore export, or rollback against a real app database. The new startup recovery test exercises the file selection/rename logic on temporary files, not Android process death. Supabase restore authorization was source-reviewed and covered by existing CI evidence; no local CLI/container or production mutation was used in this pass.
 
 No release-readiness conclusion is made from the source, local tests, and live API evidence recorded here.
