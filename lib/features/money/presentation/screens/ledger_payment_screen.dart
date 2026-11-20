@@ -36,7 +36,8 @@ class LedgerPaymentScreen extends StatefulWidget {
     required Money amount,
     required String paymentMethod,
     String? note,
-  }) onSubmit;
+  })
+  onSubmit;
 
   @override
   State<LedgerPaymentScreen> createState() => _LedgerPaymentScreenState();
@@ -52,9 +53,6 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.outstandingBalance > 0) {
-      _amountController.text = widget.outstandingBalance.toStringAsFixed(0);
-    }
   }
 
   @override
@@ -64,12 +62,15 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
     super.dispose();
   }
 
-  double? _parsedAmount() => double.tryParse(_amountController.text.replaceAll(',', '').trim());
+  double? _parsedAmount() =>
+      double.tryParse(_amountController.text.replaceAll(',', '').trim());
 
   Future<void> _submit() async {
     final amount = _parsedAmount();
     setState(() {
-      _amountError = amount == null || amount <= 0 ? "Amount can't be ${widget.currencySymbol}0" : null;
+      _amountError = amount == null || amount <= 0
+          ? "Amount can't be ${widget.currencySymbol}0"
+          : null;
     });
     if (_amountError != null) return;
     if (_paymentMethod == null) {
@@ -82,10 +83,15 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
       final result = await widget.onSubmit(
         amount: moneyFromMajor(amount!),
         paymentMethod: _paymentMethod!,
-        note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
       );
       if (mounted) {
-        ProviderScope.containerOf(context, listen: false).read(dataRefreshSignalProvider.notifier).state++;
+        ProviderScope.containerOf(
+          context,
+          listen: false,
+        ).read(dataRefreshSignalProvider.notifier).state++;
       }
       if (!mounted) return;
       if (result.excessAmount > 0) {
@@ -107,7 +113,10 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      showFulusSnackbar(context, message: "Couldn't record this. Please try again.");
+      showFulusSnackbar(
+        context,
+        message: "Couldn't record this. Please try again.",
+      );
     }
   }
 
@@ -121,7 +130,12 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
           final wide = constraints.maxWidth >= 760;
           final inset = wide ? AppSpacing.lg : AppSpacing.sm;
           return ListView(
-            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              AppSpacing.sm,
+              inset,
+              AppSpacing.xxl,
+            ),
             children: [
               Center(
                 child: ConstrainedBox(
@@ -142,22 +156,35 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
                                     shape: BoxShape.circle,
                                     color: AppColors.selectedTintOf(context),
                                   ),
-                                  child: Icon(Icons.payments_outlined, color: AppColors.primaryOf(context)),
+                                  child: Icon(
+                                    Icons.payments_outlined,
+                                    color: AppColors.primaryOf(context),
+                                  ),
                                 ),
                                 const SizedBox(width: AppSpacing.md),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         widget.counterpartyName,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                                        style: AppTypography.subheading
+                                            .copyWith(
+                                              color: AppColors.textPrimaryOf(
+                                                context,
+                                              ),
+                                            ),
                                       ),
                                       Text(
                                         widget.counterpartyLabel,
-                                        style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                                        style: AppTypography.caption.copyWith(
+                                          color: AppColors.textSecondaryOf(
+                                            context,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -167,17 +194,24 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
                             const SizedBox(height: AppSpacing.lg),
                             Text(
                               'Outstanding balance',
-                              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.xs),
                             FittedBox(
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                formatMoney(widget.outstandingBalance, symbol: widget.currencySymbol),
+                                formatMoney(
+                                  widget.outstandingBalance,
+                                  symbol: widget.currencySymbol,
+                                ),
                                 style: AppTypography.display.copyWith(
                                   color: AppColors.textPrimaryOf(context),
-                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
                                 ),
                               ),
                             ),
@@ -192,16 +226,36 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
                             FulusTextField(
                               label: 'Amount',
                               controller: _amountController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               hintText: '0.00',
                               errorText: _amountError,
                               suffixIcon: Padding(
-                                padding: const EdgeInsets.only(right: AppSpacing.lg),
-                                child: Align(widthFactor: 1, child: Text(widget.currencySymbol)),
+                                padding: const EdgeInsets.only(
+                                  right: AppSpacing.lg,
+                                ),
+                                child: Align(
+                                  widthFactor: 1,
+                                  child: Text(widget.currencySymbol),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              'Enter the amount received. Remaining balance: ${formatMoney(widget.outstandingBalance, symbol: widget.currencySymbol)}',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondaryOf(context),
                               ),
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            Text('Paid with', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                            Text(
+                              'Paid with',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                            ),
                             const SizedBox(height: AppSpacing.sm),
                             FulusChipRow(
                               children: [
@@ -209,12 +263,17 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
                                   FulusChip(
                                     label: method,
                                     selected: _paymentMethod == method,
-                                    onTap: () => setState(() => _paymentMethod = method),
+                                    onTap: () =>
+                                        setState(() => _paymentMethod = method),
                                   ),
                               ],
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            FulusTextField(label: 'Note (optional)', controller: _noteController, maxLines: 3),
+                            FulusTextField(
+                              label: 'Note (optional)',
+                              controller: _noteController,
+                              maxLines: 3,
+                            ),
                             const SizedBox(height: AppSpacing.xl),
                             FulusButton(
                               label: 'Save payment',

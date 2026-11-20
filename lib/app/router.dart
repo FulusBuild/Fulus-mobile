@@ -203,6 +203,7 @@ final appRouter = GoRouter(
       builder: (context, state, navigationShell) => _ShellGate(navigationShell: navigationShell),
       branches: [
         StatefulShellBranch(
+          observers: [CurrentScreenObserver(branch: 0)],
           routes: [
             GoRoute(
               path: '/',
@@ -246,6 +247,7 @@ final appRouter = GoRouter(
           ],
         ),
         StatefulShellBranch(
+          observers: [CurrentScreenObserver(branch: 1)],
           routes: [
             GoRoute(
               path: '/stock',
@@ -299,6 +301,7 @@ final appRouter = GoRouter(
           ],
         ),
         StatefulShellBranch(
+          observers: [CurrentScreenObserver(branch: 2)],
           routes: [
             GoRoute(
               path: '/sell',
@@ -322,6 +325,7 @@ final appRouter = GoRouter(
           ],
         ),
         StatefulShellBranch(
+          observers: [CurrentScreenObserver(branch: 3)],
           routes: [
             GoRoute(
               path: '/money',
@@ -455,6 +459,7 @@ final appRouter = GoRouter(
           ],
         ),
         StatefulShellBranch(
+          observers: [CurrentScreenObserver(branch: 4)],
           routes: [
             GoRoute(
               path: '/more',

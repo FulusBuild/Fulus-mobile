@@ -202,14 +202,7 @@ class _StockBody extends ConsumerWidget {
                 categoriesAsync.asData?.value ?? const <Category>[];
             final categoryById = {for (final c in categories) c.localId: c};
             final filtered = applyStockFilter(products, filter);
-            final lowStockCount = products
-                .where(
-                  (p) =>
-                      p.product.tracksStock &&
-                      p.isLowStock &&
-                      p.currentStock > 0,
-                )
-                .length;
+            final lowStockCount = products.where((p) => p.isLowStock).length;
             final outOfStock = outOfStockCount(products);
 
             if (products.isEmpty) {
@@ -248,36 +241,52 @@ class _StockBody extends ConsumerWidget {
                       inset,
                       AppSpacing.sm,
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: FulusActionTile(
-                            icon: FulusIcons.stockIn,
-                            art: FulusArt.stockIn,
-                            label: 'Stock In',
-                            onTap: () =>
-                                context.pushNamed('stockRecordMovement'),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: FulusActionTile(
-                            icon: FulusIcons.stockMovement,
-                            art: FulusArt.stockMovement,
-                            label: 'Movement',
-                            onTap: () => context.pushNamed('stockHistory'),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: FulusActionTile(
-                            icon: FulusIcons.category,
-                            art: FulusArt.category,
-                            label: 'Categories',
-                            onTap: () => context.pushNamed('stockCategories'),
-                          ),
-                        ),
-                      ],
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.maxWidth < 400 ? 2 : 3;
+                        final gap = AppSpacing.sm;
+                        final tileWidth =
+                            (constraints.maxWidth - gap * (columns - 1)) /
+                            columns;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            SizedBox(
+                              width: tileWidth,
+                              child: FulusActionTile(
+                                compact: true,
+                                icon: FulusIcons.stockIn,
+                                art: FulusArt.stockIn,
+                                label: 'Stock In',
+                                onTap: () =>
+                                    context.pushNamed('stockRecordMovement'),
+                              ),
+                            ),
+                            SizedBox(
+                              width: tileWidth,
+                              child: FulusActionTile(
+                                compact: true,
+                                icon: FulusIcons.stockMovement,
+                                art: FulusArt.stockMovement,
+                                label: 'Movement',
+                                onTap: () => context.pushNamed('stockHistory'),
+                              ),
+                            ),
+                            SizedBox(
+                              width: tileWidth,
+                              child: FulusActionTile(
+                                compact: true,
+                                icon: FulusIcons.category,
+                                art: FulusArt.category,
+                                label: 'Categories',
+                                onTap: () =>
+                                    context.pushNamed('stockCategories'),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),

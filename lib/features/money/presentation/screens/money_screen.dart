@@ -4,7 +4,8 @@ import 'package:fulus_mobile/core/money/money.dart';
 
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
+import '../../../../app/providers.dart'
+    show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/async_timeout.dart';
@@ -40,8 +41,10 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     _builtForPeriod = period;
     final user = ref.read(sessionProvider);
     final currentAuthUserId = user?.id ?? '';
-    final permissions = ref.read(sessionPermissionsProvider).value ?? const <Permission>{};
-    final canViewAllSales = user?.role == AuthRole.owner ||
+    final permissions =
+        ref.read(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canViewAllSales =
+        user?.role == AuthRole.owner ||
         permissions.contains(Permission.viewDashboardStats);
 
     _balanceFuture = repo.getAvailableBalance().withFulusLoadingTimeout();
@@ -49,16 +52,20 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     // as soon as its transaction read completes, without waiting for the
     // summary aggregation. Both reads start together and preserve the same
     // permission/location scoping.
-    _summaryFuture = repo.getSummary(
-      period,
-      currentAuthUserId: currentAuthUserId,
-      canViewAllSales: canViewAllSales,
-    ).withFulusLoadingTimeout();
-    _transactionsFuture = repo.getTransactions(
-      period,
-      currentAuthUserId: currentAuthUserId,
-      canViewAllSales: canViewAllSales,
-    ).withFulusLoadingTimeout();
+    _summaryFuture = repo
+        .getSummary(
+          period,
+          currentAuthUserId: currentAuthUserId,
+          canViewAllSales: canViewAllSales,
+        )
+        .withFulusLoadingTimeout();
+    _transactionsFuture = repo
+        .getTransactions(
+          period,
+          currentAuthUserId: currentAuthUserId,
+          canViewAllSales: canViewAllSales,
+        )
+        .withFulusLoadingTimeout();
   }
 
   Future<void> _refresh() async {
@@ -77,150 +84,188 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     final period = ref.watch(moneyPeriodProvider);
     if (_builtForPeriod != period) _load(period);
 
-    final currencySymbol =
-        ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return FulusScreen(
       title: 'Money',
       actions: [
-        FulusIconButton(icon: FulusIcons.history, tooltip: 'Money history', onPressed: () => context.pushNamed('moneyHistory')),
+        FulusIconButton(
+          icon: FulusIcons.history,
+          tooltip: 'Money history',
+          onPressed: () => context.pushNamed('moneyHistory'),
+        ),
       ],
       applyPadding: false,
       body: DefaultTextStyle.merge(
-        style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+        style: AppTypography.body.copyWith(
+          color: AppColors.textPrimaryOf(context),
+        ),
         child: SafeArea(
           child: RefreshIndicator(
-          onRefresh: _refresh,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final inset = fulusHorizontalInset(context);
-              final maxWidth =
-                  constraints.maxWidth >= 760 ? 1120.0 : double.infinity;
+            onRefresh: _refresh,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final inset = fulusHorizontalInset(context);
+                final maxWidth = constraints.maxWidth >= 760
+                    ? 1120.0
+                    : double.infinity;
 
-              return Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxWidth),
-                  child: ListView(
-                    physics: const ClampingScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(
-                      inset,
-                      AppSpacing.md,
-                      inset,
-                      AppSpacing.xxxl,
-                    ),
-                    children: [
-                      FutureBuilder<Money>(
-                        future: _balanceFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return _MoneyError(
-                              message: "Couldn't load your balance.",
-                              onRetry: _refresh,
-                            );
-                          }
-                          if (!snapshot.hasData) {
-                            return const FulusDelayedSkeleton(
-                              skeleton: _BalanceHeroSkeleton(),
-                            );
-                          }
-                          return _BalanceHero(
-                            balance: snapshot.data!,
-                            currencySymbol: currencySymbol,
-                          );
-                        },
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxWidth),
+                    child: ListView(
+                      physics: const ClampingScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(
+                        inset,
+                        AppSpacing.md,
+                        inset,
+                        AppSpacing.xxxl,
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      FutureBuilder<MoneySummary>(
-                        future: _summaryFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return _MoneyError(
-                              message: "Couldn't load this period's money data.",
-                              onRetry: _refresh,
+                      children: [
+                        FutureBuilder<Money>(
+                          future: _balanceFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return _MoneyError(
+                                message: "Couldn't load your balance.",
+                                onRetry: _refresh,
+                              );
+                            }
+                            if (!snapshot.hasData) {
+                              return const FulusDelayedSkeleton(
+                                skeleton: _BalanceHeroSkeleton(),
+                              );
+                            }
+                            return _BalanceHero(
+                              balance: snapshot.data!,
+                              currencySymbol: currencySymbol,
                             );
-                          }
-                          if (!snapshot.hasData) {
-                            return const FulusDelayedSkeleton(
-                              skeleton: FulusSkeletonBox(height: 112),
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        FutureBuilder<MoneySummary>(
+                          future: _summaryFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return _MoneyError(
+                                message:
+                                    "Couldn't load this period's money data.",
+                                onRetry: _refresh,
+                              );
+                            }
+                            if (!snapshot.hasData) {
+                              return const FulusDelayedSkeleton(
+                                skeleton: FulusSkeletonBox(height: 112),
+                              );
+                            }
+                            return _MoneyQuickActions(
+                              summary: snapshot.data!,
+                              currencySymbol: currencySymbol,
                             );
-                          }
-                          return _MoneyQuickActions(
-                            summary: snapshot.data!,
-                            currencySymbol: currencySymbol,
-                          );
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      const MoneyPeriodFilterBar(),
-                      const SizedBox(height: AppSpacing.xl),
-                      FulusSectionHeader(
-                        title: 'Recent activity',
-                        titleColor: AppColors.textPrimaryOf(context),
-                        subtitleColor: AppColors.textSecondaryOf(context),
-                        action: 'See all',
-                        onActionTap: () =>
-                            context.pushNamed('moneyHistory'),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      FutureBuilder<List<MoneyTransaction>>(
-                        future: _transactionsFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return _MoneyError(
-                              message: "Couldn't load recent activity.",
-                              onRetry: _refresh,
-                            );
-                          }
-                          if (!snapshot.hasData) {
-                            return const Column(
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        const MoneyPeriodFilterBar(),
+                        const SizedBox(height: AppSpacing.xl),
+                        FulusSectionHeader(
+                          title: 'Recent activity',
+                          titleColor: AppColors.textPrimaryOf(context),
+                          subtitleColor: AppColors.textSecondaryOf(context),
+                          action: 'See all',
+                          onActionTap: () => context.pushNamed('moneyHistory'),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        FutureBuilder<List<MoneyTransaction>>(
+                          future: _transactionsFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return _MoneyError(
+                                message: "Couldn't load recent activity.",
+                                onRetry: _refresh,
+                              );
+                            }
+                            if (!snapshot.hasData) {
+                              return const Column(
+                                children: [
+                                  FulusListRowSkeleton(),
+                                  FulusListRowSkeleton(),
+                                  FulusListRowSkeleton(),
+                                ],
+                              );
+                            }
+
+                            final transactions = snapshot.data!
+                                .take(5)
+                                .toList();
+                            if (transactions.isEmpty) {
+                              return const FulusEmptyState(
+                                icon: FulusIcons.receipt,
+                                headline: 'No activity yet',
+                                body:
+                                    'Sales, income, expenses, and payments you record will show up here.',
+                              );
+                            }
+
+                            return Column(
                               children: [
-                                FulusListRowSkeleton(),
-                                FulusListRowSkeleton(),
-                                FulusListRowSkeleton(),
-                              ],
-                            );
-                          }
-
-                          final transactions = snapshot.data!.take(5).toList();
-                          if (transactions.isEmpty) {
-                            return const FulusEmptyState(
-                              icon: FulusIcons.receipt,
-                              headline: 'No activity yet',
-                              body:
-                                  'Sales, income, expenses, and payments you record will show up here.',
-                            );
-                          }
-
-                          return Column(
-                            children: [
-                              for (var i = 0;
+                                for (
+                                  var i = 0;
                                   i < transactions.length;
-                                  i++) ...[
-                                if (i > 0) const FulusListDivider(),
-                                MoneyTransactionTile(
-                                  transaction: transactions[i],
-                                  currencySymbol: currencySymbol,
-                                  showDate: false,
-                                  onTap: () => context.pushNamed(
-                                    'moneyTransactionDetail',
-                                    pathParameters: {
-                                      'id': transactions[i].id,
-                                    },
-                                    extra: transactions[i],
+                                  i++
+                                ) ...[
+                                  if (i > 0) const FulusListDivider(),
+                                  MoneyTransactionTile(
+                                    transaction: transactions[i],
+                                    currencySymbol: currencySymbol,
+                                    showDate: false,
+                                    onTap: () => context.pushNamed(
+                                      'moneyTransactionDetail',
+                                      pathParameters: {
+                                        'id': transactions[i].id,
+                                      },
+                                      extra: transactions[i],
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        const FulusSectionHeader(title: 'More money tools'),
+                        FulusCard(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            children: [
+                              FulusListRow(
+                                leading: const Icon(FulusIcons.localShipping),
+                                title: const Text('Suppliers'),
+                                subtitle: const Text(
+                                  'Track supplier balances and payments',
+                                ),
+                                onTap: () =>
+                                    context.pushNamed('moneySuppliers'),
+                              ),
+                              const FulusListDivider(),
+                              FulusListRow(
+                                leading: const Icon(FulusIcons.money),
+                                title: const Text('Daily cash close'),
+                                subtitle: const Text(
+                                  'Count the drawer and review the difference',
+                                ),
+                                onTap: () =>
+                                    context.pushNamed('moneyDailyClosingCount'),
+                              ),
                             ],
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -286,6 +331,7 @@ class _BalanceHero extends StatelessWidget {
     );
   }
 }
+
 class _BalanceHeroSkeleton extends StatelessWidget {
   const _BalanceHeroSkeleton();
 
@@ -364,7 +410,11 @@ class _MoneyActionCell extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            FulusArtIcon(action.art, size: AppIconSize.large, semanticLabel: action.label),
+            FulusArtIcon(
+              action.art,
+              size: AppIconSize.large,
+              semanticLabel: action.label,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(
               action.label,
@@ -421,8 +471,7 @@ class _MoneyError extends StatelessWidget {
   Widget build(BuildContext context) {
     return FulusErrorState(
       message: message,
-      reassurance:
-          'Your recorded money data is still safe on this device.',
+      reassurance: 'Your recorded money data is still safe on this device.',
       onRetry: onRetry,
     );
   }

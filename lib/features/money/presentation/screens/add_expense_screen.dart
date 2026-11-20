@@ -11,7 +11,13 @@ import '../../../../shared/screens/photo_capture_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 
-const _kExpenseCategories = ['Rent', 'Utilities', 'Transport', 'Wages', 'Other'];
+const _kExpenseCategories = [
+  'Rent',
+  'Utilities',
+  'Transport',
+  'Wages',
+  'Other',
+];
 const _kExpensePaymentMethods = ['Cash', 'Mobile Money', 'Bank/Card'];
 
 /// Volume 8's Add Expense screen, field-for-field — Amount, a Category
@@ -42,28 +48,38 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     super.dispose();
   }
 
-  double? _parsedAmount() => double.tryParse(_amountController.text.replaceAll(',', '').trim());
+  double? _parsedAmount() =>
+      double.tryParse(_amountController.text.replaceAll(',', '').trim());
 
   Future<void> _submit() async {
     final amount = _parsedAmount();
     final currencySymbol = ref.read(moneyCurrencySymbolProvider).value ?? '₦';
     setState(() {
-      _amountError = amount == null || amount <= 0 ? "Amount can't be ${currencySymbol}0" : null;
+      _amountError = amount == null || amount <= 0
+          ? "Amount can't be ${currencySymbol}0"
+          : null;
     });
     if (_amountError != null || _category == null || _paymentMethod == null) {
       if (_category == null || _paymentMethod == null) {
-        showFulusSnackbar(context, message: 'Choose a category and how it was paid.');
+        showFulusSnackbar(
+          context,
+          message: 'Choose a category and how it was paid.',
+        );
       }
       return;
     }
 
     setState(() => _submitting = true);
     try {
-      await ref.read(moneyRepositoryProvider).recordExpense(
+      await ref
+          .read(moneyRepositoryProvider)
+          .recordExpense(
             amount: moneyFromMajor(amount!),
             category: _category!,
             paymentMethod: _paymentMethod!,
-            note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+            note: _noteController.text.trim().isEmpty
+                ? null
+                : _noteController.text.trim(),
             receiptPhotoPath: _receiptPhotoPath,
           );
       ref.read(dataRefreshSignalProvider.notifier).state++;
@@ -73,12 +89,18 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      showFulusSnackbar(context, message: "Couldn't record this expense. Please try again.");
+      showFulusSnackbar(
+        context,
+        message: "Couldn't record this expense. Please try again.",
+      );
     }
   }
 
   Future<void> _captureReceiptPhoto() async {
-    final path = await PhotoCaptureScreen.capture(context, title: 'Receipt photo');
+    final path = await PhotoCaptureScreen.capture(
+      context,
+      title: 'Receipt photo',
+    );
     if (path != null && mounted) setState(() => _receiptPhotoPath = path);
   }
 
@@ -94,7 +116,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final wide = constraints.maxWidth >= 760;
           final inset = wide ? AppSpacing.lg : AppSpacing.sm;
           return ListView(
-            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              AppSpacing.sm,
+              inset,
+              AppSpacing.xxl,
+            ),
             children: [
               Center(
                 child: ConstrainedBox(
@@ -110,9 +137,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               height: 48,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.warningOf(context).withValues(alpha: 0.10),
+                                color: AppColors.warningOf(
+                                  context,
+                                ).withValues(alpha: 0.10),
                               ),
-                              child: Icon(Icons.south_east_rounded, color: AppColors.warningOf(context)),
+                              child: Icon(
+                                Icons.south_east_rounded,
+                                color: AppColors.warningOf(context),
+                              ),
                             ),
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
@@ -121,12 +153,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 children: [
                                   Text(
                                     'Business expense',
-                                    style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                                    style: AppTypography.subheading.copyWith(
+                                      color: AppColors.textPrimaryOf(context),
+                                    ),
                                   ),
                                   const SizedBox(height: AppSpacing.xs),
                                   Text(
                                     'Choose the category and payment method to keep closing accurate.',
-                                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                                    style: AppTypography.caption.copyWith(
+                                      color: AppColors.textSecondaryOf(context),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -142,42 +178,71 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             FulusTextField(
                               label: 'Amount',
                               controller: _amountController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               hintText: '0.00',
                               errorText: _amountError,
                               suffixIcon: Padding(
-                                padding: const EdgeInsets.only(right: AppSpacing.lg),
-                                child: Align(widthFactor: 1, child: Text(currencySymbol)),
+                                padding: const EdgeInsets.only(
+                                  right: AppSpacing.lg,
+                                ),
+                                child: Align(
+                                  widthFactor: 1,
+                                  child: Text(currencySymbol),
+                                ),
                               ),
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            Text('Category', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                            Text(
+                              'Category',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                            ),
                             const SizedBox(height: AppSpacing.sm),
-                            FulusChipRow(
+                            Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
                               children: [
                                 for (final category in _kExpenseCategories)
                                   FulusChip(
                                     label: category,
                                     selected: _category == category,
-                                    onTap: () => setState(() => _category = category),
+                                    onTap: () =>
+                                        setState(() => _category = category),
                                   ),
                               ],
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            Text('Paid with', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                            Text(
+                              'Paid with',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                            ),
                             const SizedBox(height: AppSpacing.sm),
-                            FulusChipRow(
+                            Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
                               children: [
                                 for (final method in _kExpensePaymentMethods)
                                   FulusChip(
                                     label: method,
                                     selected: _paymentMethod == method,
-                                    onTap: () => setState(() => _paymentMethod = method),
+                                    onTap: () =>
+                                        setState(() => _paymentMethod = method),
                                   ),
                               ],
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            Text('Receipt photo (optional)', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                            Text(
+                              'Receipt photo (optional)',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                            ),
                             const SizedBox(height: AppSpacing.sm),
                             _ReceiptPhotoField(
                               path: _receiptPhotoPath,
@@ -186,7 +251,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               onRemove: _removeReceiptPhoto,
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            FulusTextField(label: 'Note (optional)', controller: _noteController, maxLines: 3),
+                            FulusTextField(
+                              label: 'Note (optional)',
+                              controller: _noteController,
+                              maxLines: 3,
+                            ),
                             const SizedBox(height: AppSpacing.xl),
                             FulusButton(
                               label: 'Save expense',
@@ -209,7 +278,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 }
 
 class _ReceiptPhotoField extends StatelessWidget {
-  const _ReceiptPhotoField({required this.path, required this.onAdd, required this.onRetake, required this.onRemove});
+  const _ReceiptPhotoField({
+    required this.path,
+    required this.onAdd,
+    required this.onRetake,
+    required this.onRemove,
+  });
 
   final String? path;
   final VoidCallback onAdd;
@@ -223,9 +297,19 @@ class _ReceiptPhotoField extends StatelessWidget {
         onTap: onAdd,
         child: Row(
           children: [
-            Icon(Icons.add_a_photo_outlined, color: AppColors.primaryOf(context)),
+            Icon(
+              Icons.add_a_photo_outlined,
+              color: AppColors.primaryOf(context),
+            ),
             const SizedBox(width: AppSpacing.md),
-            Expanded(child: Text('Add photo of receipt', style: AppTypography.body.copyWith(color: AppColors.primaryOf(context)))),
+            Expanded(
+              child: Text(
+                'Add photo of receipt',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.primaryOf(context),
+                ),
+              ),
+            ),
           ],
         ),
       );
@@ -235,12 +319,32 @@ class _ReceiptPhotoField extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Image.file(File(path!), width: 56, height: 56, fit: BoxFit.cover),
+            child: Image.file(
+              File(path!),
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
-          Expanded(child: Text('Receipt photo attached', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)))),
-          FulusIconButton(icon: Icons.refresh, tooltip: 'Retake', onPressed: onRetake),
-          FulusIconButton(icon: Icons.delete_outline, tooltip: 'Remove', onPressed: onRemove),
+          Expanded(
+            child: Text(
+              'Receipt photo attached',
+              style: AppTypography.body.copyWith(
+                color: AppColors.textPrimaryOf(context),
+              ),
+            ),
+          ),
+          FulusIconButton(
+            icon: Icons.refresh,
+            tooltip: 'Retake',
+            onPressed: onRetake,
+          ),
+          FulusIconButton(
+            icon: Icons.delete_outline,
+            tooltip: 'Remove',
+            onPressed: onRemove,
+          ),
         ],
       ),
     );

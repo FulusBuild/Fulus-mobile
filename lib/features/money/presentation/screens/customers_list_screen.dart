@@ -17,7 +17,8 @@ class CustomersListScreen extends ConsumerStatefulWidget {
   final bool openedFromMore;
 
   @override
-  ConsumerState<CustomersListScreen> createState() => _CustomersListScreenState();
+  ConsumerState<CustomersListScreen> createState() =>
+      _CustomersListScreenState();
 }
 
 class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
@@ -39,7 +40,11 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
         FulusIconButton(
           icon: FulusIcons.archive,
           tooltip: 'Archived customers',
-          onPressed: () => context.pushNamed(widget.openedFromMore ? 'moreArchivedCustomers' : 'moneyArchivedCustomers'),
+          onPressed: () => context.pushNamed(
+            widget.openedFromMore
+                ? 'moreArchivedCustomers'
+                : 'moneyArchivedCustomers',
+          ),
         ),
       ],
       body: customersAsync.when(
@@ -57,7 +62,8 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
         ),
         error: (error, stack) => FulusErrorState(
           message: "Couldn't load your customers.",
-          reassurance: 'Nothing on the credit book has been lost — this is only about showing the list right now.',
+          reassurance:
+              'Nothing on the credit book has been lost — this is only about showing the list right now.',
           onRetry: () => ref.invalidate(moneyCustomersProvider),
         ),
         data: (customers) {
@@ -72,34 +78,38 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
                     pinned: true,
                     delegate: _CustomerSearchHeader(
                       inset: inset,
-                      onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                      onChanged: (value) =>
+                          setState(() => _query = value.trim().toLowerCase()),
                     ),
                   ),
                   SliverPadding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+                    padding: EdgeInsets.fromLTRB(
+                      inset,
+                      AppSpacing.sm,
+                      inset,
+                      AppSpacing.xxl,
+                    ),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          if (filtered.isEmpty) {
-                            return const Padding(
-                              padding: EdgeInsets.all(AppSpacing.lg),
-                              child: Text('No customers match this view.'),
-                            );
-                          }
-                          final customer = filtered[index];
-                          return Column(
-                            children: [
-                              _CustomerRow(
-                                customer: customer,
-                                currencySymbol: currencySymbol,
-                                openedFromMore: widget.openedFromMore,
-                              ),
-                              if (index < filtered.length - 1) const FulusListDivider(),
-                            ],
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        if (filtered.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(AppSpacing.lg),
+                            child: Text('No customers match this view.'),
                           );
-                        },
-                        childCount: filtered.isEmpty ? 1 : filtered.length,
-                      ),
+                        }
+                        final customer = filtered[index];
+                        return Column(
+                          children: [
+                            _CustomerRow(
+                              customer: customer,
+                              currencySymbol: currencySymbol,
+                              openedFromMore: widget.openedFromMore,
+                            ),
+                            if (index < filtered.length - 1)
+                              const FulusListDivider(),
+                          ],
+                        );
+                      }, childCount: filtered.isEmpty ? 1 : filtered.length),
                     ),
                   ),
                 ],
@@ -122,7 +132,11 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
 }
 
 class _CustomerRow extends StatelessWidget {
-  const _CustomerRow({required this.customer, required this.currencySymbol, required this.openedFromMore});
+  const _CustomerRow({
+    required this.customer,
+    required this.currencySymbol,
+    required this.openedFromMore,
+  });
 
   final Customer customer;
   final String currencySymbol;
@@ -133,8 +147,12 @@ class _CustomerRow extends StatelessWidget {
     final outstanding = customer.outstandingBalance;
     return FulusListRow(
       leading: FulusAvatar(name: customer.name),
-      title: Text(customer.name),
-      subtitle: Text(customer.phone ?? 'No phone number'),
+      title: Text(customer.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        customer.phone ?? 'No phone number',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -152,7 +170,6 @@ class _CustomerRow extends StatelessWidget {
                 ),
               ),
             ),
-          
         ],
       ),
       onTap: () => context.pushNamed(
@@ -165,10 +182,7 @@ class _CustomerRow extends StatelessWidget {
 }
 
 class _CustomerSearchHeader extends SliverPersistentHeaderDelegate {
-  const _CustomerSearchHeader({
-    required this.inset,
-    required this.onChanged,
-  });
+  const _CustomerSearchHeader({required this.inset, required this.onChanged});
 
   final double inset;
   final ValueChanged<String> onChanged;
@@ -180,7 +194,11 @@ class _CustomerSearchHeader extends SliverPersistentHeaderDelegate {
   double get maxExtent => 64;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: AppColors.backgroundOf(context),
       padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),

@@ -22,27 +22,24 @@ class SyncStatus extends Equatable {
   const SyncStatus.disabled() : this._(kind: SyncStatusKind.disabled);
 
   const SyncStatus.cloudUnavailable()
-      : this._(kind: SyncStatusKind.cloudUnavailable);
+    : this._(kind: SyncStatusKind.cloudUnavailable);
 
   const SyncStatus.settled() : this._(kind: SyncStatusKind.settled);
 
   const SyncStatus.pending(int count)
-      : this._(kind: SyncStatusKind.pending, pendingCount: count);
+    : this._(kind: SyncStatusKind.pending, pendingCount: count);
 
   const SyncStatus.syncing(int pendingCount)
-      : this._(
-          kind: SyncStatusKind.syncing,
-          pendingCount: pendingCount,
-        );
+    : this._(kind: SyncStatusKind.syncing, pendingCount: pendingCount);
 
   const SyncStatus.attentionNeeded({
     required int attentionCount,
     required int pendingCount,
     int conflictCount = 0,
-  })  : kind = SyncStatusKind.attentionNeeded,
-        pendingCount = pendingCount,
-        attentionCount = attentionCount,
-        conflictCount = conflictCount;
+  }) : kind = SyncStatusKind.attentionNeeded,
+       pendingCount = pendingCount,
+       attentionCount = attentionCount,
+       conflictCount = conflictCount;
 
   final SyncStatusKind kind;
 
@@ -56,9 +53,13 @@ class SyncStatus extends Equatable {
   final int conflictCount;
 
   @override
-  List<Object?> get props => [kind, pendingCount, attentionCount, conflictCount];
+  List<Object?> get props => [
+    kind,
+    pendingCount,
+    attentionCount,
+    conflictCount,
+  ];
 }
-
 
 String cloudBackupLabel(SyncHealthSnapshot health, SyncStatusKind kind) {
   if (health.recoveryState == 'recovering') return 'Restoring';
@@ -69,11 +70,17 @@ String cloudBackupLabel(SyncHealthSnapshot health, SyncStatusKind kind) {
     SyncStatusKind.pending => 'Backup pending',
     SyncStatusKind.syncing => 'Backing up',
     SyncStatusKind.attentionNeeded => 'Needs attention',
-    SyncStatusKind.settled => health.lastPushAt != null && health.lastPullAt != null
-        ? 'Up to date'
-        : 'Waiting for first backup',
+    SyncStatusKind.settled =>
+      health.lastPushAt != null && health.lastPullAt != null
+          ? 'Up to date'
+          : 'Waiting for first backup',
   };
 }
+
+/// A cleared queue alone is not evidence that this device has ever completed
+/// an outbound backup. Keep the summary card consistent with Cloud health.
+bool isWaitingForFirstBackup(SyncHealthSnapshot health, SyncStatusKind kind) =>
+    kind == SyncStatusKind.settled && health.lastPushAt == null;
 
 class SyncHealthSnapshot extends Equatable {
   const SyncHealthSnapshot({
@@ -91,5 +98,11 @@ class SyncHealthSnapshot extends Equatable {
   final String? lastError;
 
   @override
-  List<Object?> get props => [lastPushAt, lastPullAt, cursor, recoveryState, lastError];
+  List<Object?> get props => [
+    lastPushAt,
+    lastPullAt,
+    cursor,
+    recoveryState,
+    lastError,
+  ];
 }
