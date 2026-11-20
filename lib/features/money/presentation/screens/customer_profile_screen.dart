@@ -10,6 +10,7 @@ import '../../../../shared/widgets/widgets.dart';
 import '../../domain/money_transaction.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
+import '../widgets/customer_duplicate_warning.dart';
 import '../widgets/customer_form_sheet.dart';
 
 /// Customer profile remains repository-backed and reactive. This pass only
@@ -144,31 +145,7 @@ class _ProfileBody extends ConsumerWidget {
                         if (customer.duplicateWarning != null &&
                             customer.duplicateWarning!.trim().isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.md),
-                          Container(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: AppColors.warningOf(context).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(
-                                color: AppColors.warningOf(context).withValues(alpha: 0.35),
-                              ),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(Icons.info_outline, color: AppColors.warningOf(context)),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: Text(
-                                    'Possible duplicate customer: ${customer.duplicateWarning}',
-                                    style: AppTypography.body.copyWith(
-                                      color: AppColors.textPrimaryOf(context),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          CustomerDuplicateWarning(message: customer.duplicateWarning!),
                         ],
                         const SizedBox(height: AppSpacing.lg),
                         const Divider(height: 1),
