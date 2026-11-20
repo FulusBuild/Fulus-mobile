@@ -403,9 +403,9 @@ begin
   new_return_id := (return_result->>'return_id')::uuid;
 
   select id into expected_sale_item_id
-  from public.sale_items
-  where sale_id=duplicate_sale_id
-  order by id
+  from public.sale_items sale_line
+  where sale_line.sale_id=duplicate_sale_id
+  order by sale_line.id
   limit 1;
   if not exists (
     select 1 from public.return_items ri
