@@ -1,6 +1,6 @@
 # Fulus Documentation Status
 
-**Inventory date:** 2026-11-19
+**Inventory date:** 2026-11-20
 **Canonical upkeep rules:** [`QA_MASTER_PLAN.md`](QA_MASTER_PLAN.md), section 7.
 
 This index prevents point-in-time audits from being mistaken for current verification. Historical records remain available because they contain unique evidence; no document was deleted in this review because exact duplication and lack of unique evidence were not established.
@@ -14,6 +14,7 @@ This index prevents point-in-time audits from being mistaken for current verific
 | `product-audit/PART-C-STAFF-ROLES-BUSINESS-LOCATION.md` | Current Part C audit, 2026-11-19 | Source and 67 focused automated tests pass; physical-device, QA mutation, and local Supabase SQL fixture scenarios remain open. |
 | `product-audit/PART-D-CATALOG-AND-PRODUCTS.md` | Current Part D audit, updated 2026-11-19 | CSV export and product validation widget coverage added; local migration tests, phone walkthrough, live QA sync, and safe orphan-image cleanup remain open. |
 | `product-audit/PART-E-INVENTORY-AND-SUPPLIERS.md` | Current Part E audit, updated 2026-11-19 | Stock rejection compensation is implemented and regression-tested; canonical supplier-ledger cloud support, local Supabase invariants, QA convergence, and phone walkthrough remain open. |
+| `product-audit/PART-F-SALES-AND-CHECKOUT.md` | Current Part F audit, 2026-11-20 | Focused mobile checkout suite passes; exact payment-total SQL guard is prepared but needs isolated Supabase execution, CI, and Android/offline-to-sync evidence. |
 | `../PLAN.md` | Engineering work plan; historical status text may be stale | Track engineering priorities here; verify each item against current code before execution. |
 | `testing/RUNTIME_PRODUCTION_EVIDENCE.md` | Active evidence process; individual workflow evidence is time-sensitive | Recheck the workflow and latest run before citing a pass. |
 | `INSTANT_UI_CONTRACT.md`, `architecture/FULUS_RELIABILITY_SLOS.md` | Current intended contracts/targets, not proof of implementation | Keep targets distinct from measured production behavior. |
@@ -32,6 +33,8 @@ This index prevents point-in-time audits from being mistaken for current verific
 - Updated: README readiness language and generated-code setup wording; engineering-plan relationship; deep-audit master-plan coordination; Part 20 production evidence warning.
 - Updated: QA master campaign status and documentation index with Part D; marked Part 08 catalog's superseded statements while retaining its historical evidence.
 - Updated: QA master campaign status and documentation index with Part E; clarified in README that supplier ledgers are device-local; retained historical Part 11/Part 10 findings and linked the current inventory report.
+- Updated: Part F report and campaign index; added an exact-cent payment equality guard migration and recorded the pending SQL/device evidence.
 - Updated: A-002 backup-discovery failure UX; D-004 widget coverage and D-006 CSV export; E-001 canonical stock reconciliation and the chosen business-wide supplier-ledger direction. D-005 and E-002 remain backend implementation gaps.
 - Added: product verification master plan and this status index.
 - Next sweep: revalidate the historical full readiness/instant UI/benchmark documents against the current commit, then update, supersede, or retain each with explicit evidence and links.
+
