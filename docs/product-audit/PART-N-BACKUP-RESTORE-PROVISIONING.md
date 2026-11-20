@@ -1,6 +1,6 @@
 # Part N — Backup, Restore, and Provisioning
 
-**Status:** Deep source audit complete; interrupted-restore startup recovery and honest backup-location wording are fixed in the current uncommitted worktree with regression coverage. Restore/importer suites pass. Fresh-install physical Android restore and process-death validation remain unverified.
+**Status:** Deep source audit complete; interrupted-restore startup recovery and honest backup-location wording are fixed in the PR #237 with regression coverage. Restore/importer suites pass. Fresh-install physical Android restore and process-death validation remain unverified.
 **Baseline:** `main` at `04403935748d3c36894480d62655a0b06585ddf0`
 **Audit branch:** `codex/part-mn-sync-restore`
 **Audit date:** 2026-11-20

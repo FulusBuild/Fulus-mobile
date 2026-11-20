@@ -1,6 +1,6 @@
 # Part M — Sync and Multi-Device
 
-**Status:** Deep source audit complete; two additional sync defects have source fixes and regressions in the current uncommitted worktree. The filtered-feed coordinator suite passes; the full sync suite has one known Windows subprocess-harness failure. New SQL migration contract awaits disposable Supabase CI. Physical Android convergence remains unverified.
+**Status:** Deep source audit complete; two additional sync defects have source fixes and regressions in the PR #237. The filtered-feed coordinator suite passes; the full sync suite has one known Windows subprocess-harness failure. New SQL migration contract awaits disposable Supabase CI. Physical Android convergence remains unverified.
 **Baseline:** `main` at `04403935748d3c36894480d62655a0b06585ddf0`
 **Audit branch:** `codex/part-mn-sync-restore`
 **Audit date:** 2026-11-20
@@ -100,6 +100,6 @@ The Edge Function scans location-scoped events in batches and can filter every r
 - `dart analyze lib/data/remote/fulus_sync_coordinator.dart test/sync/fulus_sync_coordinator_test.dart`: **No issues found**.
 - No local Supabase migration-chain test, Deno type-check, Android device test, or production backend mutation was performed. The new migration contract is wired into `.github/workflows/supabase-migrations.yml` for disposable CI.
 
-The prior baseline/CI evidence above this section is historical to its named PR/run. The M-002/M-003 changes need a fresh migration-chain run and full CI against their eventual commit before they can be called merged or deployed.
+The prior baseline/CI evidence above this section is historical to its named PR/run. The M-002/M-003 changes need a fresh migration-chain run and full CI against their current PR commit before they can be called merged or deployed.
 
 No release-readiness conclusion is made from this source, automated, and live-API evidence.
