@@ -141,6 +141,35 @@ class _ProfileBody extends ConsumerWidget {
                             ),
                           ],
                         ),
+                        if (customer.duplicateWarning != null &&
+                            customer.duplicateWarning!.trim().isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningOf(context).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(
+                                color: AppColors.warningOf(context).withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.info_outline, color: AppColors.warningOf(context)),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Text(
+                                    'Possible duplicate customer: ${customer.duplicateWarning}',
+                                    style: AppTypography.body.copyWith(
+                                      color: AppColors.textPrimaryOf(context),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: AppSpacing.lg),
                         const Divider(height: 1),
                         const SizedBox(height: AppSpacing.lg),

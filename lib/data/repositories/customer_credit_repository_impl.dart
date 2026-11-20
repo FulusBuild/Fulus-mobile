@@ -19,10 +19,14 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   final AppDatabase _db;
   final SyncQueue? _syncQueue;
 
-  Future<CustomerRow> _requireCustomer(String localId) async {
-    final row = await (_db.select(_db.customers)
-          ..where((c) => c.localId.equals(localId) & c.deletedAt.isNull()))
-        .getSingleOrNull();
+  Future<CustomerRow> _requireCustomer(
+    String localId, {
+    bool allowArchived = false,
+  }) async {
+    final query = _db.select(_db.customers)
+      ..where((c) => c.localId.equals(localId));
+    if (!allowArchived) query.where((c) => c.deletedAt.isNull());
+    final row = await query.getSingleOrNull();
     if (row == null) {
       throw ArgumentError.value(localId, 'customerLocalId', 'no such customer');
     }
@@ -74,7 +78,12 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   }) async {
     if (amount <= 0) throw ArgumentError.value(amount, 'amount', 'must be > 0');
     return _db.transaction(() async {
-      final customer = await _requireCustomer(customerLocalId);
+      // An archived customer can still owe money. Repayment is a financial
+      // event against the retained account, not a reactivation of it.
+      final customer = await _requireCustomer(
+        customerLocalId,
+        allowArchived: true,
+      );
       final effect = engine.computeRepaymentEffect(currentBalance: customer.outstandingBalance, repaymentAmount: amount);
       final now = DateTime.now();
       await (_db.update(_db.customers)..where((c) => c.localId.equals(customerLocalId))).write(
@@ -110,7 +119,11 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   }) async {
     if (amount <= 0) throw ArgumentError.value(amount, 'amount', 'must be > 0');
     return _db.transaction(() async {
-      final customer = await _requireCustomer(customerLocalId);
+      // A return may reverse credit after the customer has been archived.
+      final customer = await _requireCustomer(
+        customerLocalId,
+        allowArchived: true,
+      );
       final effect = engine.computeRepaymentEffect(currentBalance: customer.outstandingBalance, repaymentAmount: amount);
       final now = DateTime.now();
       await (_db.update(_db.customers)..where((c) => c.localId.equals(customerLocalId))).write(

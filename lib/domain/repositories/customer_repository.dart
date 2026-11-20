@@ -52,6 +52,7 @@ abstract class CustomerRepository {
     String? address,
     String? notes,
     required Money outstandingBalance,
+    Money? creditLimit,
     String? duplicateWarning,
     String? locationId,
     required DateTime updatedAt,
