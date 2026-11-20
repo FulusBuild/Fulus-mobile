@@ -1,6 +1,6 @@
 # Part H — Customers and Credit
 
-**Status:** Source fixes implemented; focused mobile verification and disposable Supabase workflow #875 passed; device/runtime evidence pending
+**Status:** H-001–H-003 source findings fixed; local focused tests, Supabase migration CI, full Flutter CI, live sync, and multi-device CI passed; physical-device/runtime evidence pending
 **Baseline:** `main` at `1383627c58edd8fe4d668951a841444fa94c2642`
 **Working branch:** `codex/part-h-customers-credit`
 **Audit date:** 2026-11-20
@@ -56,13 +56,12 @@ Exact commands:
 
 The five repository/sync test files passed **42 tests, 0 failures, 0 skips**. The duplicate-warning widget regression passed **1 test**. Targeted Dart analysis for customer repositories, canonical reconciliation, entity/interface, profile, warning widget, and tests reported no issues. Build runner completed successfully; it updated generated code locally. Dependency resolution also changed `pubspec.lock`, which was restored and excluded from the Part H commit. The first test attempt ran before code generation had completed and failed to load generated Drift files; a later combined attempt also used one nonexistent test path and exposed the legacy nullable-money case. Those were corrected; the final exact suites above passed.
 
-For commit `ae4da312462932ab0a5d47e5166b5641b1542b7b`, Fulus Mobile CI **#5094** passed static analysis and **1,114 Flutter tests with 1 skipped**. Its live sync, debug/release APK, and multi-device jobs were skipped by the workflow, so that run provides no device or live-backend behavior evidence.
+For the Part H implementation, Fulus Mobile CI **#5094** passed static analysis and **1,114 Flutter tests with 1 skipped**. Follow-up PR **#235** added the warning widget regression; its complete CI run **44741737242** passed Flutter tests, static analysis, the live sync contract, and the multi-device convergence workflow. Debug/release APK jobs were skipped, so Android screen refresh timing remains unverified.
 
 The SQL regression is added to `supabase/tests/customer_repayment.sql`. Fulus Supabase Migration Chain workflow **#875 passed** from a clean schema, including this customer repayment contract and the repository’s security invariant checks. Docker and the Supabase CLI are absent in this Windows environment, so this evidence came from GitHub’s disposable CI environment. Production Supabase and real business accounts were not used for mutation testing.
 
 ## Evidence gaps and next actions
 
-- Recheck Fulus Mobile CI and the migration chain against the final PR head after any follow-up commit.
 - Verify on Android that a sync-completed duplicate warning appears after revisiting or refreshing an already-open customer profile.
 - Walk through add/edit/archive/restore, credit sale, repayment, overpayment, and credit return on the TECNO KI5k using a designated synthetic QA business.
 - Exercise offline repayment → process restart → reconnect → one canonical balance and ledger event, plus concurrent repayments from two devices.
