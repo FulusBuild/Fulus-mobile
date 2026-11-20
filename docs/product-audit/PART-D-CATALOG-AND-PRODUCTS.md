@@ -1,6 +1,6 @@
 # Part D — Catalog and Products
 
-**Status:** Source audit and focused local automated checks complete; device walkthrough, live mutation/convergence, and migration execution remain open  
+**Status:** Source fixes and focused local automated checks complete; device walkthrough, live mutation/convergence, and migration execution remain open
 **Audit date:** 2026-11-19  
 **Repository:** FulusBuild/Fulus-mobile  
 **PR baseline:** current main at e7f8ccad6c89877fb68a5b8edfdbce693d760414  
@@ -21,7 +21,7 @@ Evidence layers are kept separate below. No real product, inventory, category, o
 
 ### D-001 — CSV SKU validation disagreed with uniqueness constraints
 
-**Severity:** Medium  
+**Severity:** Medium
 **Status:** Fixed in source; regression tests pass.
 
 CSV prevalidation compared SKU strings case-sensitively, while the local repository and both local/cloud unique indexes compare SKU case-insensitively within a location. A CSV row such as rice-5kg could pass review against existing RICE-5KG, then fail during persistence. Case-variant duplicates within one file could also pass preview.
@@ -32,7 +32,7 @@ CSV prevalidation compared SKU strings case-sensitively, while the local reposit
 
 ### D-002 — Product stock-tracking choice was not canonical
 
-**Severity:** Medium  
+**Severity:** Medium
 **Status:** Mobile source and migration prepared; production migration not applied.
 
 tracks_stock already existed in Postgres and the local schema, but product create/update payloads and canonical reconciliation omitted it. Disabling stock tracking on one device could therefore revert to the server default on another device or after a pull.
@@ -43,7 +43,7 @@ tracks_stock already existed in Postgres and the local schema, but product creat
 
 ### D-003 — Cloud barcode uniqueness was not enforced
 
-**Severity:** Medium  
+**Severity:** Medium
 **Status:** Migration prepared; production migration not applied.
 
 The local repository and SQLite enforce one nonblank barcode per active product/location. The deployed Postgres schema had only a non-unique barcode lookup index, so two devices could concurrently create products with the same barcode and both cloud writes could succeed.
@@ -54,25 +54,29 @@ The local repository and SQLite enforce one nonblank barcode per active product/
 
 ### D-004 — Invalid optional product numbers silently became defaults
 
-**Severity:** Medium  
-**Status:** Source fix made; widget-level behavior test remains open.
+**Severity:** Medium
+**Status:** Fixed in source; widget validation regression passes.
 
 The add/edit screen turned an invalid cost into zero, an invalid threshold into 10, and invalid starting stock into zero. This could silently save a different catalog or inventory value than the user entered. The form also accepted a non-finite selling-price parse as valid.
 
 **Fix:** Reject non-finite/negative cost and selling prices, and invalid/negative whole-number thresholds or starting stock with field errors. When stock tracking is disabled, starting stock is not seeded.
 
-**Verification:** The scoped Flutter analyzer, including `test/sync/sale_sync_handler_test.dart`, found no issues. CI initially exposed four sale-sync test fixtures missing the new required stock-tracking flag; the fixtures now explicitly use `tracksStock: true`. The focused catalog tests do not include a widget interaction test for these form errors.
+**Verification:** A widget test enters invalid cost, threshold, and starting stock values and verifies field errors. Targeted Flutter analysis reports no issues.
 
 ### D-005 — Replacing or clearing photos leaves old public objects
 
-**Severity:** Observation; no cleanup change made.
+**Severity:** Medium; cleanup implementation remains open.
 
-Uploads use immutable timestamped object paths. Product edits can replace/clear photo_path, but the client does not delete the previous object; the current Storage policy permits catalog-manager inserts, not deletes. The bucket is public for reads. Old objects can accumulate and remain accessible at their previous URLs. A cleanup design needs a narrowly authorized server-side deletion path and retention decision; granting broad client delete access would undermine the current Storage boundary.
+Uploads use immutable timestamped object paths. Product edits can replace/clear photo_path, but the client does not delete the previous object; the current Storage policy permits catalog-manager inserts, not deletes. The bucket is public for reads. Old objects can accumulate and remain accessible at their previous URLs. **Decision:** keep the insert-only client policy and implement a server-authorized collector that deletes only unreferenced product images older than a 30-day grace period. Keep soft-deleted product references protected. No server cleanup path was added because the local Supabase stack is unavailable for validation.
 
-### D-006 — No product catalog export path found
+### D-006 — Product catalog had no export path
 
-**Severity:** Observation / product requirement confirmation  
-**Status:** No export screen, route, or implementation was found in the reviewed repository search. CSV import is implemented. Product export was not exercised; confirm whether export is intended for a later part or should be added to the product scope.
+**Severity:** Medium
+**Status:** CSV export implemented; automated serialization regression passes.
+
+**Fix:** Stock actions now export the current location's products as a CSV containing catalog identifiers, price, stock, unit, threshold, and stock-tracking flag. Monetary values use major-unit decimal representation and the existing CSV serializer handles spreadsheet formula escaping. The export uses the existing platform share service.
+
+**Verification:** `product_catalog_csv_test.dart` verifies the stable header and row values. Android share-sheet behavior remains unverified on a physical phone.
 
 ## Trace notes
 
@@ -103,6 +107,8 @@ Exact command (PowerShell; Git safe-directory environment variables scoped to th
 
 **Result:** 105 tests passed; 0 failed; 0 skipped; approximately 20 seconds. This is local automated evidence, not end-to-end, phone, or live backend mutation evidence.
 
+**Follow-up UI regression coverage:** `test/features/stock/add_edit_product_validation_test.dart` verifies invalid cost, threshold, and initial-stock errors; `test/domain/usecases/product_catalog_csv_test.dart` verifies product CSV header/row values. Both passed in the 63-test expanded suite recorded in [Part E](PART-E-INVENTORY-AND-SUPPLIERS.md).
+
 **Generation:** flutter pub run build_runner build succeeded (519 outputs on the incremental run). Drift emitted existing duplicate-reference-name warnings for stockMovementsRefs and userPermissionsRefs. Generated outputs are ignored and not part of the change.
 
 ## Remaining verification
@@ -111,8 +117,8 @@ Exact command (PowerShell; Git safe-directory environment variables scoped to th
 - No local Supabase CLI, Docker, or psql executable was available in this environment, so migration-chain execution was not possible here.
 - Verify cloud product create/update and two-device canonical convergence with a designated QA business, including barcode uniqueness rejection and tracks_stock=false.
 - Walk the product/category/import/photo flows on a physical Android phone; record Android/API/build and permission outcomes. Camera, barcode scanner, file picker, offline/restart, and upload retry were not device-tested.
-- Exercise import against synthetic data for duplicate/race/failure cases. Confirm product-export requirements.
-- Decide whether to implement safe orphan-photo cleanup and how long old public URLs should remain accessible.
+- Exercise import/export against synthetic data on Android, including the platform share sheet and duplicate/race/failure cases.
+- Implement the decided 30-day server-side orphan-photo collection and verify it against a local Supabase stack; preserve objects still referenced by active or archived products.
 - This evidence does not establish release readiness or suitability for millions of users.
 
 ## Documentation disposition
