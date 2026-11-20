@@ -1,6 +1,6 @@
 # Part H — Customers and Credit
 
-**Status:** Source fixes implemented; focused mobile verification passed; disposable Supabase workflow and device/runtime evidence pending
+**Status:** Source fixes implemented; focused mobile verification and disposable Supabase workflow #875 passed; device/runtime evidence pending  
 **Baseline:** `main` at `1383627c58edd8fe4d668951a841444fa94c2642`
 **Working branch:** `codex/part-h-customers-credit`
 **Audit date:** 2026-11-20
@@ -21,7 +21,7 @@ Archive preserves the customer and credit history. The profile remains accessibl
 ### H-001 — Archived customers could not repay retained credit
 
 **Severity:** Medium
-**Status:** Fixed in source and regression coverage; disposable migration-chain verification pending.
+**Status:** Fixed in source; local and disposable migration-chain regressions pass.
 
 The profile exposed “Record repayment” for archived records, while the local credit repository and cloud `record_customer_repayment` mutation rejected inactive customers. An archived business customer could therefore retain a debt that the app appeared to let staff collect but could not record.
 
@@ -53,13 +53,15 @@ Exact commands:
 & 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\dart.bat' analyze lib/data/repositories/customer_credit_repository_impl.dart lib/data/repositories/customer_repository_impl.dart lib/data/remote/fulus_customer_canonical_reconciler.dart lib/domain/entities/customer.dart lib/domain/repositories/customer_repository.dart lib/features/money/presentation/screens/customer_profile_screen.dart test/repository/customer_credit_repository_test.dart test/repository/customer_repository_test.dart test/sync/fulus_customer_canonical_reconciler_test.dart
 ```
 
-The focused test command passed **42 tests, 0 failures, 0 skips**. Targeted Dart analysis reported no issues. Build runner completed successfully; it updated generated code locally. `pubspec.lock` changed during dependency resolution and must not be included unless the final review proves it belongs to Part H. The first test attempt ran before code generation had completed and failed to load generated Drift files; a later combined attempt also used one nonexistent test path and exposed the legacy nullable-money case. Those were corrected; the final exact suite above passed.
+The focused test command passed **42 tests, 0 failures, 0 skips**. Targeted Dart analysis reported no issues. Build runner completed successfully; it updated generated code locally. Dependency resolution also changed `pubspec.lock`, which was restored and excluded from the Part H commit. The first test attempt ran before code generation had completed and failed to load generated Drift files; a later combined attempt also used one nonexistent test path and exposed the legacy nullable-money case. Those were corrected; the final exact suite above passed.
 
-The SQL regression is added to `supabase/tests/customer_repayment.sql`, and the migration is included in the repository’s disposable migration-chain workflow. It has **not yet run**: Docker and the Supabase CLI are absent in this Windows environment. Production Supabase and real business accounts were not used for mutation testing.
+For commit `ae4da312462932ab0a5d47e5166b5641b1542b7b`, Fulus Mobile CI **#5094** passed static analysis and **1,114 Flutter tests with 1 skipped**. Its live sync, debug/release APK, and multi-device jobs were skipped by the workflow, so that run provides no device or live-backend behavior evidence.
+
+The SQL regression is added to `supabase/tests/customer_repayment.sql`. Fulus Supabase Migration Chain workflow **#875 passed** from a clean schema, including this customer repayment contract and the repository’s security invariant checks. Docker and the Supabase CLI are absent in this Windows environment, so this evidence came from GitHub’s disposable CI environment. Production Supabase and real business accounts were not used for mutation testing.
 
 ## Evidence gaps and next actions
 
-- Run the migration-chain workflow on this branch and confirm the archived-customer SQL regression, full migration sequence, and security invariants pass.
+- Recheck Fulus Mobile CI and the migration chain against the final PR head after any follow-up commit.
 - Add widget coverage for the duplicate-warning callout and verify the warning refresh behavior after sync.
 - Walk through add/edit/archive/restore, credit sale, repayment, overpayment, and credit return on the TECNO KI5k using a designated synthetic QA business.
 - Exercise offline repayment → process restart → reconnect → one canonical balance and ledger event, plus concurrent repayments from two devices.
