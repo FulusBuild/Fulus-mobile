@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../core/money/money.dart';
+import '../../core/errors/failure.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/return_request.dart';
@@ -10,15 +11,16 @@ import '../local/database/database.dart';
 import '../local/database/tables.dart';
 import '../../sync/sync_queue.dart';
 import 'return_mapper.dart';
+import 'sale_mapper.dart';
 
 class ReturnRepositoryImpl implements ReturnRepository {
   ReturnRepositoryImpl({
     required AppDatabase db,
     required SyncQueue syncQueue,
     required CustomerCreditRepository customerCreditRepository,
-  })  : _db = db,
-        _syncQueue = syncQueue,
-        _customerCreditRepository = customerCreditRepository;
+  }) : _db = db,
+       _syncQueue = syncQueue,
+       _customerCreditRepository = customerCreditRepository;
 
   final AppDatabase _db;
   final SyncQueue _syncQueue;
@@ -34,59 +36,57 @@ class ReturnRepositoryImpl implements ReturnRepository {
   /// return frees its claimed quantity back up; pending/approved/
   /// completed ones don't.
   Future<bool> _isSaleInActiveLocation(String saleLocalId) async {
-    final session = await (_db.select(_db.sessions)
-          ..where((row) => row.id.equals('current')))
-        .getSingleOrNull();
+    final session = await (_db.select(
+      _db.sessions,
+    )..where((row) => row.id.equals('current'))).getSingleOrNull();
     if (session == null || session.activeLocationId == null) return false;
-    final sale = await (_db.select(_db.sales)
-          ..where((row) => row.localId.equals(saleLocalId)))
-        .getSingleOrNull();
+    final sale = await (_db.select(
+      _db.sales,
+    )..where((row) => row.localId.equals(saleLocalId))).getSingleOrNull();
     return sale != null && sale.locationId == session.activeLocationId;
   }
 
   Future<void> _requireSaleInActiveLocation(String saleLocalId) async {
     if (!await _isSaleInActiveLocation(saleLocalId)) {
-      throw StateError('Returns are restricted to sales in the active location.');
+      throw StateError(
+        'Returns are restricted to sales in the active location.',
+      );
     }
   }
 
-  Future<
-      ({
-        Map<String, ({int quantity, Money totalLineAmount})> purchased,
-        Map<String, int> alreadyClaimed,
-      })> _purchasedAndClaimed(String originalSaleLocalId) async {
+  Future<({Map<String, int> purchased, Map<String, int> alreadyClaimed})>
+  _purchasedAndClaimed(String originalSaleLocalId) async {
     await _requireSaleInActiveLocation(originalSaleLocalId);
-    final itemRows = await (_db.select(_db.saleItems)
-          ..where((i) => i.saleLocalId.equals(originalSaleLocalId)))
-        .get();
+    final itemRows = await (_db.select(
+      _db.saleItems,
+    )..where((i) => i.saleLocalId.equals(originalSaleLocalId))).get();
 
-    final purchased = <String, ({int quantity, Money totalLineAmount})>{};
+    final purchased = <String, int>{};
     for (final row in itemRows) {
       final productId = row.productLocalId;
       // Quick Sale lines (Volume 5) were never catalog stock — nothing
       // for a return to restore or claim against.
       if (productId == null) continue;
-      final existing = purchased[productId];
-      purchased[productId] = (
-        quantity: (existing?.quantity ?? 0) + row.quantity,
-        totalLineAmount:
-            (existing?.totalLineAmount ?? 0) + row.quantity * row.unitPrice,
+      purchased.update(
+        productId,
+        (quantity) => quantity + row.quantity,
+        ifAbsent: () => row.quantity,
       );
     }
 
-    final priorReturnRows = await (_db.select(_db.returnRequests)
-          ..where(
-            (r) =>
-                r.originalSaleLocalId.equals(originalSaleLocalId) &
-                r.status.equals(ReturnStatus.rejected.name).not(),
-          ))
-        .get();
+    final priorReturnRows =
+        await (_db.select(_db.returnRequests)..where(
+              (r) =>
+                  r.originalSaleLocalId.equals(originalSaleLocalId) &
+                  r.status.equals(ReturnStatus.rejected.name).not(),
+            ))
+            .get();
 
     final alreadyClaimed = <String, int>{};
     for (final returnRow in priorReturnRows) {
-      final itemRows = await (_db.select(_db.returnItems)
-            ..where((i) => i.returnLocalId.equals(returnRow.localId)))
-          .get();
+      final itemRows = await (_db.select(
+        _db.returnItems,
+      )..where((i) => i.returnLocalId.equals(returnRow.localId))).get();
       for (final item in itemRows) {
         alreadyClaimed[item.productLocalId] =
             (alreadyClaimed[item.productLocalId] ?? 0) + item.quantity;
@@ -96,33 +96,17 @@ class ReturnRepositoryImpl implements ReturnRepository {
     return (purchased: purchased, alreadyClaimed: alreadyClaimed);
   }
 
-  /// Backend: `unit_price = info["total"] / info["qty"]` inside
-  /// `create_return` — a *weighted average* across every line for this
-  /// product within the sale, not a single line's price. Needed because
-  /// the same product can appear more than once in a sale at different
-  /// effective prices (a per-line discount on one appearance but not
-  /// another, or a manually overridden `unitPrice` on one line), and a
-  /// return doesn't ask which specific line a returned unit came from —
-  /// this is the fairest single price to refund at across all of them.
-  Money _weightedAveragePrice({
-    required Money totalLineAmount,
-    required int totalQuantity,
-  }) {
-    if (totalQuantity == 0) return 0;
-    return (totalLineAmount / totalQuantity).round();
-  }
-
   Future<List<ReturnItem>> _itemsForReturn(String returnLocalId) async {
-    final rows = await (_db.select(_db.returnItems)
-          ..where((i) => i.returnLocalId.equals(returnLocalId)))
-        .get();
+    final rows = await (_db.select(
+      _db.returnItems,
+    )..where((i) => i.returnLocalId.equals(returnLocalId))).get();
     return rows.map((r) => r.toDomain()).toList();
   }
 
   Future<ReturnRequestRow> _requireReturnRow(String localId) async {
-    final row = await (_db.select(_db.returnRequests)
-          ..where((r) => r.localId.equals(localId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.returnRequests,
+    )..where((r) => r.localId.equals(localId))).getSingleOrNull();
     if (row == null) {
       throw ArgumentError.value(localId, 'returnLocalId', 'no such return');
     }
@@ -138,9 +122,9 @@ class ReturnRepositoryImpl implements ReturnRepository {
       final claimed = data.alreadyClaimed[entry.key] ?? 0;
       return ReturnEligibilityLine(
         productLocalId: entry.key,
-        purchasedQuantity: entry.value.quantity,
+        purchasedQuantity: entry.value,
         alreadyReturned: claimed,
-        remainingReturnable: entry.value.quantity - claimed,
+        remainingReturnable: entry.value - claimed,
       );
     }).toList();
   }
@@ -170,48 +154,102 @@ class ReturnRepositoryImpl implements ReturnRepository {
 
     final data = await _purchasedAndClaimed(originalSaleLocalId);
 
-    var refundAmount = 0;
+    final requestedQuantities = <String, int>{};
     for (final requested in items) {
       if (requested.quantity <= 0) {
-        throw ArgumentError.value(requested.quantity, 'quantity', 'must be > 0');
+        throw ArgumentError.value(
+          requested.quantity,
+          'quantity',
+          'must be > 0',
+        );
       }
-      final info = data.purchased[requested.productLocalId];
-      final claimed = data.alreadyClaimed[requested.productLocalId] ?? 0;
+      requestedQuantities.update(
+        requested.productLocalId,
+        (quantity) => quantity + requested.quantity,
+        ifAbsent: () => requested.quantity,
+      );
+    }
+
+    for (final requested in requestedQuantities.entries) {
+      final info = data.purchased[requested.key];
+      final claimed = data.alreadyClaimed[requested.key] ?? 0;
 
       // Backend's two rejection checks, same order: not part of the
       // sale at all, then exceeds what's still eligible.
-      if (info == null || info.quantity == 0) {
+      if (info == null || info == 0) {
         throw ArgumentError.value(
-          requested.productLocalId,
+          requested.key,
           'productLocalId',
           'was not part of the original sale',
         );
       }
-      final remaining = info.quantity - claimed;
-      if (requested.quantity > remaining) {
+      final remaining = info - claimed;
+      if (requested.value > remaining) {
         throw ArgumentError(
-          'Cannot return ${requested.quantity} unit(s) of '
-          '${requested.productLocalId} — only $remaining unit(s) remain '
+          'Cannot return ${requested.value} unit(s) of '
+          '${requested.key} — only $remaining unit(s) remain '
           'eligible for return on this sale.',
         );
       }
+    }
 
-      final unitPrice = _weightedAveragePrice(
-        totalLineAmount: info.totalLineAmount,
-        totalQuantity: info.quantity,
-      );
-      refundAmount += unitPrice * requested.quantity;
+    final saleRow =
+        await (_db.select(_db.sales)
+              ..where((sale) => sale.localId.equals(originalSaleLocalId)))
+            .getSingleOrNull();
+    if (saleRow == null) throw StateError('Original sale not found.');
+    final saleItems = await (_db.select(
+      _db.saleItems,
+    )..where((item) => item.saleLocalId.equals(originalSaleLocalId))).get();
+    final sale = saleRow.toDomain(saleItems);
+    final refundAmount = sale.refundAmountFor(requestedQuantities);
+
+    if (refundMethod.trim().toLowerCase() == 'credit') {
+      final customerLocalId = sale.customerId;
+      if (customerLocalId == null) {
+        throw const BusinessRuleFailure(
+          'An account-credit refund requires a customer on the original sale.',
+        );
+      }
+      final paymentRows = await (_db.select(
+        _db.salePayments,
+      )..where((payment) => payment.saleLocalId.equals(sale.localId))).get();
+      final creditPayments = paymentRows
+          .where((payment) => payment.method.trim().toLowerCase() == 'credit')
+          .toList();
+      final creditExtended = creditPayments.isNotEmpty
+          ? creditPayments.fold<Money>(
+              0,
+              (sum, payment) => sum + payment.amount,
+            )
+          : ((sale.total - sale.amountPaid) > 0
+                ? sale.total - sale.amountPaid
+                : 0);
+      final customer = await (_db.select(
+        _db.customers,
+      )..where((row) => row.localId.equals(customerLocalId))).getSingleOrNull();
+      final outstandingBalance = customer?.outstandingBalance ?? 0;
+      if (creditExtended <= 0 || outstandingBalance <= 0) {
+        throw const BusinessRuleFailure(
+          'Account-credit refunds require an outstanding credit sale balance.',
+        );
+      }
+      if (refundAmount > creditExtended || refundAmount > outstandingBalance) {
+        throw const BusinessRuleFailure(
+          'The refund exceeds the outstanding account-credit balance.',
+        );
+      }
     }
 
     final now = DateTime.now();
     final returnLocalId = Ulid().toString();
-    final returnItems = items
+    final returnItems = requestedQuantities.entries
         .map(
-          (r) => ReturnItem(
+          (entry) => ReturnItem(
             localId: Ulid().toString(),
             returnLocalId: returnLocalId,
-            productLocalId: r.productLocalId,
-            quantity: r.quantity,
+            productLocalId: entry.key,
+            quantity: entry.value,
           ),
         )
         .toList();
@@ -234,7 +272,9 @@ class ReturnRepositoryImpl implements ReturnRepository {
     // atomically; syncing a still-pending local approval would make the two
     // devices disagree about whether the return exists.
     await _db.transaction(() async {
-      await _db.into(_db.returnRequests).insert(returnRequest.toDriftCompanion());
+      await _db
+          .into(_db.returnRequests)
+          .insert(returnRequest.toDriftCompanion());
       for (final item in returnItems) {
         await _db.into(_db.returnItems).insert(item.toDriftCompanion());
       }
@@ -255,9 +295,9 @@ class ReturnRepositoryImpl implements ReturnRepository {
     if (reason.trim().isEmpty) {
       throw ArgumentError.value(reason, 'reason', 'is required');
     }
-    final saleRow = await (_db.select(_db.sales)
-          ..where((s) => s.localId.equals(saleLocalId)))
-        .getSingleOrNull();
+    final saleRow = await (_db.select(
+      _db.sales,
+    )..where((s) => s.localId.equals(saleLocalId))).getSingleOrNull();
     if (saleRow == null) {
       throw ArgumentError.value(saleLocalId, 'saleLocalId', 'no such sale');
     }
@@ -279,14 +319,22 @@ class ReturnRepositoryImpl implements ReturnRepository {
       );
     }
 
+    const supportedRefundMethods = {'cash', 'card', 'mobile_money', 'credit'};
+    final originalMethod = saleRow.paymentMethod?.trim().toLowerCase();
+
     final created = await createReturn(
       originalSaleLocalId: saleLocalId,
       items: items,
       returnReason: reason,
-      // Not a new refund channel — undoes the original payment the same
-      // way it was made, same as the "matches the original payment
-      // method by default" convention a real refund follows.
-      refundMethod: saleRow.paymentMethod ?? 'cash',
+      // Preserve the original method when the cloud return contract
+      // supports it. Split and legacy methods have no direct refund
+      // channel, so use cash; the server still reverses eligible credit
+      // balance before calculating any cash refund.
+      refundMethod:
+          originalMethod != null &&
+              supportedRefundMethods.contains(originalMethod)
+          ? originalMethod
+          : 'cash',
       autoApprove: true,
       isVoid: true,
     );
@@ -305,9 +353,9 @@ class ReturnRepositoryImpl implements ReturnRepository {
     }
 
     final newStatus = approve ? ReturnStatus.approved : ReturnStatus.rejected;
-    await (_db.update(_db.returnRequests)
-          ..where((r) => r.localId.equals(returnLocalId)))
-        .write(
+    await (_db.update(
+      _db.returnRequests,
+    )..where((r) => r.localId.equals(returnLocalId))).write(
       ReturnRequestsCompanion(
         status: Value(newStatus.name),
         updatedAt: Value(DateTime.now()),
@@ -334,18 +382,22 @@ class ReturnRepositoryImpl implements ReturnRepository {
     // response must not restore inventory or reverse customer credit twice.
     if (currentStatus == ReturnStatus.completed) {
       final existing = await getReturnById(returnLocalId);
-      if (existing == null) throw StateError('Return not found after completion.');
+      if (existing == null)
+        throw StateError('Return not found after completion.');
       if (existing.serverId == null || existing.serverId!.isEmpty) {
         await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
       }
       return existing;
     }
     if (currentStatus != ReturnStatus.approved) {
-      throw StateError('This return must be approved before it can be completed.');
+      throw StateError(
+        'This return must be approved before it can be completed.',
+      );
     }
-    final sale = await (_db.select(_db.sales)
-          ..where((s) => s.localId.equals(row.originalSaleLocalId)))
-        .getSingleOrNull();
+    final sale =
+        await (_db.select(_db.sales)
+              ..where((s) => s.localId.equals(row.originalSaleLocalId)))
+            .getSingleOrNull();
     if (sale == null) {
       throw StateError('Original sale not found for this return.');
     }
@@ -360,15 +412,17 @@ class ReturnRepositoryImpl implements ReturnRepository {
         // authoritative correction happens server-side once this
         // return itself can sync (see approveOrRejectReturn's own doc
         // comment on why that push doesn't happen in this pass yet).
-        final stockRow = await (_db.select(_db.productStockLevels)
-              ..where(
-                (s) =>
-                    s.productLocalId.equals(item.productLocalId) &
-                    s.locationLocalId.equals(sale.locationId),
-              ))
-            .getSingleOrNull();
+        final stockRow =
+            await (_db.select(_db.productStockLevels)..where(
+                  (s) =>
+                      s.productLocalId.equals(item.productLocalId) &
+                      s.locationLocalId.equals(sale.locationId),
+                ))
+                .getSingleOrNull();
         final currentStock = stockRow?.currentStock ?? 0;
-        await _db.into(_db.productStockLevels).insertOnConflictUpdate(
+        await _db
+            .into(_db.productStockLevels)
+            .insertOnConflictUpdate(
               ProductStockLevelsCompanion.insert(
                 productLocalId: item.productLocalId,
                 locationLocalId: sale.locationId,
@@ -385,17 +439,26 @@ class ReturnRepositoryImpl implements ReturnRepository {
       // Fall back to the legacy balance-due calculation for older single-method
       // sales that predate SalePayments.
       if (sale.customerId != null) {
-        final paymentRows = await (_db.select(_db.salePayments)
-              ..where((p) => p.saleLocalId.equals(sale.localId)))
-            .get();
-        final creditExtended = paymentRows.isNotEmpty
-            ? paymentRows
-                .where((p) => p.method == 'credit')
-                .fold<Money>(0, (sum, p) => sum + p.amount)
-            : ((sale.total - sale.amountPaid) > 0 ? sale.total - sale.amountPaid : 0);
-        final adjustment = row.refundAmount < creditExtended
-            ? row.refundAmount
-            : creditExtended;
+        final paymentRows = await (_db.select(
+          _db.salePayments,
+        )..where((p) => p.saleLocalId.equals(sale.localId))).get();
+        final creditPayments = paymentRows
+            .where((p) => p.method.trim().toLowerCase() == 'credit')
+            .toList();
+        final creditExtended = creditPayments.isNotEmpty
+            ? creditPayments.fold<Money>(0, (sum, p) => sum + p.amount)
+            : ((sale.total - sale.amountPaid) > 0
+                  ? sale.total - sale.amountPaid
+                  : 0);
+        final customer = await (_db.select(
+          _db.customers,
+        )..where((c) => c.localId.equals(sale.customerId!))).getSingleOrNull();
+        final outstanding = customer?.outstandingBalance ?? 0;
+        final adjustment = [
+          row.refundAmount,
+          creditExtended,
+          outstanding,
+        ].reduce((left, right) => left < right ? left : right);
         if (adjustment > 0) {
           await _customerCreditRepository.recordRefundAdjustment(
             customerLocalId: sale.customerId!,
@@ -405,9 +468,9 @@ class ReturnRepositoryImpl implements ReturnRepository {
         }
       }
 
-      await (_db.update(_db.returnRequests)
-            ..where((r) => r.localId.equals(returnLocalId)))
-          .write(
+      await (_db.update(
+        _db.returnRequests,
+      )..where((r) => r.localId.equals(returnLocalId))).write(
         ReturnRequestsCompanion(
           status: Value(ReturnStatus.completed.name),
           inventoryRestored: const Value(true),
@@ -439,9 +502,9 @@ class ReturnRepositoryImpl implements ReturnRepository {
     String localId, {
     bool forSync = false,
   }) async {
-    final row = await (_db.select(_db.returnRequests)
-          ..where((r) => r.localId.equals(localId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.returnRequests,
+    )..where((r) => r.localId.equals(localId))).getSingleOrNull();
     if (row == null) return null;
     if (!forSync && !await _isSaleInActiveLocation(row.originalSaleLocalId)) {
       return null;
@@ -451,18 +514,30 @@ class ReturnRepositoryImpl implements ReturnRepository {
   }
 
   @override
-  Stream<List<ReturnRequest>> watchReturns({ReturnStatus? status, bool? isVoid}) {
-    final query = _db.select(_db.returnRequests).join([
-      innerJoin(
-        _db.sales,
-        _db.sales.localId.equalsExp(_db.returnRequests.originalSaleLocalId),
-      ),
-      innerJoin(_db.sessions, _db.sessions.id.equals('current')),
-    ])
-      ..where(_db.sales.locationId.equalsExp(_db.sessions.activeLocationId))
-      ..orderBy([OrderingTerm.desc(_db.returnRequests.createdAt)]);
+  Stream<List<ReturnRequest>> watchReturns({
+    ReturnStatus? status,
+    bool? isVoid,
+  }) {
+    final query =
+        _db.select(_db.returnRequests).join([
+            innerJoin(
+              _db.sales,
+              _db.sales.localId.equalsExp(
+                _db.returnRequests.originalSaleLocalId,
+              ),
+            ),
+            innerJoin(_db.sessions, _db.sessions.id.equals('current')),
+          ])
+          ..where(_db.sales.locationId.equalsExp(_db.sessions.activeLocationId))
+          ..orderBy([OrderingTerm.desc(_db.returnRequests.createdAt)]);
     if (status != null) {
-      query.where(_db.returnRequests.status.equals(status.name));
+      query.where(
+        _db.returnRequests.status.equals(
+          status == ReturnStatus.reconciliationPending
+              ? 'reconciliation_pending'
+              : status.name,
+        ),
+      );
     }
     if (isVoid != null) {
       query.where(_db.returnRequests.isVoid.equals(isVoid));
@@ -487,9 +562,9 @@ class ReturnRepositoryImpl implements ReturnRepository {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
-        final current = await (_db.select(_db.syncQueueItems)
-              ..where((q) => q.id.equals(operationId)))
-            .getSingleOrNull();
+        final current = await (_db.select(
+          _db.syncQueueItems,
+        )..where((q) => q.id.equals(operationId))).getSingleOrNull();
         if (current == null) {
           // A missing operation row means this completion is stale. Never
           // allow an old network response to settle a mutation whose queue
@@ -504,11 +579,70 @@ class ReturnRepositoryImpl implements ReturnRepository {
           );
         }
       }
-      await (_db.update(_db.returnRequests)..where((x) => x.localId.equals(localId))).write(
+      await (_db.update(
+        _db.returnRequests,
+      )..where((x) => x.localId.equals(localId))).write(
         ReturnRequestsCompanion(
           serverId: Value(serverId),
-          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
-          updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
+          syncStatus: Value(
+            hasNewerMutation ? SyncStatus.pending : SyncStatus.settled,
+          ),
+          updatedAt: hasNewerMutation
+              ? const Value.absent()
+              : Value(DateTime.now()),
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<void> markRejected({required String localId}) async {
+    await _db.transaction(() async {
+      final row = await (_db.select(
+        _db.returnRequests,
+      )..where((request) => request.localId.equals(localId))).getSingleOrNull();
+      if (row == null) return;
+      if (!{
+            ReturnStatus.completed,
+            ReturnStatus.reconciliationPending,
+          }.contains(_statusFromRow(row)) ||
+          row.serverId != null) {
+        throw StateError(
+          'Only an unsynced completed return can be rejected by cloud reconciliation.',
+        );
+      }
+      await (_db.update(
+        _db.returnRequests,
+      )..where((request) => request.localId.equals(localId))).write(
+        ReturnRequestsCompanion(
+          status: Value(ReturnStatus.rejected.name),
+          inventoryRestored: const Value(false),
+          completedAt: const Value(null),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<void> markReconciliationPending({required String localId}) async {
+    await _db.transaction(() async {
+      final row = await (_db.select(
+        _db.returnRequests,
+      )..where((request) => request.localId.equals(localId))).getSingleOrNull();
+      if (row == null) return;
+      if (_statusFromRow(row) != ReturnStatus.completed ||
+          row.serverId != null) {
+        throw StateError(
+          'Only an unsynced completed return can await cloud reconciliation.',
+        );
+      }
+      await (_db.update(
+        _db.returnRequests,
+      )..where((request) => request.localId.equals(localId))).write(
+        ReturnRequestsCompanion(
+          status: const Value('reconciliation_pending'),
+          updatedAt: Value(DateTime.now()),
         ),
       );
     });

@@ -163,24 +163,11 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
     );
   }
 
-  /// Estimate only, for the button label — real pricing happens in
-  /// ReturnRepository.createReturn via a weighted average across every
-  /// line for that product (return_repository_impl.dart's own
-  /// `_weightedAveragePrice`), for the edge case where the same product
-  /// appears as more than one line in a sale. For the common case (one
-  /// line per product) that average is just `unitPrice`, which is all
-  /// SaleItem actually carries forward from the sale — no per-line
-  /// discount field survives onto the persisted Sale/SaleItem the way
-  /// it does on an in-progress CartItem, so there's nothing to subtract
-  /// here even for an item that was discounted at sale time.
+  /// Estimate for the confirmation action. It follows the same
+  /// proportional allocation from the final sale total that the cloud
+  /// return RPC uses, so sale-level discounts and tax are reflected.
   Money _estimatedRefund(_ConfirmData data) {
-    Money total = zeroMoney;
-    for (final item in data.sale.items) {
-      final qty = _selectedQuantities[item.productLocalId];
-      if (qty == null || qty <= 0) continue;
-      total += item.unitPrice * qty;
-    }
-    return total;
+    return data.sale.refundAmountFor(_selectedQuantities);
   }
 
   Future<void> _submit(BuildContext context, _ConfirmData data) async {

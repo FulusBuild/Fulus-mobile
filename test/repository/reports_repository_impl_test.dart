@@ -127,6 +127,7 @@ void main() {
     required String saleLocalId,
     required String productId,
     required int quantity,
+    Money refundAmount = 0,
     bool isVoid = false,
   }) async {
     final now = DateTime(2026, 1, 1);
@@ -136,7 +137,7 @@ void main() {
             originalSaleLocalId: saleLocalId,
             status: 'completed',
             returnReason: 'Test',
-            refundAmount: moneyFromMajor(0),
+            refundAmount: refundAmount,
             refundMethod: 'cash',
             isVoid: Value(isVoid),
             createdAt: now,
@@ -562,6 +563,7 @@ void main() {
         saleLocalId: 'sale-1',
         productId: 'product-a',
         quantity: 1,
+        refundAmount: moneyFromMajor(100),
       );
 
       final report = await repository.getSalesReport(
@@ -625,6 +627,7 @@ void main() {
         saleLocalId: 'sale-1',
         productId: 'product-a',
         quantity: 1, // 1 of 4 returned
+        refundAmount: moneyFromMajor(100),
       );
 
       final report = await repository.getFinanceReport(
@@ -664,6 +667,7 @@ void main() {
         saleLocalId: 'sale-good',
         productId: 'product-a',
         quantity: 1, // partial: 100 comes back out
+        refundAmount: moneyFromMajor(100),
       );
       await insertCompletedSale(
         localId: 'sale-voided',

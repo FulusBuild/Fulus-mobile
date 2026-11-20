@@ -115,6 +115,45 @@ class Sale {
     if (amountPaid <= 0) return 'unpaid';
     return 'partial';
   }
+
+  /// Mirrors the cloud return RPC's proportional allocation from the
+  /// authoritative net sale total. The cloud stores raw sale-line prices
+  /// and allocates `sale.total / sale.subtotal` across them. Using raw unit
+  /// prices directly overstates refunds whenever the sale has a discount.
+  /// Integer arithmetic keeps the result in minor currency units and
+  /// rounds half up, matching PostgreSQL NUMERIC.
+  Money refundAmountFor(Map<String, int> quantitiesByProduct) {
+    if (subtotal <= 0 || total <= 0) return zeroMoney;
+
+    final purchased = <String, ({int quantity, Money rawTotal})>{};
+    for (final item in items) {
+      final productId = item.productLocalId;
+      if (productId == null) continue;
+      final existing = purchased[productId];
+      purchased[productId] = (
+        quantity: (existing?.quantity ?? 0) + item.quantity,
+        rawTotal: (existing?.rawTotal ?? 0) + item.lineTotal,
+      );
+    }
+
+    var refund = zeroMoney;
+    for (final entry in quantitiesByProduct.entries) {
+      final info = purchased[entry.key];
+      final quantity = entry.value;
+      if (info == null || quantity <= 0 || info.quantity <= 0) continue;
+
+      final numerator = BigInt.from(info.rawTotal) *
+          BigInt.from(quantity) *
+          BigInt.from(total);
+      final denominator = BigInt.from(info.quantity) * BigInt.from(subtotal);
+      final quotient = numerator ~/ denominator;
+      final remainder = numerator.remainder(denominator);
+      final rounded = quotient +
+          (remainder * BigInt.two >= denominator ? BigInt.one : BigInt.zero);
+      refund += rounded.toInt();
+    }
+    return refund;
+  }
 }
 
 class SaleItem {

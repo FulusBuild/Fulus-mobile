@@ -1,6 +1,6 @@
 # Part F — Sales and Checkout
 
-**Status:** Source audit complete; one financial contract fix prepared in a migration; Supabase SQL execution, CI, and Android evidence remain pending  
+**Status:** Source audit and isolated CI complete; Android checkout/offline-to-sync and production deployment verification remain pending<br>
 **Audit date:** 2026-11-20  
 **Repository:** FulusBuild/Fulus-mobile  
 **Baseline:** `origin/main` at `8029e09ee87f387dab8544dd54789ccf937e0b4e`; branch `codex/part-f-sales-checkout`  
@@ -31,14 +31,14 @@ The cloud RPC is called through a location-authorization wrapper. The prior V2 i
 ### F-001 — V2 cloud sale RPC accepted a one-cent payment mismatch
 
 **Severity:** Medium  
-**Status:** Fixed in source migration; database execution and deployment verification pending  
+**Status:** Fixed in source; isolated Supabase CI passed; production deployment and Android runtime verification pending<br>
 **Area:** Cloud payment, sale total, and cash-ledger reconciliation
 
 The existing V2 RPC rounds currency to two decimals but rejects mismatches only when the difference is greater than `0.01`. The authoritative `create_sale_atomic` clamps `amount_paid` to the sale total. For example, a `$10.00` sale submitted with `$10.01` in cash payment legs passes the old tolerance; the sale stores `$10.00` as paid while the payment/cash-ledger path can record `$10.01`. This can create a one-cent mismatch between sale and ledger for a request reaching the authenticated cloud mutation boundary.
 
-**Fix prepared:** Migration `supabase/migrations/20261120120000_enforce_exact_sale_payment_totals.sql` keeps the existing location authorization wrapper, calls the private implementation, and then checks exact two-decimal equality among payment legs, authoritative sale total, collected amount, credit balance, and the requested `amount_paid`. A failed postcondition raises inside the transaction, rolling back the sale and its related writes. `supabase/tests/financial_fidelity.sql` checks that the deployed RPC definition contains the strict guards and exercises an exact cash sale, an exact cash+credit split sale, a one-cent overpayment rejection, and a requested `amount_paid` mismatch. The failure cases assert that no sale, cash-ledger, inventory, change-feed, or idempotency effects remain.
+**Fix:** Migration `supabase/migrations/20261120120000_enforce_exact_sale_payment_totals.sql` keeps the existing location authorization wrapper, calls the private implementation, and then checks exact two-decimal equality among payment legs, authoritative sale total, collected amount, credit balance, and the requested `amount_paid`. A failed postcondition raises inside the transaction, rolling back the sale and its related writes. `supabase/tests/financial_fidelity.sql` checks that the RPC definition contains the strict guards and exercises exact cash and cash+credit sales, one-cent overpayment rejection, and requested `amount_paid` mismatch. The failure cases assert that no sale, cash-ledger, inventory, change-feed, or idempotency effects remain.
 
-**Verification still required:** Apply migrations to an isolated local Supabase database; execute a normal exact sale and adversarial `total + 0.01`, `collected + 0.01`, and credit mismatch cases; verify the rejected calls leave no sale, payment, cash-ledger, inventory, or customer-ledger effects; run the SQL suite and required CI; deploy only through the normal reviewed release path. No production mutation or migration was run during this audit.
+**Database/CI verification:** GitHub Actions Supabase Migration Chain run `44704256962` and Fulus Mobile CI run `44704256904` both completed successfully for PR #231 head `8e0380589cf285fd104c7628a23835d402b7c1f0`. The Supabase workflow applied the migrations to its disposable local database and passed `financial_fidelity.sql` plus the repository SQL suites. Flutter CI dependency resolution, code generation, static analysis, and tests passed. The workflow skipped device convergence and APK-build jobs. No production mutation or migration was run.
 
 ## Automated evidence
 
@@ -49,12 +49,12 @@ Focused Flutter tests passed after generating the missing sources absent from th
 & 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\flutter.bat' test test/features/sell/cart_cubit_test.dart test/features/sell/cart_state_test.dart test/repository/draft_cart_repository_test.dart test/repository/sale_repository_test.dart test/sync/sale_sync_handler_test.dart test/sync/offline_sale_local_flow_test.dart
 ```
 
-Result: **72 tests passed, 0 failed, 0 skipped**. The first test attempt failed at compile time because generated `*.g.dart` part files were absent; build_runner then wrote 34 outputs and the focused rerun passed. SQL tests were not run because Docker, `psql`, and the Supabase CLI were unavailable. No CI run was started.
+Result: **72 tests passed, 0 failed, 0 skipped**. The first test attempt failed at compile time because generated `*.g.dart` part files were absent; build_runner then wrote 34 outputs and the focused rerun passed. GitHub CI additionally passed the SQL migration chain and financial-fidelity SQL regressions on an isolated disposable database.
 
 ## Device/backend evidence and remaining gaps
 
 - No Android device was visible. Quick sale, scanning, checkout, receipt presentation, background/resume, and offline→reconnect behavior were not manually exercised on a phone.
-- No isolated Supabase instance was available, so migration application and behavioral database regression remain unverified.
+- GitHub's disposable Supabase CI verified migration application and SQL behavior. No production Supabase project was queried or mutated.
 - Production Supabase was not queried or mutated for Part F.
 - No live multi-device sale convergence, session-expiry retry, contention, or process-death scenario was run.
 - This report does not establish release readiness. The migration is prepared in source but not applied or deployed.
@@ -67,5 +67,5 @@ Result: **72 tests passed, 0 failed, 0 skipped**. The first test attempt failed 
 
 ## Handoff
 
-Part F source review and mobile automated checks are complete. Next, run the migration and `supabase/tests/financial_fidelity.sql` against an isolated local Supabase database via the repository's GitHub Actions workflow, then run CI. Afterward, verify checkout and offline-to-sync on an Android QA device/business. Keep Part G return/refund behavior in its own audit.
+Part F source review, focused mobile tests, and isolated SQL/CI verification are complete. The remaining direct evidence is checkout and offline-to-sync on an Android QA device/business, plus the normal reviewed production deployment path. Keep Part G return/refund behavior in its own audit.
 

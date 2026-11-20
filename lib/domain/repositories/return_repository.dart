@@ -21,8 +21,8 @@ abstract class ReturnRepository {
   ///
   /// Validates every requested item against the same eligibility logic
   /// [getReturnEligibility] exposes, and computes `ReturnRequest.
-  /// refundAmount` from each product's weighted-average price within
-  /// the original sale.
+  /// refundAmount` by allocating the sale's authoritative net total
+  /// proportionally across its raw subtotal, matching the cloud RPC.
   Future<ReturnRequest> createReturn({
     required String originalSaleLocalId,
     required List<ReturnItemRequest> items,
@@ -36,10 +36,9 @@ abstract class ReturnRepository {
   /// return — reuses createReturn/completeReturn for every line still
   /// eligible on the sale (typically all of it, for a sale voided
   /// right after ringing it up), auto-approved and completed in one
-  /// call rather than left pending. [refundMethod] isn't asked for:
-  /// it's set to the original sale's own payment method, since a void
-  /// doesn't introduce a new refund channel — it just undoes one that
-  /// never should have happened. Throws if the sale has already been
+  /// call rather than left pending. The original payment method is used
+  /// when supported by the cloud return contract; split and legacy
+  /// methods fall back to cash. Throws if the sale has already been
   /// fully refunded/voided (nothing left eligible to void).
   Future<ReturnRequest> voidSale({
     required String saleLocalId,
@@ -66,10 +65,25 @@ abstract class ReturnRepository {
   /// [isVoid], when non-null, additionally filters to only voids
   /// (`true`) or only genuine customer returns (`false`) — for report
   /// views that need to tell the two apart.
-  Stream<List<ReturnRequest>> watchReturns({ReturnStatus? status, bool? isVoid});
+  Stream<List<ReturnRequest>> watchReturns({
+    ReturnStatus? status,
+    bool? isVoid,
+  });
 
   /// Reconciles a locally-created return with the server's own identity
   /// once the sync handler successfully pushes it — same role as every
   /// other markSynced in this codebase.
-  Future<void> markSynced({required String localId, required String serverId, String? operationId});
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? operationId,
+  });
+
+  /// Marks a permanently rejected cloud return only after its local stock and
+  /// customer projections have been reconciled to canonical server state.
+  Future<void> markRejected({required String localId});
+
+  /// Keeps a permanent cloud rejection visible while canonical compensation
+  /// is unavailable or must wait for newer queued mutations.
+  Future<void> markReconciliationPending({required String localId});
 }
