@@ -202,6 +202,21 @@ class _SupplierProfileBody extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.md),
+                    FulusCard(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: AppColors.primaryOf(context)),
+                          const SizedBox(width: AppSpacing.sm),
+                          const Expanded(
+                            child: Text(
+                              'Supplier balances and payment history are saved only on this device. They are not synced to other devices or included in cloud restore.',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     const FulusSectionHeader(
                       title: 'Payment history',

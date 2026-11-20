@@ -30,7 +30,7 @@ Add and edit products directly from the app, or bring in an existing catalog in 
 Customer records with a running credit ledger — track what's owed, record payments against it, and see a customer's history at a glance.
 
 **Finance**
-Income and expense tracking with categorization, supplier ledgers, tax remittance records, and profit/cash-flow reporting.
+Income and expense tracking with categorization, device-local supplier ledgers, tax remittance records, and profit/cash-flow reporting.
 
 **Employees**
 Cloud-synchronized staff roster, attendance, and leave tracking. Owners add a team member once, create an invitation, and let that employee join the same business on another phone. The invitation is the employee account entry point; shared-device identity switching remains separate from employee onboarding, while cloud membership/permissions remain authoritative for access.

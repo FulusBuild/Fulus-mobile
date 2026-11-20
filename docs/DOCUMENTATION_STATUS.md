@@ -9,10 +9,11 @@ This index prevents point-in-time audits from being mistaken for current verific
 |---|---|---|
 | `../README.md` | Current entry point, updated 2026-11-19 | Feature descriptions still need ongoing comparison with the current UI; readiness claims now defer to evidence. |
 | `QA_MASTER_PLAN.md` | Current protocol | Update the campaign status and link the latest report at each handoff. |
-| `product-audit/PART-A-STARTUP-ONBOARDING-NAVIGATION.md` | Current Part A audit, 2026-11-19 | Update after physical Android cases and any follow-up fixes. |
+| `product-audit/PART-A-STARTUP-ONBOARDING-NAVIGATION.md` | Current Part A audit, 2026-11-19 | Backup-discovery failure now has explicit retry handling; update after Android and cold-start timing cases. |
 | `product-audit/PART-B-AUTHENTICATION-SESSIONS.md` | Current Part B audit, 2026-11-19 | Source and focused automated checks pass; complete listed Android and live-auth scenarios before closing runtime evidence. |
 | `product-audit/PART-C-STAFF-ROLES-BUSINESS-LOCATION.md` | Current Part C audit, 2026-11-19 | Source and 67 focused automated tests pass; physical-device, QA mutation, and local Supabase SQL fixture scenarios remain open. |
-| `product-audit/PART-D-CATALOG-AND-PRODUCTS.md` | Current Part D audit, 2026-11-19 | Source and 105 focused automated tests pass; local Supabase migration tests, phone walkthrough, live QA sync, and product-export requirement remain open. |
+| `product-audit/PART-D-CATALOG-AND-PRODUCTS.md` | Current Part D audit, updated 2026-11-19 | CSV export and product validation widget coverage added; local migration tests, phone walkthrough, live QA sync, and safe orphan-image cleanup remain open. |
+| `product-audit/PART-E-INVENTORY-AND-SUPPLIERS.md` | Current Part E audit, updated 2026-11-19 | Stock rejection compensation is implemented and regression-tested; canonical supplier-ledger cloud support, local Supabase invariants, QA convergence, and phone walkthrough remain open. |
 | `../PLAN.md` | Engineering work plan; historical status text may be stale | Track engineering priorities here; verify each item against current code before execution. |
 | `testing/RUNTIME_PRODUCTION_EVIDENCE.md` | Active evidence process; individual workflow evidence is time-sensitive | Recheck the workflow and latest run before citing a pass. |
 | `INSTANT_UI_CONTRACT.md`, `architecture/FULUS_RELIABILITY_SLOS.md` | Current intended contracts/targets, not proof of implementation | Keep targets distinct from measured production behavior. |
@@ -30,5 +31,7 @@ This index prevents point-in-time audits from being mistaken for current verific
 - Removed: none. No exact duplicate with no unique evidence was proven.
 - Updated: README readiness language and generated-code setup wording; engineering-plan relationship; deep-audit master-plan coordination; Part 20 production evidence warning.
 - Updated: QA master campaign status and documentation index with Part D; marked Part 08 catalog's superseded statements while retaining its historical evidence.
+- Updated: QA master campaign status and documentation index with Part E; clarified in README that supplier ledgers are device-local; retained historical Part 11/Part 10 findings and linked the current inventory report.
+- Updated: A-002 backup-discovery failure UX; D-004 widget coverage and D-006 CSV export; E-001 canonical stock reconciliation and the chosen business-wide supplier-ledger direction. D-005 and E-002 remain backend implementation gaps.
 - Added: product verification master plan and this status index.
 - Next sweep: revalidate the historical full readiness/instant UI/benchmark documents against the current commit, then update, supersede, or retain each with explicit evidence and links.

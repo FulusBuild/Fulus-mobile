@@ -69,16 +69,23 @@ enum AuthGateStage {
   /// local setup ([needsRestoreDecision]) is never overridden by an
   /// old backup file that happens to also be sitting on the device.
   needsBackupDecision,
+
+  /// Backup discovery failed on a fresh install. Ask the user to retry or
+  /// explicitly continue without restoring instead of treating an unknown
+  /// result as proof that no backup exists.
+  backupDiscoveryUnavailable,
 }
 
 AuthGateStage resolveAuthGateStage({
   required bool hasOwnerAccount,
   required bool businessConfigured,
   required bool hasDetectedBackup,
+  bool backupDiscoveryFailed = false,
 }) {
   if (hasOwnerAccount) return AuthGateStage.needsSignIn;
   if (businessConfigured) return AuthGateStage.needsRestoreDecision;
   if (hasDetectedBackup) return AuthGateStage.needsBackupDecision;
+  if (backupDiscoveryFailed) return AuthGateStage.backupDiscoveryUnavailable;
   return AuthGateStage.needsAccountCreation;
 }
 

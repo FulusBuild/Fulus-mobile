@@ -57,6 +57,17 @@ Baseline: current main e7f8ccad6c89877fb68a5b8edfdbce693d760414. The detailed tr
 | D-001 | Medium | Fixed in source | CSV SKU checks now match case-insensitive location uniqueness; generated SKU checks also normalize case. | Regression tests included in 105 passing focused tests. |
 | D-002 | Medium | Mobile source + SQL migration prepared; production unapplied | tracks_stock now flows through create/update and canonical reconcile; RPC migration persists it on create and update. | Mobile regression tests pass; SQL invariant not yet run. |
 | D-003 | Medium | SQL migration prepared; production unapplied | Add location-scoped uniqueness for active nonblank product barcodes to prevent concurrent cloud duplicates. | Read-only production aggregate found zero duplicates; local Supabase SQL invariant pending. |
-| D-004 | Medium | Source fix made; widget behavior test pending | Add/edit form rejects invalid numeric inputs instead of silently saving defaults. | Scoped Flutter analyzer found no issues; focused catalog suite has no widget interaction test for these errors. |
-| D-005 | Informational | Open observation | Replaced/cleared public product image objects are not deleted and may accumulate. | Source + Storage policy metadata; safe server cleanup design needed. |
-| D-006 | Informational | Requirement confirmation | No product export route or implementation found in the reviewed repository search. | Confirm whether product export is intended. |
+| D-004 | Medium | Fixed in source; widget regression passes | Add/edit form rejects invalid numeric inputs instead of silently saving defaults. | Widget verifies cost, threshold, and initial stock errors in expanded focused suite. |
+| D-005 | Medium | Open; implementation required | Replaced/cleared public product image objects are not deleted and may accumulate. | Decision: server-authorized collector deletes only unreferenced objects after 30 days; preserve the insert-only client policy and archived product refs. |
+| D-006 | Medium | CSV export implemented | Product catalog export was missing. | Stable CSV serializer regression passes; Android share sheet remains unverified. |
+
+## Current campaign findings — Part E (2026-11-19)
+
+Baseline: current main after Part D merge, `dce7d074d0d41ddd89f06e9be705ebdfdcace32a`. The detailed trace, evidence layers, and remaining verification are in [`../product-audit/PART-E-INVENTORY-AND-SUPPLIERS.md`](../product-audit/PART-E-INVENTORY-AND-SUPPLIERS.md).
+
+| ID | Severity | Status | Finding / disposition | Verification |
+|---|---|---|---|---|
+| E-001 | High | Fixed in source; runtime verification pending | Permanent cloud stock rejection now triggers canonical per-location stock reconciliation, then preserves the rejection for attention handling. | Rejection regression passes; canonical-fetch recovery and QA multi-device convergence remain unverified. |
+| E-002 | Medium | Open implementation; product decision recorded and limitation disclosed in app | Supplier payables are business-wide accounting state and need a canonical cloud ledger; current balance/history remain device-local. | Supplier profile disclosure reduces misunderstanding; implement idempotent server mutation, sync/reconciliation, and snapshot/restore before claiming resolution. |
+| E-003 | Medium | Fixed in source | Restore omitted local supplier ledger from clear order, so supplier rows could not be replaced while referenced ledger rows existed. Clear ledger before suppliers. | Restore regression passes in expanded 63-test suite. |
+| E-004 | Low | Fixed in source | Stock movement and validation comments inaccurately described local stock writes and insufficient-stock checks. | Source correction; focused inventory suite passes. |

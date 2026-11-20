@@ -88,6 +88,10 @@ class CloudRestoreImporter {
     'sale_payments',
     'sale_items',
     'customer_ledger_entries',
+    // Supplier payable history is local-only and has no server snapshot
+    // section. Clear it before suppliers to satisfy its local FK and avoid
+    // carrying entries over to a different restored supplier identity.
+    'supplier_ledger_entries',
     'product_stock_levels',
     'stock_movements',
     'return_requests',
