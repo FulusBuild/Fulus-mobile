@@ -5,7 +5,7 @@
 
 ## X-001 — Restore / sync maintenance boundary
 
-Status: **Source/protocol fixed; cross-process regression added; Android physical restore evidence remains pending.**
+Status: **Revalidated on `main` at `65ef6460f5ed6d20306b34ba509623cd028118c3`: source/protocol fixed and the cross-process regression passes in Flutter CI run 44741737242; physical Android restore/lifecycle evidence remains pending.**
 
 Restore now acquires an exclusive filesystem sidecar `FileLock` before closing or replacing the live SQLite file. Normal sync acquires a shared lock on the same sidecar before entering its SQLite execution lease. The sidecar therefore remains valid even when the SQLite file containing the logical lease row is replaced.
 
@@ -16,6 +16,8 @@ A separate OS-process regression exercises the replacement boundary: the old dat
 Remaining evidence:
 1. Android physical restore while push/pull/background work is active.
 2. Android process death during the restore lifecycle.
+
+Windows local test note (2026-11-20): the parent Flutter test process holds `build/native_assets/windows/sqlite3.dll`, so its nested Flutter subprocess cannot replace that file. The Linux CI run executes the same cross-process test successfully; no runtime lock bypass was observed.
 
 ## X-002 — Local identity / cloud Auth identity namespace
 
