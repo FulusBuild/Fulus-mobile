@@ -1,10 +1,10 @@
 # Part G — Returns, Refunds, and Voids
 
-**Status:** Source fixes and disposable SQL verification pass; device/runtime evidence remains open<br>
+**Status:** Source/cloud findings G-001–G-008 are fixed and merged in PR #232; device/runtime evidence remains open<br>
 **Audit date:** 2026-11-20<br>
 **Repository:** FulusBuild/Fulus-mobile<br>
 **Baseline:** `707b85e594d95c49bc56833e99e4833c71656ffc` (`main`, merged Part F)<br>
-**Working branch:** `codex/part-g-returns-refunds-voids`<br>
+**Implementation branch:** `codex/part-g-returns-refunds-voids` (merged to `main` by PR #232)<br>
 **Runtime:** Flutter 3.44.9 / Dart and Supabase CLI 2.117.0 on Windows. Docker is unavailable, so SQL behavior is delegated to the repository's disposable GitHub Supabase workflow. No Android device was connected. Generated Dart sources were created locally for focused tests and removed afterward. `pubspec.lock` was restored after dependency resolution. Untracked Android paths discovered during setup are preserved and untouched.
 
 ## Scope and trace
@@ -97,4 +97,3 @@ Live sync, physical-device flow, app lifecycle handling, explicit concurrent-ret
 1. Add direct handler regression coverage for successful canonical compensation.
 2. Exercise refund-method eligibility, approval semantics, concurrent returns, process restart, and multi-device convergence in an isolated QA setup.
 3. Request a physical-device walkthrough when an Android device is available.
-4. Recheck the full diff and preserved user files before merging the Part G PR.
