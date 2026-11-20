@@ -456,5 +456,3 @@ begin
   return result;
 end;
 $function$;
-
-\n
