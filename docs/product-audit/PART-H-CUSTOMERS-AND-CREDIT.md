@@ -39,9 +39,9 @@ The limit remains advisory and is not enforced as a hard credit-sale block. The 
 ### H-003 — Duplicate-customer warnings were persisted but not shown
 
 **Severity:** Low
-**Status:** Display added in source; widget/device verification pending.
+**Status:** Fixed in source; focused widget regression passes. Runtime sync refresh verification remains pending.
 
-Sync persisted the server’s `duplicate_warning` on the customer, but the customer profile did not surface it. The profile now displays the advisory text when present. Automated widget coverage and confirmation of when a sync-completed warning becomes visible in an already-open profile remain outstanding.
+Sync persisted the server’s `duplicate_warning` on the customer, but the customer profile did not surface it. The profile now displays the advisory text when present. `test/features/money/customer_duplicate_warning_test.dart` verifies the callout and its server-provided detail. Confirmation of when a sync-completed warning becomes visible in an already-open profile remains a runtime evidence gap.
 
 ## Automated evidence
 
@@ -51,9 +51,10 @@ Exact commands:
 & 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\dart.bat' run build_runner build
 & 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\flutter.bat' test test/repository/customer_credit_repository_test.dart test/repository/customer_repository_test.dart test/sync/fulus_customer_canonical_reconciler_test.dart test/remote/fulus_customer_ledger_canonical_reconciler_test.dart test/sync/customer_sync_handler_test.dart
 & 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\dart.bat' analyze lib/data/repositories/customer_credit_repository_impl.dart lib/data/repositories/customer_repository_impl.dart lib/data/remote/fulus_customer_canonical_reconciler.dart lib/domain/entities/customer.dart lib/domain/repositories/customer_repository.dart lib/features/money/presentation/screens/customer_profile_screen.dart test/repository/customer_credit_repository_test.dart test/repository/customer_repository_test.dart test/sync/fulus_customer_canonical_reconciler_test.dart
+& 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\flutter.bat' test test/features/money/customer_duplicate_warning_test.dart
 ```
 
-The focused test command passed **42 tests, 0 failures, 0 skips**. Targeted Dart analysis reported no issues. Build runner completed successfully; it updated generated code locally. Dependency resolution also changed `pubspec.lock`, which was restored and excluded from the Part H commit. The first test attempt ran before code generation had completed and failed to load generated Drift files; a later combined attempt also used one nonexistent test path and exposed the legacy nullable-money case. Those were corrected; the final exact suite above passed.
+The five repository/sync test files passed **42 tests, 0 failures, 0 skips**. The duplicate-warning widget regression passed **1 test**. Targeted Dart analysis for customer repositories, canonical reconciliation, entity/interface, profile, warning widget, and tests reported no issues. Build runner completed successfully; it updated generated code locally. Dependency resolution also changed `pubspec.lock`, which was restored and excluded from the Part H commit. The first test attempt ran before code generation had completed and failed to load generated Drift files; a later combined attempt also used one nonexistent test path and exposed the legacy nullable-money case. Those were corrected; the final exact suites above passed.
 
 For commit `ae4da312462932ab0a5d47e5166b5641b1542b7b`, Fulus Mobile CI **#5094** passed static analysis and **1,114 Flutter tests with 1 skipped**. Its live sync, debug/release APK, and multi-device jobs were skipped by the workflow, so that run provides no device or live-backend behavior evidence.
 
@@ -62,7 +63,7 @@ The SQL regression is added to `supabase/tests/customer_repayment.sql`. Fulus Su
 ## Evidence gaps and next actions
 
 - Recheck Fulus Mobile CI and the migration chain against the final PR head after any follow-up commit.
-- Add widget coverage for the duplicate-warning callout and verify the warning refresh behavior after sync.
+- Verify on Android that a sync-completed duplicate warning appears after revisiting or refreshing an already-open customer profile.
 - Walk through add/edit/archive/restore, credit sale, repayment, overpayment, and credit return on the TECNO KI5k using a designated synthetic QA business.
 - Exercise offline repayment → process restart → reconnect → one canonical balance and ledger event, plus concurrent repayments from two devices.
 - Recheck role/location denial and customer data isolation with synthetic staff accounts. Existing source/SQL guards do not replace a runtime authorization test.
