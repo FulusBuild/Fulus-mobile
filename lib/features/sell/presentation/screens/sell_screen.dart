@@ -51,7 +51,10 @@ class _SellScreenState extends ConsumerState<SellScreen> {
   }
 
   Future<void> _scanProduct() async {
-    final barcode = await BarcodeScanScreen.scan(context, title: 'Scan product barcode');
+    final barcode = await BarcodeScanScreen.scan(
+      context,
+      title: 'Scan product barcode',
+    );
     if (barcode == null || !mounted) return;
     final cubit = _cartCubit;
     if (cubit == null) return;
@@ -74,14 +77,21 @@ class _SellScreenState extends ConsumerState<SellScreen> {
     }
 
     if (match.product.tracksStock && match.currentStock <= 0) {
-      showFulusSnackbar(context, message: '${match.product.name} is out of stock.');
+      showFulusSnackbar(
+        context,
+        message: '${match.product.name} is out of stock.',
+      );
       return;
     }
 
     try {
       await cubit.addProduct(match.product.localId);
       FulusHaptics.selection();
-      if (mounted) showFulusSnackbar(context, message: '${match.product.name} added to the cart.');
+      if (mounted)
+        showFulusSnackbar(
+          context,
+          message: '${match.product.name} added to the cart.',
+        );
     } on StateError catch (e) {
       FulusHaptics.error();
       if (mounted) showFulusSnackbar(context, message: e.message);
@@ -122,12 +132,15 @@ class _SellScreenState extends ConsumerState<SellScreen> {
             body: _SellLocationSkeleton(),
           );
         }
-        if (locationSnapshot.hasError || !locationSnapshot.hasData || locationSnapshot.data!.isEmpty) {
+        if (locationSnapshot.hasError ||
+            !locationSnapshot.hasData ||
+            locationSnapshot.data!.isEmpty) {
           return FulusScreen(
             title: 'Sell',
             body: FulusErrorState(
               message: "Couldn't open Sell right now.",
-              reassurance: 'Your products and sales are still safe on this device.',
+              reassurance:
+                  'Your products and sales are still safe on this device.',
               onRetry: () {
                 ref.invalidate(activeLocationIdProvider);
                 setState(() {});
@@ -144,7 +157,8 @@ class _SellScreenState extends ConsumerState<SellScreen> {
             query: _query,
             selectedCategoryId: _selectedCategoryId,
             onQueryChanged: (value) => setState(() => _query = value),
-            onCategoryChanged: (value) => setState(() => _selectedCategoryId = value),
+            onCategoryChanged: (value) =>
+                setState(() => _selectedCategoryId = value),
             onClearSearch: _clearSearch,
             onScan: _scanProduct,
             onRetry: _retryCart,
@@ -164,7 +178,12 @@ class _SellContentSkeleton extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+          padding: EdgeInsets.fromLTRB(
+            inset,
+            AppSpacing.md,
+            inset,
+            AppSpacing.sm,
+          ),
           child: Row(
             children: [
               const Expanded(child: FulusSkeletonBox(height: 48)),
@@ -208,7 +227,12 @@ class _SellLocationSkeleton extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+          padding: EdgeInsets.fromLTRB(
+            inset,
+            AppSpacing.md,
+            inset,
+            AppSpacing.sm,
+          ),
           child: const FulusDelayedSkeleton(
             skeleton: FulusSkeletonBox(height: 52),
           ),
@@ -229,7 +253,12 @@ class _SellLocationSkeleton extends StatelessWidget {
         ),
         Expanded(
           child: GridView.builder(
-            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xl),
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              AppSpacing.sm,
+              inset,
+              AppSpacing.xl,
+            ),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: MediaQuery.sizeOf(context).width < 390 ? 2 : 3,
               crossAxisSpacing: AppSpacing.sm,
@@ -268,8 +297,11 @@ class _SellContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final categories = ref.watch(categoriesProvider).asData?.value ?? const <Category>[];
-    final categoryById = {for (final category in categories) category.localId: category};
+    final categories =
+        ref.watch(categoriesProvider).asData?.value ?? const <Category>[];
+    final categoryById = {
+      for (final category in categories) category.localId: category,
+    };
 
     return FulusScreen(
       title: 'Sell',
@@ -300,22 +332,31 @@ class _SellContent extends ConsumerWidget {
           if (state is CartInitial) return const _SellContentSkeleton();
 
           final inset = fulusHorizontalInset(context);
-          final categoryIds = catalog.values
-              .map((entry) => entry.product.categoryId)
-              .whereType<String>()
-              .toSet()
-              .toList()
-            ..sort((a, b) =>
-                (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
+          final categoryIds =
+              catalog.values
+                  .map((entry) => entry.product.categoryId)
+                  .whereType<String>()
+                  .toSet()
+                  .toList()
+                ..sort(
+                  (a, b) => (categoryById[a]?.name ?? a).compareTo(
+                    categoryById[b]?.name ?? b,
+                  ),
+                );
 
           return Column(
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(
-                    inset, AppSpacing.md, inset, AppSpacing.sm),
+                  inset,
+                  AppSpacing.md,
+                  inset,
+                  AppSpacing.sm,
+                ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final compact = constraints.maxWidth < 360 ||
+                    final compact =
+                        constraints.maxWidth < 360 ||
                         MediaQuery.textScalerOf(context).scale(1) > 1.15;
                     final scanButton = FulusButton(
                       variant: FulusButtonVariant.primary,
@@ -358,8 +399,15 @@ class _SellContent extends ConsumerWidget {
               ),
               if (query.trim().isEmpty && cartReady)
                 Padding(
-                  padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
-                  child: _QuickSaleBar(onTap: () => QuickSaleSheet.show(context)),
+                  padding: EdgeInsets.fromLTRB(
+                    inset,
+                    AppSpacing.xs,
+                    inset,
+                    AppSpacing.sm,
+                  ),
+                  child: _QuickSaleBar(
+                    onTap: () => QuickSaleSheet.show(context),
+                  ),
                 ),
               if (categoryIds.isNotEmpty)
                 SizedBox(
@@ -439,10 +487,14 @@ class _ProductList extends StatelessWidget {
     if (products.isEmpty) {
       return FulusEmptyState(
         headline: 'No products found',
-        body: q.isEmpty ? 'Add products from Stock to start selling.' : 'Nothing matches “$query”.',
+        body: q.isEmpty
+            ? 'Add products from Stock to start selling.'
+            : 'Nothing matches “$query”.',
         icon: FulusIcons.search,
         actionLabel: q.isEmpty && cartReady ? 'Quick Sale' : 'Clear search',
-        onAction: q.isEmpty && cartReady ? () => QuickSaleSheet.show(context) : onClearSearch,
+        onAction: q.isEmpty && cartReady
+            ? () => QuickSaleSheet.show(context)
+            : onClearSearch,
       );
     }
 
@@ -492,7 +544,10 @@ class _QuickSaleBar extends StatelessWidget {
                 SizedBox(width: AppSpacing.sm),
                 Text(
                   'Quick Sale',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 Spacer(),
                 Icon(Icons.arrow_forward, color: Colors.white, size: 20),
@@ -506,7 +561,11 @@ class _QuickSaleBar extends StatelessWidget {
 }
 
 class _ProductRow extends StatelessWidget {
-  const _ProductRow({required this.entry, required this.currency, required this.enabled});
+  const _ProductRow({
+    required this.entry,
+    required this.currency,
+    required this.enabled,
+  });
   final ProductWithStock entry;
   final String currency;
   final bool enabled;
@@ -514,7 +573,9 @@ class _ProductRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final product = entry.product;
     final out = product.tracksStock && entry.currentStock <= 0;
-    final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
+    final initial = product.name.trim().isEmpty
+        ? '?'
+        : product.name.trim()[0].toUpperCase();
 
     return FulusPressable(
       onPressed: !enabled || out ? null : () => _add(context),
@@ -525,85 +586,89 @@ class _ProductRow extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(12),
-                  ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(9),
-                child: Container(
-                  width: double.infinity,
-                  color: AppColors.selectedTintOf(context),
-                  alignment: Alignment.center,
-                  child: product.photoPath == null
-                      ? Text(
-                          initial,
-                          style: AppTypography.heading.copyWith(
-                            color: AppColors.primaryOf(context),
-                            fontWeight: FontWeight.w800,
-                          ),
-                        )
-                      : (product.photoPath!.startsWith('http://') || product.photoPath!.startsWith('https://'))
-                          ? CachedRemoteImage(
-                              product.photoPath!,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (_, __, ___) => Text(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceOf(context),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(9),
+                      child: Container(
+                        width: double.infinity,
+                        color: AppColors.selectedTintOf(context),
+                        alignment: Alignment.center,
+                        child: product.photoPath == null
+                            ? Text(
                                 initial,
                                 style: AppTypography.heading.copyWith(
                                   color: AppColors.primaryOf(context),
                                   fontWeight: FontWeight.w800,
                                 ),
-                              ),
-                            )
-                          : Image.file(
-                                  File(product.photoPath!),
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  errorBuilder: (_, __, ___) => Text(
-                                    initial,
-                                    style: AppTypography.heading.copyWith(
-                                      color: AppColors.primaryOf(context),
-                                    ),
+                              )
+                            : (product.photoPath!.startsWith('http://') ||
+                                  product.photoPath!.startsWith('https://'))
+                            ? CachedRemoteImage(
+                                product.photoPath!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                errorBuilder: (_, __, ___) => Text(
+                                  initial,
+                                  style: AppTypography.heading.copyWith(
+                                    color: AppColors.primaryOf(context),
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
+                              )
+                            : Image.file(
+                                File(product.photoPath!),
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                errorBuilder: (_, __, ___) => Text(
+                                  initial,
+                                  style: AppTypography.heading.copyWith(
+                                    color: AppColors.primaryOf(context),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    formatMoney(product.sellingPrice, symbol: currency),
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.primaryOf(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (out)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.errorOf(context),
+                    shape: BoxShape.circle,
+                  ),
+                  child: SizedBox(width: 8, height: 8),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              product.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(
-                color: AppColors.textPrimaryOf(context),
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              formatMoney(product.sellingPrice, symbol: currency),
-              style: AppTypography.body.copyWith(
-                color: AppColors.primaryOf(context),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            ],
-          ),
-        ),
-          if (out)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: DecoratedBox(
-                decoration: BoxDecoration(color: AppColors.errorOf(context), shape: BoxShape.circle),
-                child: SizedBox(width: 8, height: 8),
-              ),
-            ),
           ],
         ),
       ),
@@ -613,10 +678,7 @@ class _ProductRow extends StatelessWidget {
   Future<void> _add(BuildContext context) async {
     final product = entry.product;
     try {
-      await context.read<CartCubit>().addProductQuantity(
-            product.localId,
-            1,
-          );
+      await context.read<CartCubit>().addProductQuantity(product.localId, 1);
       FulusHaptics.selection();
       if (context.mounted) {
         showFulusSnackbar(
@@ -637,37 +699,74 @@ class _CartSummaryBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final inset = fulusHorizontalInset(context);
-    return SafeArea(top: false, child: Padding(
-      padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
-      child: Material(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          onTap: () {
-            final cubit = context.read<CartCubit>();
-            Navigator.of(context).push(
-              PageRouteBuilder<void>(
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-                pageBuilder: (_, __, ___) =>
-                    BlocProvider.value(value: cubit, child: const CartScreen()),
-              ),
-            );
-          },
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          inset,
+          AppSpacing.sm,
+          inset,
+          AppSpacing.sm,
+        ),
+        child: Material(
+          color: AppColors.primary,
           borderRadius: BorderRadius.circular(10),
-          child: SizedBox(height: 54, child: Row(children: [
-            const SizedBox(width: AppSpacing.md),
-            Icon(FulusIcons.shoppingCart, color: AppColors.onColor(AppColors.primary), size: 20),
-            const SizedBox(width: AppSpacing.sm),
-            Text(state.itemCount.toString() + ' items', style: AppTypography.body.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Text(formatMoney(state.total, symbol: state.currencySymbol), style: AppTypography.heading.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w800)),
-            const SizedBox(width: AppSpacing.sm),
-            Text('Charge', style: AppTypography.body.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w700)),
-            const SizedBox(width: AppSpacing.md),
-          ])),
+          child: InkWell(
+            onTap: () {
+              final cubit = context.read<CartCubit>();
+              Navigator.of(context).push(
+                PageRouteBuilder<void>(
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                  pageBuilder: (_, __, ___) => BlocProvider.value(
+                    value: cubit,
+                    child: const CartScreen(),
+                  ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              height: 54,
+              child: Row(
+                children: [
+                  const SizedBox(width: AppSpacing.md),
+                  Icon(
+                    FulusIcons.shoppingCart,
+                    color: AppColors.onColor(AppColors.primary),
+                    size: 20,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    '${state.itemCount} ${state.itemCount == 1 ? 'item' : 'items'}',
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.onColor(AppColors.primary),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    formatMoney(state.total, symbol: state.currencySymbol),
+                    style: AppTypography.heading.copyWith(
+                      color: AppColors.onColor(AppColors.primary),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    'Charge',
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.onColor(AppColors.primary),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
-    ));
+    );
   }
 }

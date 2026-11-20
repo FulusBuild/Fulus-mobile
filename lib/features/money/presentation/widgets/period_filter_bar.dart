@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
@@ -38,28 +39,42 @@ class MoneyPeriodFilterBar extends ConsumerWidget {
         context: context,
         firstDate: DateTime(now.year - 3),
         lastDate: now,
-        initialDateRange: customRange ?? DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
+        initialDateRange:
+            customRange ??
+            DateTimeRange(
+              start: now.subtract(const Duration(days: 6)),
+              end: now,
+            ),
       );
       if (picked != null) {
         ref.read(customMoneyRangeProvider.notifier).state = picked;
-        ref.read(moneyPeriodKindProvider.notifier).state = ReportPeriodKind.custom;
+        ref.read(moneyPeriodKindProvider.notifier).state =
+            ReportPeriodKind.custom;
       }
     }
 
-    return FulusChipRow(children: [
-      for (final k in const [ReportPeriodKind.today, ReportPeriodKind.thisWeek, ReportPeriodKind.thisMonth])
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: [
+        for (final k in const [
+          ReportPeriodKind.today,
+          ReportPeriodKind.thisWeek,
+          ReportPeriodKind.thisMonth,
+        ])
+          FulusChip(
+            label: labelFor(k),
+            selected: kind == k,
+            compact: true,
+            onTap: () => ref.read(moneyPeriodKindProvider.notifier).state = k,
+          ),
         FulusChip(
-          label: labelFor(k),
-          selected: kind == k,
+          label: labelFor(ReportPeriodKind.custom),
+          selected: kind == ReportPeriodKind.custom,
           compact: true,
-          onTap: () => ref.read(moneyPeriodKindProvider.notifier).state = k,
+          onTap: pickCustomRange,
         ),
-      FulusChip(
-        label: labelFor(ReportPeriodKind.custom),
-        selected: kind == ReportPeriodKind.custom,
-        compact: true,
-        onTap: pickCustomRange,
-      ),
-    ]);
+      ],
+    );
   }
 }

@@ -35,7 +35,10 @@ void installGlobalErrorCapture(DiagnosticLogger logger) {
         stackTrace: details.stack ?? StackTrace.current,
         severity: DiagnosticSeverity.critical,
         category: DiagnosticCategory.flutterFramework,
-        component: details.library ?? 'Flutter framework',
+        component:
+            diagnosticComponentFromFlutterError(details) ??
+            details.library ??
+            'Flutter framework',
         title: 'Display error',
         screen: CurrentScreenTracker.current,
         context: {
@@ -52,7 +55,8 @@ void installGlobalErrorCapture(DiagnosticLogger logger) {
           // file:line shows up at all for those. Most FlutterErrorDetails
           // (anything reported via a plain `throw`) have no
           // informationCollector and this stays absent, same as before.
-          if (_collectWidgetInfo(details) case final info?) 'Widget details': info,
+          if (_collectWidgetInfo(details) case final info?)
+            'Widget details': info,
         },
       ),
     );
@@ -103,6 +107,24 @@ String? _collectWidgetInfo(FlutterErrorDetails details) {
   final nodes = collector().toList();
   if (nodes.isEmpty) return null;
   return nodes.map((node) => node.toStringDeep()).join('\n').trim();
+}
+
+/// Prefer the app widget identified by Flutter's layout diagnostics over
+/// a generic label such as "rendering library". The full collector output
+/// remains in technical context for engineers who need the render details.
+@visibleForTesting
+String? diagnosticComponentFromFlutterError(FlutterErrorDetails details) {
+  final info = _collectWidgetInfo(details);
+  if (info == null) return null;
+  final match = RegExp(
+    r'The relevant error-causing widget was:\s*\n\s*([A-Za-z][A-Za-z0-9_]*)',
+  ).firstMatch(info);
+  if (match != null) return match.group(1);
+
+  final renderObject = RegExp(
+    r'The following RenderObject was being processed when the exception was fired:\s*\n\s*(Render[A-Za-z0-9_]+)',
+  ).firstMatch(info);
+  return renderObject?.group(1);
 }
 
 /// A calm, on-brand fallback shown instead of the red screen of death

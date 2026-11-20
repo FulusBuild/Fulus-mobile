@@ -19,6 +19,8 @@ class CurrentScreenTracker {
   CurrentScreenTracker._();
 
   static String? _current;
+  static final Map<int, String> _branchScreens = {};
+  static int? _activeBranch;
 
   /// The `name:` of the most recently pushed/active GoRoute (e.g.
   /// `'sell'`, `'moneyHistory'`) — the same identifiers already used
@@ -26,6 +28,22 @@ class CurrentScreenTracker {
   /// null before the first route has settled (briefly, during the very
   /// first frame) or for a route with no `name:`.
   static String? get current => _current;
+
+  /// Selects the screen remembered by the visible shell branch. Each branch
+  /// has its own Navigator, so its last route can remain active while hidden.
+  static void activateBranch(int branch) {
+    _activeBranch = branch;
+    _current = _branchScreens[branch] ?? _current;
+  }
+
+  static void _record(String name, int? branch) {
+    if (branch == null) {
+      _current = name;
+      return;
+    }
+    _branchScreens[branch] = name;
+    if (_activeBranch == branch) _current = name;
+  }
 }
 
 /// Registered into `GoRouter(observers: [...])` in app/router.dart.
@@ -34,19 +52,26 @@ class CurrentScreenTracker {
 /// which GoRouter populates from each `GoRoute`'s own `name:` for
 /// named routes (every route in this app's router is named).
 class CurrentScreenObserver extends NavigatorObserver {
+  CurrentScreenObserver({this.branch});
+
+  final int? branch;
+
   void _update(Route<dynamic>? route) {
     final name = route?.settings.name;
     if (name != null && name.isNotEmpty) {
-      CurrentScreenTracker._current = name;
+      CurrentScreenTracker._record(name, branch);
     }
   }
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _update(route);
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _update(route);
 
   @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => _update(previousRoute);
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _update(previousRoute);
 
   @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => _update(newRoute);
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _update(newRoute);
 }

@@ -10,6 +10,7 @@ import '../domain/entities/permission.dart';
 import '../core/theme/device_form_factor.dart';
 import '../core/theme/fulus_icons.dart';
 import '../core/theme/fulus_art.dart';
+import '../core/diagnostics/capture/current_screen_tracker.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
@@ -24,6 +25,7 @@ class FulusAppShell extends StatelessWidget {
   static const _maxContentWidth = 1120.0;
   @override
   Widget build(BuildContext context) {
+    CurrentScreenTracker.activateBranch(navigationShell.currentIndex);
     final content = isTabletWidth(context)
         ? Align(
             alignment: Alignment.topCenter,

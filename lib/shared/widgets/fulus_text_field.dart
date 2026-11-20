@@ -57,19 +57,27 @@ class FulusTextField extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
+      obscuringCharacter: '•',
+      autocorrect: !obscureText,
+      enableSuggestions: !obscureText,
       enabled: enabled,
       readOnly: readOnly,
       onChanged: onChanged,
       onTap: onTap,
       maxLines: obscureText ? 1 : maxLines,
-      style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+      style: AppTypography.body.copyWith(
+        color: AppColors.textPrimaryOf(context),
+      ),
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
         helperText: errorText == null ? helperText : null,
         errorText: errorText,
         suffixIcon: suffixIcon,
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
       ),
     );
   }

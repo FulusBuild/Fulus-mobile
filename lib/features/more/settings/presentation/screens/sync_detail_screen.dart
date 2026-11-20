@@ -34,7 +34,12 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
           final wide = constraints.maxWidth >= 760;
           final inset = wide ? AppSpacing.lg : AppSpacing.xs;
           return ListView(
-            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              AppSpacing.sm,
+              inset,
+              AppSpacing.xxl,
+            ),
             children: [
               Center(
                 child: ConstrainedBox(
@@ -42,24 +47,30 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const FulusSectionHeader(
-                        title: 'Your data',
-                      ),
+                      const FulusSectionHeader(title: 'Your data'),
                       statusAsync.when(
                         data: (status) => _StatusCard(
-                          status: status.kind == SyncStatusKind.disabled || connection.isSyncReady
+                          health: health,
+                          status:
+                              status.kind == SyncStatusKind.disabled ||
+                                  connection.isSyncReady
                               ? status
                               : const SyncStatus.cloudUnavailable(),
                         ),
                         loading: () => const _SyncStatusSkeleton(),
                         error: (_, __) => FulusErrorState(
                           message: "Couldn't read backup status.",
-                          reassurance: 'Your local business data is not affected by this status check.',
-                          onRetry: () => ref.invalidate(_syncDetailStatusProvider),
+                          reassurance:
+                              'Your local business data is not affected by this status check.',
+                          onRetry: () =>
+                              ref.invalidate(_syncDetailStatusProvider),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      _HealthCard(health: health, status: statusAsync.value ?? const SyncStatus.settled()),
+                      _HealthCard(
+                        health: health,
+                        status: statusAsync.value ?? const SyncStatus.settled(),
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                       const _ConflictCard(),
                       const SizedBox(height: AppSpacing.lg),
@@ -72,19 +83,22 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                             _InfoRow(
                               icon: Icons.phone_android_outlined,
                               title: 'Saved on this device first',
-                              body: 'Sales, stock, customers, and other business work remain available locally.',
+                              body:
+                                  'Sales, stock, customers, and other business work remain available locally.',
                             ),
                             const FulusListDivider(),
                             _InfoRow(
                               icon: Icons.cloud_outlined,
                               title: 'Backed up automatically',
-                              body: 'Fulus sends pending changes in the background whenever the service is available.',
+                              body:
+                                  'Fulus sends pending changes in the background whenever the service is available.',
                             ),
                             const FulusListDivider(),
                             _InfoRow(
                               icon: Icons.sync_outlined,
                               title: 'Safe to keep working offline',
-                              body: 'A delayed backup does not block normal business operations on this device.',
+                              body:
+                                  'A delayed backup does not block normal business operations on this device.',
                             ),
                           ],
                         ),
@@ -110,12 +124,12 @@ final _syncDetailStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
 
 final _unresolvedConflictsProvider =
     StreamProvider.autoDispose<List<SyncConflictRecord>>((ref) {
-  final db = ref.watch(databaseProvider);
-  return (db.select(db.syncConflictRecords)
-        ..where((c) => c.resolvedAt.isNull())
-        ..orderBy([(c) => OrderingTerm.desc(c.createdAt)]))
-      .watch();
-});
+      final db = ref.watch(databaseProvider);
+      return (db.select(db.syncConflictRecords)
+            ..where((c) => c.resolvedAt.isNull())
+            ..orderBy([(c) => OrderingTerm.desc(c.createdAt)]))
+          .watch();
+    });
 
 class _ConflictCard extends ConsumerStatefulWidget {
   const _ConflictCard();
@@ -131,14 +145,23 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
     if (_resolvingId != null) return;
     setState(() => _resolvingId = conflict.id);
     try {
-      await ref.read(syncConflictResolverProvider).keepLocalVersion(conflict.id);
+      await ref
+          .read(syncConflictResolverProvider)
+          .keepLocalVersion(conflict.id);
       await ref.read(syncServiceProvider).request();
       if (!mounted) return;
-      showFulusSnackbar(context, message: 'Your local version was sent back to Cloud.');
+      showFulusSnackbar(
+        context,
+        message: 'Your local version was sent back to Cloud.',
+      );
       ref.invalidate(_syncDetailStatusProvider);
     } catch (_) {
       if (!mounted) return;
-      showFulusSnackbar(context, message: 'Fulus could not send your local version yet. It remains safe on this device.');
+      showFulusSnackbar(
+        context,
+        message:
+            'Fulus could not send your local version yet. It remains safe on this device.',
+      );
     } finally {
       if (mounted) setState(() => _resolvingId = null);
     }
@@ -148,7 +171,9 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
     if (_resolvingId != null) return;
     setState(() => _resolvingId = conflict.id);
     try {
-      await ref.read(syncConflictResolverProvider).keepCloudVersion(conflict.id);
+      await ref
+          .read(syncConflictResolverProvider)
+          .keepCloudVersion(conflict.id);
       if (!mounted) return;
       showFulusSnackbar(
         context,
@@ -159,7 +184,8 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
       if (!mounted) return;
       showFulusSnackbar(
         context,
-        message: 'Fulus could not refresh this change yet. Your local data is still safe.',
+        message:
+            'Fulus could not refresh this change yet. Your local data is still safe.',
       );
     } finally {
       if (mounted) setState(() => _resolvingId = null);
@@ -198,7 +224,9 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Column(
@@ -259,50 +287,59 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
 }
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.status});
+  const _StatusCard({required this.status, required this.health});
 
   final SyncStatus status;
+  final SyncHealthSnapshot health;
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color, headline, body) = switch (status.kind) {
-      SyncStatusKind.disabled => (
-          Icons.cloud_off_outlined,
-          AppColors.textSecondaryOf(context),
-          'Cloud backup is off',
-          'Your work is still safe on this device. Connect Fulus Cloud to back it up and use it across devices.',
-        ),
-      SyncStatusKind.cloudUnavailable => (
-          Icons.cloud_off_outlined,
-          AppColors.textSecondaryOf(context),
-          'Cloud backup is reconnecting',
-          'Your work is safe on this device. Fulus will resume backup automatically when Cloud is ready.',
-        ),
-      SyncStatusKind.settled => (
-          Icons.cloud_done_outlined,
-          AppColors.primaryOf(context),
-          'Everything is backed up',
-          'Nothing needs your attention.',
-        ),
-      SyncStatusKind.pending => (
-          Icons.cloud_upload_outlined,
-          AppColors.textSecondaryOf(context),
-          'Backup will continue automatically',
-          'Your work is safe on this device and will be sent when a connection is available.',
-        ),
-      SyncStatusKind.syncing => (
-          Icons.sync,
-          AppColors.primaryOf(context),
-          'Backing up now',
-          'Fulus is sending your saved work in the background.',
-        ),
-      SyncStatusKind.attentionNeeded => (
-          Icons.warning_amber_outlined,
-          AppColors.warningOf(context),
-          'Some backup is taking longer than usual',
-          'Your work is safe on this device. Fulus will keep trying automatically. If this continues, check your internet connection.',
-        ),
-    };
+    final firstBackupNotRecorded = isWaitingForFirstBackup(health, status.kind);
+    final (icon, color, headline, body) = firstBackupNotRecorded
+        ? (
+            Icons.cloud_upload_outlined,
+            AppColors.textSecondaryOf(context),
+            'Waiting for first backup',
+            'Your work is saved on this device. Fulus will confirm a cloud backup after the first successful sync.',
+          )
+        : switch (status.kind) {
+            SyncStatusKind.disabled => (
+              Icons.cloud_off_outlined,
+              AppColors.textSecondaryOf(context),
+              'Cloud backup is off',
+              'Your work is still safe on this device. Connect Fulus Cloud to back it up and use it across devices.',
+            ),
+            SyncStatusKind.cloudUnavailable => (
+              Icons.cloud_off_outlined,
+              AppColors.textSecondaryOf(context),
+              'Cloud backup is reconnecting',
+              'Your work is safe on this device. Fulus will resume backup automatically when Cloud is ready.',
+            ),
+            SyncStatusKind.settled => (
+              Icons.cloud_done_outlined,
+              AppColors.primaryOf(context),
+              'Everything is backed up',
+              'Nothing needs your attention.',
+            ),
+            SyncStatusKind.pending => (
+              Icons.cloud_upload_outlined,
+              AppColors.textSecondaryOf(context),
+              'Backup will continue automatically',
+              'Your work is safe on this device and will be sent when a connection is available.',
+            ),
+            SyncStatusKind.syncing => (
+              Icons.sync,
+              AppColors.primaryOf(context),
+              'Backing up now',
+              'Fulus is sending your saved work in the background.',
+            ),
+            SyncStatusKind.attentionNeeded => (
+              Icons.warning_amber_outlined,
+              AppColors.warningOf(context),
+              'Some backup is taking longer than usual',
+              'Your work is safe on this device. Fulus will keep trying automatically. If this continues, check your internet connection.',
+            ),
+          };
 
     final displayBody = status.conflictCount > 0
         ? '${status.conflictCount} change${status.conflictCount == 1 ? '' : 's'} need review because another device changed the same data.'
@@ -377,9 +414,15 @@ class _HealthCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _HealthLine(label: 'Last successful backup', value: _when(health.lastPushAt)),
+          _HealthLine(
+            label: 'Last successful backup',
+            value: _when(health.lastPushAt),
+          ),
           const FulusListDivider(),
-          _HealthLine(label: 'Last successful update', value: _when(health.lastPullAt)),
+          _HealthLine(
+            label: 'Last successful update',
+            value: _when(health.lastPullAt),
+          ),
           const FulusListDivider(),
           _HealthLine(
             label: 'Automatic backup',
@@ -469,7 +512,6 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
 
 class _SyncStatusSkeleton extends StatelessWidget {
   const _SyncStatusSkeleton();

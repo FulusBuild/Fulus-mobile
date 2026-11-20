@@ -35,7 +35,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               message: "Couldn't load categories.",
               reassurance: 'Your products are still safe on this device.',
               onRetry: () => setState(() {
-                _categoriesStream = ref.read(categoryRepositoryProvider).watchCategories();
+                _categoriesStream = ref
+                    .read(categoryRepositoryProvider)
+                    .watchCategories();
               }),
             );
           }
@@ -47,7 +49,12 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               final wide = constraints.maxWidth >= 760;
               final inset = wide ? AppSpacing.lg : AppSpacing.sm;
               return ListView(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+                padding: EdgeInsets.fromLTRB(
+                  inset,
+                  AppSpacing.sm,
+                  inset,
+                  AppSpacing.xxl,
+                ),
                 children: [
                   Center(
                     child: ConstrainedBox(
@@ -60,7 +67,8 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                             FulusEmptyState(
                               icon: FulusIcons.sell,
                               headline: 'No categories yet',
-                              body: 'Create your first category to make products easier to find while selling and managing stock.',
+                              body:
+                                  'Create your first category to make products easier to find while selling and managing stock.',
                               actionLabel: 'Add category',
                               onAction: () => _openAddSheet(context),
                             )
@@ -69,7 +77,8 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                               children: [
                                 for (var i = 0; i < categories.length; i++) ...[
                                   _CategoryRow(category: categories[i]),
-                                  if (i < categories.length - 1) const FulusListDivider(),
+                                  if (i < categories.length - 1)
+                                    const FulusListDivider(),
                                 ],
                               ],
                             ),
@@ -109,7 +118,10 @@ class _CategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -137,13 +149,16 @@ class _CategoryRow extends StatelessWidget {
                     color: AppColors.textPrimaryOf(context),
                   ),
                 ),
-                if (category.description != null && category.description!.isNotEmpty) ...[
+                if (category.description != null &&
+                    category.description!.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     category.description!,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                    ),
                   ),
                 ],
               ],
@@ -186,7 +201,9 @@ class _AddCategorySheetState extends ConsumerState<_AddCategorySheet> {
       _error = null;
     });
     try {
-      await ref.read(categoryRepositoryProvider).createCategory(
+      await ref
+          .read(categoryRepositoryProvider)
+          .createCategory(
             CategoryDraft(
               name: name,
               description: _descriptionController.text.trim().isEmpty
@@ -221,24 +238,43 @@ class _AddCategorySheetState extends ConsumerState<_AddCategorySheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('New category', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+              Text(
+                'New category',
+                style: AppTypography.heading.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                ),
+              ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Give products a simple grouping you can use across Stock and Sell.',
-                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               if (_error != null) ...[
-                Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+                Text(
+                  _error!,
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.errorOf(context),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.sm),
               ],
               FulusTextField(label: 'Name', controller: _nameController),
               const SizedBox(height: AppSpacing.sm),
-              FulusTextField(label: 'Description (optional)', controller: _descriptionController),
+              FulusTextField(
+                label: 'Description (optional)',
+                controller: _descriptionController,
+              ),
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
-                child: FulusButton(label: 'Save category', loading: _saving, onPressed: _saving ? null : _save),
+                child: FulusButton(
+                  label: 'Save category',
+                  loading: _saving,
+                  onPressed: _saving ? null : _save,
+                ),
               ),
             ],
           ),
@@ -248,26 +284,50 @@ class _AddCategorySheetState extends ConsumerState<_AddCategorySheet> {
   }
 }
 
-
 class _CategoriesLoadingSkeleton extends StatelessWidget {
   const _CategoriesLoadingSkeleton();
 
   @override
   Widget build(BuildContext context) {
     final inset = fulusHorizontalInset(context);
-    return ListView(
-      padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
-      children: const [
-        FulusCardSkeleton(),
-        SizedBox(height: AppSpacing.xl),
-        FulusSkeletonBox(width: 150, height: 18),
-        SizedBox(height: AppSpacing.sm),
-        FulusCardSkeleton(),
-        FulusCardSkeleton(),
-        FulusCardSkeleton(),
-        SizedBox(height: AppSpacing.lg),
-        FulusSkeletonBox(height: 64, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
-      ],
+    return Semantics(
+      liveRegion: true,
+      label: 'Loading product categories',
+      child: Stack(
+        children: [
+          ListView(
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              AppSpacing.sm,
+              inset,
+              AppSpacing.xxl,
+            ),
+            children: const [
+              FulusCardSkeleton(),
+              SizedBox(height: AppSpacing.xl),
+              FulusSkeletonBox(width: 150, height: 18),
+              SizedBox(height: AppSpacing.sm),
+              FulusCardSkeleton(),
+              FulusCardSkeleton(),
+              FulusCardSkeleton(),
+              SizedBox(height: AppSpacing.lg),
+              FulusSkeletonBox(
+                height: 64,
+                borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
+              ),
+            ],
+          ),
+          const Positioned(
+            top: AppSpacing.sm,
+            right: AppSpacing.sm,
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

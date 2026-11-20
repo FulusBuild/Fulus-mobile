@@ -18,7 +18,11 @@ import '../../../../../shared/widgets/widgets.dart';
 import '../../../../money/domain/money_history_filter.dart';
 import '../../../../money/domain/money_transaction.dart';
 import '../../../../money/presentation/providers/money_providers.dart'
-    show moneyCurrencySymbolProvider, moneyPeriodKindProvider, customMoneyRangeProvider, businessNameProvider;
+    show
+        moneyCurrencySymbolProvider,
+        moneyPeriodKindProvider,
+        customMoneyRangeProvider,
+        businessNameProvider;
 import '../../../../money/presentation/utils/money_format.dart';
 
 /// Volume 10: one shared period selector above five categories, not
@@ -100,30 +104,46 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final period = _period;
     final user = ref.read(sessionProvider);
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
-    final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
+    final canViewAllSales =
+        user?.role == AuthRole.owner ||
+        permissions.contains(Permission.viewDashboardStats);
     final locationFuture = ref.read(activeLocationIdProvider.future);
-    _salesFuture = locationFuture.then((locationId) => repo.getSalesReport(
-          period,
-          currentAuthUserId: user?.id ?? '',
-          canViewAllSales: canViewAllSales,
-          locationId: locationId,
-        ));
-    _inventoryFuture = locationFuture.then((locationId) => repo.getInventoryReport(locationId: locationId));
-    _customersFuture = locationFuture.then((locationId) => repo.getCustomerReport(period, locationId: locationId));
-    _financeFuture = locationFuture.then((locationId) => repo.getFinanceReport(period, locationId: locationId));
-    _employeesFuture = locationFuture.then((locationId) => repo.getEmployeeReport(period, locationId: locationId));
+    _salesFuture = locationFuture.then(
+      (locationId) => repo.getSalesReport(
+        period,
+        currentAuthUserId: user?.id ?? '',
+        canViewAllSales: canViewAllSales,
+        locationId: locationId,
+      ),
+    );
+    _inventoryFuture = locationFuture.then(
+      (locationId) => repo.getInventoryReport(locationId: locationId),
+    );
+    _customersFuture = locationFuture.then(
+      (locationId) => repo.getCustomerReport(period, locationId: locationId),
+    );
+    _financeFuture = locationFuture.then(
+      (locationId) => repo.getFinanceReport(period, locationId: locationId),
+    );
+    _employeesFuture = locationFuture.then(
+      (locationId) => repo.getEmployeeReport(period, locationId: locationId),
+    );
     _cashFlowFuture = locationFuture.then(
-          (locationId) => ref.read(financeStatsRepositoryProvider).getCashFlow(
-                dateFrom: period.start,
-                dateTo: period.end,
-                locationId: locationId,
-              ),
-        );
+      (locationId) => ref
+          .read(financeStatsRepositoryProvider)
+          .getCashFlow(
+            dateFrom: period.start,
+            dateTo: period.end,
+            locationId: locationId,
+          ),
+    );
   }
 
   void _retry() => setState(_loadAll);
 
-  Future<void> _onPeriodSelectionChanged(Set<ReportPeriodKind> selection) async {
+  Future<void> _onPeriodSelectionChanged(
+    Set<ReportPeriodKind> selection,
+  ) async {
     final kind = selection.first;
     if (kind == ReportPeriodKind.custom) {
       final now = DateTime.now();
@@ -131,7 +151,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         context: context,
         firstDate: DateTime(now.year - 3),
         lastDate: now,
-        initialDateRange: _customRange ?? DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
+        initialDateRange:
+            _customRange ??
+            DateTimeRange(
+              start: now.subtract(const Duration(days: 6)),
+              end: now,
+            ),
       );
       if (picked == null || !mounted) return;
       setState(() {
@@ -185,10 +210,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final businessName = ref.read(businessNameProvider).value ?? 'Fulus';
     try {
       final payload = await _buildExportPayload(currencySymbol);
-      final dateRangeLabel = '${formatRelativeDay(_period.start)} – ${formatRelativeDay(_period.end)}';
-      await ref.read(exportServiceProvider).export(
+      final dateRangeLabel =
+          '${formatRelativeDay(_period.start)} – ${formatRelativeDay(_period.end)}';
+      await ref
+          .read(exportServiceProvider)
+          .export(
             format: format,
-            fileName: 'report-${payload.name}-${DateTime.now().millisecondsSinceEpoch}',
+            fileName:
+                'report-${payload.name}-${DateTime.now().millisecondsSinceEpoch}',
             title: payload.title,
             subtitle: dateRangeLabel,
             metadata: ExportMetadata(
@@ -202,7 +231,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             rows: payload.rows,
           );
     } catch (_) {
-      if (mounted) showFulusSnackbar(context, message: "Couldn't export right now. Please try again.");
+      if (mounted)
+        showFulusSnackbar(
+          context,
+          message: "Couldn't export right now. Please try again.",
+        );
     }
   }
 
@@ -217,10 +250,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           rows: [
             ['Revenue', formatMoney(r.totalRevenue, symbol: currencySymbol)],
             ['Sales', '${r.totalSalesCount}'],
-            ['Discounts given', formatMoney(r.totalDiscount, symbol: currencySymbol)],
+            [
+              'Discounts given',
+              formatMoney(r.totalDiscount, symbol: currencySymbol),
+            ],
             ['Tax collected', formatMoney(r.totalTax, symbol: currencySymbol)],
             for (final p in r.topProducts)
-              ['Top product — ${p.productName}', formatMoney(p.revenue, symbol: currencySymbol)],
+              [
+                'Top product — ${p.productName}',
+                formatMoney(p.revenue, symbol: currencySymbol),
+              ],
           ],
         );
       case 1:
@@ -230,7 +269,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           title: 'Inventory report',
           headers: const ['Metric', 'Value'],
           rows: [
-            ['Stock value (at cost)', formatMoney(r.totalStockValue, symbol: currencySymbol)],
+            [
+              'Stock value (at cost)',
+              formatMoney(r.totalStockValue, symbol: currencySymbol),
+            ],
             ['Low stock', '${r.lowStockCount}'],
             ['Out of stock', '${r.outOfStockCount}'],
             ['Total products', '${r.totalProducts}'],
@@ -244,10 +286,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           title: 'Customers report',
           headers: const ['Metric', 'Value'],
           rows: [
-            ['Outstanding credit', formatMoney(r.totalOutstandingCredit, symbol: currencySymbol)],
+            [
+              'Outstanding credit',
+              formatMoney(r.totalOutstandingCredit, symbol: currencySymbol),
+            ],
             ['New customers', '${r.newCustomersThisPeriod}'],
             for (final c in r.topCustomers)
-              ['Top customer — ${c.customerName}', formatMoney(c.totalSpend, symbol: currencySymbol)],
+              [
+                'Top customer — ${c.customerName}',
+                formatMoney(c.totalSpend, symbol: currencySymbol),
+              ],
           ],
         );
       case 3:
@@ -258,12 +306,21 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           headers: const ['Metric', 'Value'],
           rows: [
             ['Revenue', formatMoney(r.totalRevenue, symbol: currencySymbol)],
-            ['Cost of goods sold', formatMoney(r.totalCostOfGoodsSold, symbol: currencySymbol)],
-            ['Gross profit', formatMoney(r.grossProfit, symbol: currencySymbol)],
+            [
+              'Cost of goods sold',
+              formatMoney(r.totalCostOfGoodsSold, symbol: currencySymbol),
+            ],
+            [
+              'Gross profit',
+              formatMoney(r.grossProfit, symbol: currencySymbol),
+            ],
             ['Expenses', formatMoney(r.totalExpenses, symbol: currencySymbol)],
             ['Net profit', formatMoney(r.netProfit, symbol: currencySymbol)],
             for (final e in r.expenseBreakdown)
-              ['Expense — ${e.category}', formatMoney(e.total, symbol: currencySymbol)],
+              [
+                'Expense — ${e.category}',
+                formatMoney(e.total, symbol: currencySymbol),
+              ],
           ],
         );
       default:
@@ -273,7 +330,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           title: 'Team report',
           headers: const ['Employee', 'Present', 'Absent', 'Late'],
           rows: [
-            for (final p in r.performance) [p.employeeName, '${p.daysPresent}', '${p.daysAbsent}', '${p.daysLate}'],
+            for (final p in r.performance)
+              [
+                p.employeeName,
+                '${p.daysPresent}',
+                '${p.daysAbsent}',
+                '${p.daysLate}',
+              ],
           ],
         );
     }
@@ -287,17 +350,67 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final period = _period;
     switch (_selectedReportIndex) {
       case 0:
-        return KeyedSubtree(key: ValueKey('sales-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _SalesTab(future: _salesFuture, currencySymbol: currencySymbol, onRetry: _retry, period: period));
+        return KeyedSubtree(
+          key: ValueKey(
+            'sales-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}',
+          ),
+          child: _SalesTab(
+            future: _salesFuture,
+            currencySymbol: currencySymbol,
+            onRetry: _retry,
+            period: period,
+          ),
+        );
       case 1:
-        return KeyedSubtree(key: ValueKey('inventory-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _InventoryTab(future: _inventoryFuture, currencySymbol: currencySymbol, onRetry: _retry));
+        return KeyedSubtree(
+          key: ValueKey(
+            'inventory-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}',
+          ),
+          child: _InventoryTab(
+            future: _inventoryFuture,
+            currencySymbol: currencySymbol,
+            onRetry: _retry,
+          ),
+        );
       case 2:
-        return KeyedSubtree(key: ValueKey('customers-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _CustomersTab(future: _customersFuture, currencySymbol: currencySymbol, onRetry: _retry, canViewMoney: canViewMoney));
+        return KeyedSubtree(
+          key: ValueKey(
+            'customers-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}',
+          ),
+          child: _CustomersTab(
+            future: _customersFuture,
+            currencySymbol: currencySymbol,
+            onRetry: _retry,
+            canViewMoney: canViewMoney,
+          ),
+        );
       case 3:
-        return KeyedSubtree(key: ValueKey('finance-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _FinanceTab(future: _financeFuture, cashFlowFuture: _cashFlowFuture, currencySymbol: currencySymbol, onRetry: _retry, onOpenMoneyHistory: canViewMoney ? _openMoneyHistory : null));
+        return KeyedSubtree(
+          key: ValueKey(
+            'finance-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}',
+          ),
+          child: _FinanceTab(
+            future: _financeFuture,
+            cashFlowFuture: _cashFlowFuture,
+            currencySymbol: currencySymbol,
+            onRetry: _retry,
+            onOpenMoneyHistory: canViewMoney ? _openMoneyHistory : null,
+          ),
+        );
       default:
-        return KeyedSubtree(key: ValueKey('employees-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}'), child: _EmployeesTab(future: _employeesFuture, onRetry: _retry, canManageEmployees: canManageEmployees));
+        return KeyedSubtree(
+          key: ValueKey(
+            'employees-${period.start.microsecondsSinceEpoch}-${period.end.microsecondsSinceEpoch}',
+          ),
+          child: _EmployeesTab(
+            future: _employeesFuture,
+            onRetry: _retry,
+            canManageEmployees: canManageEmployees,
+          ),
+        );
     }
   }
+
   @override
   void dispose() {
     super.dispose();
@@ -310,15 +423,24 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     });
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     final user = ref.watch(sessionProvider);
-    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
-    final canViewMoney = user?.role == AuthRole.owner || permissions.contains(Permission.viewMoney);
-    final canManageEmployees = user?.role == AuthRole.owner || permissions.contains(Permission.manageEmployees);
+    final permissions =
+        ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canViewMoney =
+        user?.role == AuthRole.owner ||
+        permissions.contains(Permission.viewMoney);
+    final canManageEmployees =
+        user?.role == AuthRole.owner ||
+        permissions.contains(Permission.manageEmployees);
 
     return FulusScreen(
       title: 'Reports',
       backgroundColor: AppColors.backgroundOf(context),
       actions: [
-        FulusIconButton(icon: Icons.ios_share, tooltip: 'Export report', onPressed: _export),
+        FulusIconButton(
+          icon: Icons.ios_share,
+          tooltip: 'Export report',
+          onPressed: _export,
+        ),
       ],
       applyPadding: false,
       body: ListView(
@@ -326,7 +448,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(fulusHorizontalInset(context), AppSpacing.sm, fulusHorizontalInset(context), AppSpacing.xs),
+            padding: EdgeInsets.fromLTRB(
+              fulusHorizontalInset(context),
+              AppSpacing.sm,
+              fulusHorizontalInset(context),
+              AppSpacing.xs,
+            ),
             child: GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -335,35 +462,102 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               mainAxisSpacing: 0,
               childAspectRatio: 1.55,
               children: [
-                FulusFlatGridCell(icon: FulusIcons.salesReport, art: FulusArt.sell, label: 'Sales', iconColor: AppColors.sales, onTap: () => setState(() => _selectedReportIndex = 0)),
-                FulusFlatGridCell(icon: FulusIcons.stockReport, art: FulusArt.stock, label: 'Stock', iconColor: AppColors.stock, onTap: () => setState(() => _selectedReportIndex = 1)),
-                FulusFlatGridCell(icon: FulusIcons.expenseReport, art: FulusArt.moneyOut, label: 'Expense', iconColor: AppColors.warning, onTap: () => setState(() => _selectedReportIndex = 3)),
-                FulusFlatGridCell(icon: FulusIcons.customerReport, art: FulusArt.customers, label: 'Customer', iconColor: AppColors.customers, onTap: () => setState(() => _selectedReportIndex = 2)),
-                FulusFlatGridCell(icon: FulusIcons.staff, art: FulusArt.staff, label: 'Team', iconColor: AppColors.reports, onTap: () => setState(() => _selectedReportIndex = 4)),
+                FulusFlatGridCell(
+                  icon: FulusIcons.salesReport,
+                  art: FulusArt.sell,
+                  label: 'Sales',
+                  iconColor: AppColors.sales,
+                  onTap: () => setState(() => _selectedReportIndex = 0),
+                ),
+                FulusFlatGridCell(
+                  icon: FulusIcons.stockReport,
+                  art: FulusArt.stock,
+                  label: 'Stock',
+                  iconColor: AppColors.stock,
+                  onTap: () => setState(() => _selectedReportIndex = 1),
+                ),
+                FulusFlatGridCell(
+                  icon: FulusIcons.expenseReport,
+                  art: FulusArt.moneyOut,
+                  label: 'Expense',
+                  iconColor: AppColors.warning,
+                  onTap: () => setState(() => _selectedReportIndex = 3),
+                ),
+                FulusFlatGridCell(
+                  icon: FulusIcons.customerReport,
+                  art: FulusArt.customers,
+                  label: 'Customer',
+                  iconColor: AppColors.customers,
+                  onTap: () => setState(() => _selectedReportIndex = 2),
+                ),
+                FulusFlatGridCell(
+                  icon: FulusIcons.staff,
+                  art: FulusArt.staff,
+                  label: 'Team',
+                  iconColor: AppColors.reports,
+                  onTap: () => setState(() => _selectedReportIndex = 4),
+                ),
               ],
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(fulusHorizontalInset(context), AppSpacing.xs, fulusHorizontalInset(context), AppSpacing.sm),
+            padding: EdgeInsets.fromLTRB(
+              fulusHorizontalInset(context),
+              AppSpacing.xs,
+              fulusHorizontalInset(context),
+              AppSpacing.sm,
+            ),
             child: FulusChipRow(
               children: [
-                FulusChip(label: 'Today', selected: _periodKind == ReportPeriodKind.today, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.today})),
-                FulusChip(label: 'Week', selected: _periodKind == ReportPeriodKind.thisWeek, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisWeek})),
-                FulusChip(label: 'Month', selected: _periodKind == ReportPeriodKind.thisMonth, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisMonth})),
-                FulusChip(label: _customRange == null ? 'Custom' : formatRelativeDay(_customRange!.start) + ' – ' + formatRelativeDay(_customRange!.end), selected: _periodKind == ReportPeriodKind.custom, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.custom})),
+                FulusChip(
+                  label: 'Today',
+                  selected: _periodKind == ReportPeriodKind.today,
+                  onTap: () =>
+                      _onPeriodSelectionChanged({ReportPeriodKind.today}),
+                ),
+                FulusChip(
+                  label: 'Week',
+                  selected: _periodKind == ReportPeriodKind.thisWeek,
+                  onTap: () =>
+                      _onPeriodSelectionChanged({ReportPeriodKind.thisWeek}),
+                ),
+                FulusChip(
+                  label: 'Month',
+                  selected: _periodKind == ReportPeriodKind.thisMonth,
+                  onTap: () =>
+                      _onPeriodSelectionChanged({ReportPeriodKind.thisMonth}),
+                ),
+                FulusChip(
+                  label: _customRange == null
+                      ? 'Custom'
+                      : formatRelativeDay(_customRange!.start) +
+                            ' – ' +
+                            formatRelativeDay(_customRange!.end),
+                  selected: _periodKind == ReportPeriodKind.custom,
+                  onTap: () =>
+                      _onPeriodSelectionChanged({ReportPeriodKind.custom}),
+                ),
               ],
             ),
           ),
-          _selectedReportContent(currencySymbol: currencySymbol, canViewMoney: canViewMoney, canManageEmployees: canManageEmployees),
+          _selectedReportContent(
+            currencySymbol: currencySymbol,
+            canViewMoney: canViewMoney,
+            canManageEmployees: canManageEmployees,
+          ),
         ],
-      )
+      ),
     );
   }
 }
 
-
 class _ExportPayload {
-  const _ExportPayload({required this.name, required this.title, required this.headers, required this.rows});
+  const _ExportPayload({
+    required this.name,
+    required this.title,
+    required this.headers,
+    required this.rows,
+  });
   final String name;
   final String title;
   final List<String> headers;
@@ -383,14 +577,21 @@ class _ReportScaffold extends StatelessWidget {
         ...children,
         if (insights.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
-          Text('What this means', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+          Text(
+            'What this means',
+            style: AppTypography.heading.copyWith(
+              color: AppColors.textPrimaryOf(context),
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           for (final insight in insights)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.xs),
               child: Text(
                 '• ${insight.text}',
-                style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                ),
               ),
             ),
         ],
@@ -448,10 +649,7 @@ class _StatCard extends StatelessWidget {
         if (onTap != null)
           Material(
             color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              child: content,
-            ),
+            child: InkWell(onTap: onTap, child: content),
           )
         else
           content,
@@ -522,7 +720,8 @@ class _ReportTabBuilderState<T> extends State<_ReportTabBuilder<T>> {
           }
           return FulusErrorState(
             message: "Couldn't load this report.",
-            reassurance: 'Nothing recorded was changed — this is only about loading the numbers.',
+            reassurance:
+                'Nothing recorded was changed — this is only about loading the numbers.',
             onRetry: widget.onRetry,
           );
         }
@@ -531,11 +730,14 @@ class _ReportTabBuilderState<T> extends State<_ReportTabBuilder<T>> {
             return Column(
               children: [
                 const _ReportRefreshNotice(),
-                Expanded(child: widget.builder(context, _visibleData as T)),
+                // This subtree is a child of the report page's ListView and
+                // therefore has unbounded vertical constraints. Expanded
+                // here throws during refresh after previously loaded data.
+                widget.builder(context, _visibleData as T),
               ],
             );
           }
-          return const _ReportLoadingSkeleton();
+          return const ReportsLoadingSkeleton();
         }
         final data = snap.data as T;
         if (widget.isEmpty(data)) {
@@ -557,20 +759,37 @@ class _ReportRefreshNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
-        child: FulusCard(
-          child: Row(
-            children: [
-              if (error)
-                Icon(Icons.warning_amber_outlined, size: AppIconSize.compact, color: AppColors.warningOf(context))
-              else
-                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text(error ? "Couldn't refresh this report." : 'Updating report…')),
-            ],
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.md,
+      AppSpacing.xs,
+      AppSpacing.md,
+      0,
+    ),
+    child: FulusCard(
+      child: Row(
+        children: [
+          if (error)
+            Icon(
+              Icons.warning_amber_outlined,
+              size: AppIconSize.compact,
+              color: AppColors.warningOf(context),
+            )
+          else
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              error ? "Couldn't refresh this report." : 'Updating report…',
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 class _SalesTab extends StatelessWidget {
@@ -597,68 +816,90 @@ class _SalesTab extends StatelessWidget {
       isEmpty: (r) => r.totalSalesCount == 0,
       emptyHeadline: 'No sales in this period.',
       emptyBody: 'Sales you record will show up here, broken down by product.',
-      builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
-        _StatCard(
-          label: 'Revenue',
-          value: formatMoney(r.totalRevenue, symbol: currencySymbol),
-          onTap: () => _openTransactions(context),
-        ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _StatCard(
-                label: 'Sales',
-                value: '${r.totalSalesCount}',
-                onTap: () => _openTransactions(context),
+      builder: (context, r) => _ReportScaffold(
+        insights: r.insights,
+        children: [
+          _StatCard(
+            label: 'Revenue',
+            value: formatMoney(r.totalRevenue, symbol: currencySymbol),
+            onTap: () => _openTransactions(context),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StatCard(
+                  label: 'Sales',
+                  value: '${r.totalSalesCount}',
+                  onTap: () => _openTransactions(context),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _StatCard(
+                  label: 'Discounts given',
+                  value: formatMoney(r.totalDiscount, symbol: currencySymbol),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SalesChart(
+            report: r,
+            currencySymbol: currencySymbol,
+            period: period,
+          ),
+          if (r.topProducts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Top products',
+              style: AppTypography.heading.copyWith(
+                color: AppColors.textPrimaryOf(context),
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: _StatCard(
-                label: 'Discounts given',
-                value: formatMoney(r.totalDiscount, symbol: currencySymbol),
+            const SizedBox(height: AppSpacing.xs),
+            for (final p in r.topProducts.take(5))
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _StatCard(
+                  label: p.productName,
+                  value: formatMoney(p.revenue, symbol: currencySymbol),
+                  onTap: () => context.pushNamed(
+                    'stockProductDetail',
+                    pathParameters: {'productId': p.productId},
+                  ),
+                ),
               ),
-            ),
           ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _SalesChart(report: r, currencySymbol: currencySymbol, period: period),
-        if (r.topProducts.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.md),
-          Text('Top products', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-          const SizedBox(height: AppSpacing.xs),
-          for (final p in r.topProducts.take(5))
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _StatCard(
-                label: p.productName,
-                value: formatMoney(p.revenue, symbol: currencySymbol),
-                onTap: () => context.pushNamed('stockProductDetail', pathParameters: {'productId': p.productId}),
-              ),
-            ),
         ],
-      ]),
+      ),
     );
   }
 }
 
 class _SalesChart extends StatelessWidget {
-  const _SalesChart({required this.report, required this.currencySymbol, required this.period});
+  const _SalesChart({
+    required this.report,
+    required this.currencySymbol,
+    required this.period,
+  });
   final SalesReport report;
   final String currencySymbol;
   final ReportPeriod period;
 
   @override
   Widget build(BuildContext context) {
-    final oneDay = period.start.year == period.end.year &&
+    final oneDay =
+        period.start.year == period.end.year &&
         period.start.month == period.end.month &&
         period.start.day == period.end.day;
     final buckets = <String, double>{};
 
     if (oneDay) {
       for (final point in report.byHour) {
-        buckets['${point.hour.toString().padLeft(2, '0')}:00'] = moneyToMajor(point.total);
+        buckets['${point.hour.toString().padLeft(2, '0')}:00'] = moneyToMajor(
+          point.total,
+        );
       }
       for (var hour = 0; hour < 24; hour++) {
         buckets.putIfAbsent('${hour.toString().padLeft(2, '0')}:00', () => 0);
@@ -666,14 +907,20 @@ class _SalesChart extends StatelessWidget {
     } else {
       for (final sale in report.transactions) {
         final local = sale.saleDate.toLocal();
-        final key = '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}';
+        final key =
+            '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}';
         buckets[key] = (buckets[key] ?? 0) + moneyToMajor(sale.total);
       }
       if (buckets.isEmpty) {
-        var cursor = DateTime(period.start.year, period.start.month, period.start.day);
+        var cursor = DateTime(
+          period.start.year,
+          period.start.month,
+          period.start.day,
+        );
         final end = DateTime(period.end.year, period.end.month, period.end.day);
         while (!cursor.isAfter(end)) {
-          buckets['${cursor.day.toString().padLeft(2, '0')}/${cursor.month.toString().padLeft(2, '0')}'] = 0;
+          buckets['${cursor.day.toString().padLeft(2, '0')}/${cursor.month.toString().padLeft(2, '0')}'] =
+              0;
           cursor = cursor.add(const Duration(days: 1));
         }
       }
@@ -681,11 +928,19 @@ class _SalesChart extends StatelessWidget {
 
     final labels = buckets.keys.toList();
     final values = buckets.values.toList();
-    final maxValue = values.fold<double>(0, (max, value) => value > max ? value : max);
+    final maxValue = values.fold<double>(
+      0,
+      (max, value) => value > max ? value : max,
+    );
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -696,12 +951,18 @@ class _SalesChart extends StatelessWidget {
         children: [
           Text(
             oneDay ? 'Sales by hour' : 'Sales trend',
-            style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
+            style: AppTypography.heading.copyWith(
+              color: AppColors.textPrimaryOf(context),
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            oneDay ? 'Revenue recorded throughout today.' : 'Revenue recorded across the selected period.',
-            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+            oneDay
+                ? 'Revenue recorded throughout today.'
+                : 'Revenue recorded across the selected period.',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondaryOf(context),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           SizedBox(
@@ -720,7 +981,12 @@ class _SalesChart extends StatelessWidget {
 }
 
 class _SalesChartPainterWidget extends StatelessWidget {
-  const _SalesChartPainterWidget({required this.labels, required this.values, required this.maxValue, required this.currencySymbol});
+  const _SalesChartPainterWidget({
+    required this.labels,
+    required this.values,
+    required this.maxValue,
+    required this.currencySymbol,
+  });
   final List<String> labels;
   final List<double> values;
   final double maxValue;
@@ -771,16 +1037,28 @@ class _SalesChartPainter extends CustomPainter {
     const right = 8.0;
     const top = 10.0;
     const bottom = 30.0;
-    final chart = Rect.fromLTWH(left, top, size.width - left - right, size.height - top - bottom);
+    final chart = Rect.fromLTWH(
+      left,
+      top,
+      size.width - left - right,
+      size.height - top - bottom,
+    );
     final textStyle = TextStyle(fontSize: 10, color: textColor);
 
-    final gridPaint = Paint()..color = gridColor.withValues(alpha: 0.45)..strokeWidth = 1;
+    final gridPaint = Paint()
+      ..color = gridColor.withValues(alpha: 0.45)
+      ..strokeWidth = 1;
     for (var i = 0; i <= 3; i++) {
       final y = chart.bottom - chart.height * (i / 3);
       canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
       final value = maxValue * (i / 3);
-      final label = value == 0 ? '0' : formatMoney(moneyFromMajor(value), symbol: currencySymbol);
-      final tp = TextPainter(text: TextSpan(text: label, style: textStyle), textDirection: TextDirection.ltr)..layout(maxWidth: left - 6);
+      final label = value == 0
+          ? '0'
+          : formatMoney(moneyFromMajor(value), symbol: currencySymbol);
+      final tp = TextPainter(
+        text: TextSpan(text: label, style: textStyle),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: left - 6);
       tp.paint(canvas, Offset(left - tp.width - 6, y - tp.height / 2));
     }
 
@@ -790,7 +1068,9 @@ class _SalesChartPainter extends CustomPainter {
     final points = <Offset>[];
     for (var i = 0; i < count; i++) {
       final normalized = maxValue <= 0 ? 0.0 : values[i] / maxValue;
-      points.add(Offset(chart.left + step * i, chart.bottom - normalized * chart.height));
+      points.add(
+        Offset(chart.left + step * i, chart.bottom - normalized * chart.height),
+      );
     }
 
     final fillPath = Path()..moveTo(points.first.dx, chart.bottom);
@@ -801,26 +1081,46 @@ class _SalesChartPainter extends CustomPainter {
 
     final linePath = Path()..moveTo(points.first.dx, points.first.dy);
     for (final point in points.skip(1)) linePath.lineTo(point.dx, point.dy);
-    canvas.drawPath(linePath, Paint()..color = lineColor..style = PaintingStyle.stroke..strokeWidth = 2.5..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
+    canvas.drawPath(
+      linePath,
+      Paint()
+        ..color = lineColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
 
     final maxLabels = size.width < 500 ? 6 : 10;
     final labelEvery = count <= maxLabels ? 1 : (count / maxLabels).ceil();
     for (var i = 0; i < count; i += labelEvery) {
-      final tp = TextPainter(text: TextSpan(text: labels[i], style: textStyle), textDirection: TextDirection.ltr)..layout();
+      final tp = TextPainter(
+        text: TextSpan(text: labels[i], style: textStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
       var x = points[i].dx - tp.width / 2;
-      x = x.clamp(chart.left - tp.width / 2, chart.right - tp.width / 2).toDouble();
+      x = x
+          .clamp(chart.left - tp.width / 2, chart.right - tp.width / 2)
+          .toDouble();
       tp.paint(canvas, Offset(x, chart.bottom + 7));
     }
   }
 
   @override
   bool shouldRepaint(covariant _SalesChartPainter oldDelegate) {
-    return oldDelegate.labels != labels || oldDelegate.values != values || oldDelegate.maxValue != maxValue || oldDelegate.lineColor != lineColor;
+    return oldDelegate.labels != labels ||
+        oldDelegate.values != values ||
+        oldDelegate.maxValue != maxValue ||
+        oldDelegate.lineColor != lineColor;
   }
 }
 
 class _InventoryTab extends StatelessWidget {
-  const _InventoryTab({required this.future, required this.currencySymbol, required this.onRetry});
+  const _InventoryTab({
+    required this.future,
+    required this.currencySymbol,
+    required this.onRetry,
+  });
   final Future<InventoryReport> future;
   final String currencySymbol;
   final VoidCallback onRetry;
@@ -837,7 +1137,12 @@ class _InventoryTab extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(name, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(sheetContext))),
+                child: Text(
+                  name,
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textPrimaryOf(sheetContext),
+                  ),
+                ),
               ),
             ),
         ],
@@ -853,20 +1158,48 @@ class _InventoryTab extends StatelessWidget {
       isEmpty: (r) => r.totalProducts == 0,
       emptyHeadline: 'No products yet.',
       emptyBody: 'Add products in Stock to see their value and status here.',
-      builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
-        _StatCard(label: 'Stock value (at cost)', value: formatMoney(r.totalStockValue, symbol: currencySymbol), onTap: () => context.go('/stock')),
-        _StatCard(label: 'Low stock', value: '${r.lowStockCount}', onTap: () => context.go('/stock')),
-        _StatCard(label: 'Out of stock', value: '${r.outOfStockCount}', onTap: () => context.go('/stock')),
-        _StatCard(label: 'Total products', value: '${r.totalProducts}', onTap: () => context.go('/stock')),
-        if (r.notSoldInThirtyDays.isNotEmpty)
-          _StatCard(label: 'Not sold in 30 days', value: '${r.notSoldInThirtyDays.length}', onTap: () => _showNotSold(context, r.notSoldInThirtyDays)),
-      ]),
+      builder: (context, r) => _ReportScaffold(
+        insights: r.insights,
+        children: [
+          _StatCard(
+            label: 'Stock value (at cost)',
+            value: formatMoney(r.totalStockValue, symbol: currencySymbol),
+            onTap: () => context.go('/stock'),
+          ),
+          _StatCard(
+            label: 'Low stock',
+            value: '${r.lowStockCount}',
+            onTap: () => context.go('/stock'),
+          ),
+          _StatCard(
+            label: 'Out of stock',
+            value: '${r.outOfStockCount}',
+            onTap: () => context.go('/stock'),
+          ),
+          _StatCard(
+            label: 'Total products',
+            value: '${r.totalProducts}',
+            onTap: () => context.go('/stock'),
+          ),
+          if (r.notSoldInThirtyDays.isNotEmpty)
+            _StatCard(
+              label: 'Not sold in 30 days',
+              value: '${r.notSoldInThirtyDays.length}',
+              onTap: () => _showNotSold(context, r.notSoldInThirtyDays),
+            ),
+        ],
+      ),
     );
   }
 }
 
 class _CustomersTab extends StatelessWidget {
-  const _CustomersTab({required this.future, required this.currencySymbol, required this.onRetry, required this.canViewMoney});
+  const _CustomersTab({
+    required this.future,
+    required this.currencySymbol,
+    required this.onRetry,
+    required this.canViewMoney,
+  });
   final Future<CustomerReport> future;
   final String currencySymbol;
   final VoidCallback onRetry;
@@ -877,26 +1210,62 @@ class _CustomersTab extends StatelessWidget {
     return _ReportTabBuilder<CustomerReport>(
       future: future,
       onRetry: onRetry,
-      isEmpty: (r) => r.newCustomersThisPeriod == 0 && r.totalOutstandingCredit == 0 && r.topCustomers.isEmpty,
+      isEmpty: (r) =>
+          r.newCustomersThisPeriod == 0 &&
+          r.totalOutstandingCredit == 0 &&
+          r.topCustomers.isEmpty,
       emptyHeadline: 'Nothing to report yet.',
-      emptyBody: 'Customer activity — new customers, credit, and top spenders — will show up here.',
-      builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
-        _StatCard(label: 'Outstanding credit', value: formatMoney(r.totalOutstandingCredit, symbol: currencySymbol), onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null),
-        _StatCard(label: 'New customers', value: '${r.newCustomersThisPeriod}', onTap: () => context.pushNamed('moneyCustomers')),
-        for (final c in r.topCustomers.take(5))
-          _StatCard(label: c.customerName, value: formatMoney(c.totalSpend, symbol: currencySymbol), onTap: canViewMoney ? () => context.pushNamed('moneyCustomerProfile', pathParameters: {'id': c.customerId}) : null),
-      ]),
+      emptyBody:
+          'Customer activity — new customers, credit, and top spenders — will show up here.',
+      builder: (context, r) => _ReportScaffold(
+        insights: r.insights,
+        children: [
+          _StatCard(
+            label: 'Outstanding credit',
+            value: formatMoney(
+              r.totalOutstandingCredit,
+              symbol: currencySymbol,
+            ),
+            onTap: canViewMoney
+                ? () => context.pushNamed('moneyCustomers')
+                : null,
+          ),
+          _StatCard(
+            label: 'New customers',
+            value: '${r.newCustomersThisPeriod}',
+            onTap: () => context.pushNamed('moneyCustomers'),
+          ),
+          for (final c in r.topCustomers.take(5))
+            _StatCard(
+              label: c.customerName,
+              value: formatMoney(c.totalSpend, symbol: currencySymbol),
+              onTap: canViewMoney
+                  ? () => context.pushNamed(
+                      'moneyCustomerProfile',
+                      pathParameters: {'id': c.customerId},
+                    )
+                  : null,
+            ),
+        ],
+      ),
     );
   }
 }
 
 class _FinanceTab extends StatelessWidget {
-  const _FinanceTab({required this.future, required this.cashFlowFuture, required this.currencySymbol, required this.onRetry, required this.onOpenMoneyHistory});
+  const _FinanceTab({
+    required this.future,
+    required this.cashFlowFuture,
+    required this.currencySymbol,
+    required this.onRetry,
+    required this.onOpenMoneyHistory,
+  });
   final Future<FinanceReport> future;
   final Future<CashFlowReport> cashFlowFuture;
   final String currencySymbol;
   final VoidCallback onRetry;
-  final void Function({MoneyTransactionType? type, String? category})? onOpenMoneyHistory;
+  final void Function({MoneyTransactionType? type, String? category})?
+  onOpenMoneyHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -905,50 +1274,161 @@ class _FinanceTab extends StatelessWidget {
       onRetry: onRetry,
       isEmpty: (r) => r.totalRevenue == 0 && r.totalExpenses == 0,
       emptyHeadline: 'No financial activity yet.',
-      emptyBody: 'Revenue, cost of goods, and expenses for this period will show up here.',
+      emptyBody:
+          'Revenue, cost of goods, and expenses for this period will show up here.',
       builder: (context, r) {
         final trend = r.profitTrendPercent;
-        return _ReportScaffold(insights: r.insights, children: [
-          _StatCard(label: 'Revenue', value: formatMoney(r.totalRevenue, symbol: currencySymbol), onTap: onOpenMoneyHistory == null ? null : () => onOpenMoneyHistory!()),
-          _StatCard(label: 'Cost of goods sold', value: formatMoney(r.totalCostOfGoodsSold, symbol: currencySymbol)),
-          _StatCard(label: 'Gross profit', value: formatMoney(r.grossProfit, symbol: currencySymbol)),
-          _StatCard(label: 'Expenses', value: formatMoney(r.totalExpenses, symbol: currencySymbol), onTap: onOpenMoneyHistory == null ? null : () => onOpenMoneyHistory!(type: MoneyTransactionType.expense)),
-          _StatCard(label: 'Net profit', value: formatMoney(r.netProfit, symbol: currencySymbol)),
-          if (trend != null) _StatCard(label: 'Vs. last period', value: '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)}%'),
-          if (r.expenseBreakdown.isNotEmpty) ...[
+        return _ReportScaffold(
+          insights: r.insights,
+          children: [
+            _StatCard(
+              label: 'Revenue',
+              value: formatMoney(r.totalRevenue, symbol: currencySymbol),
+              onTap: onOpenMoneyHistory == null
+                  ? null
+                  : () => onOpenMoneyHistory!(),
+            ),
+            _StatCard(
+              label: 'Cost of goods sold',
+              value: formatMoney(
+                r.totalCostOfGoodsSold,
+                symbol: currencySymbol,
+              ),
+            ),
+            _StatCard(
+              label: 'Gross profit',
+              value: formatMoney(r.grossProfit, symbol: currencySymbol),
+            ),
+            _StatCard(
+              label: 'Expenses',
+              value: formatMoney(r.totalExpenses, symbol: currencySymbol),
+              onTap: onOpenMoneyHistory == null
+                  ? null
+                  : () =>
+                        onOpenMoneyHistory!(type: MoneyTransactionType.expense),
+            ),
+            _StatCard(
+              label: 'Net profit',
+              value: formatMoney(r.netProfit, symbol: currencySymbol),
+            ),
+            if (trend != null)
+              _StatCard(
+                label: 'Vs. last period',
+                value: '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)}%',
+              ),
+            if (r.expenseBreakdown.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Expenses by category',
+                style: AppTypography.heading.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                ),
+              ),
+              for (final e in r.expenseBreakdown)
+                _StatCard(
+                  label: e.category,
+                  value: formatMoney(e.total, symbol: currencySymbol),
+                  onTap: onOpenMoneyHistory == null
+                      ? null
+                      : () => onOpenMoneyHistory!(
+                          type: MoneyTransactionType.expense,
+                          category: e.category,
+                        ),
+                ),
+            ],
             const SizedBox(height: AppSpacing.sm),
-            Text('Expenses by category', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-            for (final e in r.expenseBreakdown)
-              _StatCard(label: e.category, value: formatMoney(e.total, symbol: currencySymbol), onTap: onOpenMoneyHistory == null ? null : () => onOpenMoneyHistory!(type: MoneyTransactionType.expense, category: e.category)),
+            Text(
+              'Cash flow',
+              style: AppTypography.heading.copyWith(
+                color: AppColors.textPrimaryOf(context),
+              ),
+            ),
+            FutureBuilder<CashFlowReport>(
+              future: cashFlowFuture,
+              builder: (context, snap) {
+                if (snap.hasError)
+                  return Text(
+                    "Couldn't load cash flow for this period.",
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                    ),
+                  );
+                if (!snap.hasData)
+                  return const FulusDelayedSkeleton(
+                    skeleton: FulusCardSkeleton(),
+                  );
+                final cf = snap.data!;
+                return Column(
+                  children: [
+                    _StatCard(
+                      label: 'Money in',
+                      value: formatMoney(cf.inflow, symbol: currencySymbol),
+                    ),
+                    _StatCard(
+                      label: '· from sales',
+                      value: formatMoney(
+                        cf.salesInflow,
+                        symbol: currencySymbol,
+                      ),
+                    ),
+                    _StatCard(
+                      label: '· from customer repayments',
+                      value: formatMoney(
+                        cf.customerRepaymentsInflow,
+                        symbol: currencySymbol,
+                      ),
+                    ),
+                    if (cf.manualIncomeInflow > 0)
+                      _StatCard(
+                        label: '· other income',
+                        value: formatMoney(
+                          cf.manualIncomeInflow,
+                          symbol: currencySymbol,
+                        ),
+                      ),
+                    _StatCard(
+                      label: 'Money out',
+                      value: formatMoney(cf.outflow, symbol: currencySymbol),
+                    ),
+                    _StatCard(
+                      label: '· expenses',
+                      value: formatMoney(
+                        cf.expensesOutflow,
+                        symbol: currencySymbol,
+                      ),
+                    ),
+                    if (cf.supplierPaymentsOutflow > 0)
+                      _StatCard(
+                        label: '· supplier payments',
+                        value: formatMoney(
+                          cf.supplierPaymentsOutflow,
+                          symbol: currencySymbol,
+                        ),
+                      ),
+                    _StatCard(
+                      label: 'Net cash flow',
+                      value: formatMoney(
+                        cf.netCashFlow,
+                        symbol: currencySymbol,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ],
-          const SizedBox(height: AppSpacing.sm),
-          Text('Cash flow', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-          FutureBuilder<CashFlowReport>(
-            future: cashFlowFuture,
-            builder: (context, snap) {
-              if (snap.hasError) return Text("Couldn't load cash flow for this period.", style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)));
-              if (!snap.hasData) return const FulusDelayedSkeleton(skeleton: FulusCardSkeleton());
-              final cf = snap.data!;
-              return Column(children: [
-                _StatCard(label: 'Money in', value: formatMoney(cf.inflow, symbol: currencySymbol)),
-                _StatCard(label: '· from sales', value: formatMoney(cf.salesInflow, symbol: currencySymbol)),
-                _StatCard(label: '· from customer repayments', value: formatMoney(cf.customerRepaymentsInflow, symbol: currencySymbol)),
-                if (cf.manualIncomeInflow > 0) _StatCard(label: '· other income', value: formatMoney(cf.manualIncomeInflow, symbol: currencySymbol)),
-                _StatCard(label: 'Money out', value: formatMoney(cf.outflow, symbol: currencySymbol)),
-                _StatCard(label: '· expenses', value: formatMoney(cf.expensesOutflow, symbol: currencySymbol)),
-                if (cf.supplierPaymentsOutflow > 0) _StatCard(label: '· supplier payments', value: formatMoney(cf.supplierPaymentsOutflow, symbol: currencySymbol)),
-                _StatCard(label: 'Net cash flow', value: formatMoney(cf.netCashFlow, symbol: currencySymbol)),
-              ]);
-            },
-          ),
-        ]);
+        );
       },
     );
   }
 }
 
 class _EmployeesTab extends StatelessWidget {
-  const _EmployeesTab({required this.future, required this.onRetry, required this.canManageEmployees});
+  const _EmployeesTab({
+    required this.future,
+    required this.onRetry,
+    required this.canManageEmployees,
+  });
   final Future<EmployeeReport> future;
   final VoidCallback onRetry;
   final bool canManageEmployees;
@@ -961,31 +1441,48 @@ class _EmployeesTab extends StatelessWidget {
       isEmpty: (r) => r.performance.isEmpty,
       emptyHeadline: 'No team activity yet.',
       emptyBody: 'Attendance and performance for your team will show up here.',
-      builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
-        for (final p in r.performance)
-          _StatCard(label: p.employeeName, value: '${p.daysPresent} present, ${p.daysAbsent} absent', onTap: canManageEmployees ? () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': p.employeeId}) : null),
-      ]),
+      builder: (context, r) => _ReportScaffold(
+        insights: r.insights,
+        children: [
+          for (final p in r.performance)
+            _StatCard(
+              label: p.employeeName,
+              value: '${p.daysPresent} present, ${p.daysAbsent} absent',
+              onTap: canManageEmployees
+                  ? () => context.pushNamed(
+                      'moreEmployeeDetail',
+                      pathParameters: {'employeeId': p.employeeId},
+                    )
+                  : null,
+            ),
+        ],
+      ),
     );
   }
 }
 
-
-class _ReportLoadingSkeleton extends StatelessWidget {
-  const _ReportLoadingSkeleton();
+class ReportsLoadingSkeleton extends StatelessWidget {
+  const ReportsLoadingSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) => ListView(
+  Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(AppSpacing.sm),
-    children: const [
-      FulusCardSkeleton(),
-      SizedBox(height: AppSpacing.sm),
-      FulusCardSkeleton(),
-      SizedBox(height: AppSpacing.sm),
-      FulusCardSkeleton(),
-      SizedBox(height: AppSpacing.lg),
-      FulusListRowSkeleton(hasLeading: true),
-      FulusListRowSkeleton(hasLeading: true),
-      FulusListRowSkeleton(hasLeading: true),
-    ],
+    // ReportsScreen already owns the page's scrollable ListView. A
+    // second viewport here receives unbounded height and fails layout
+    // while the reports are loading, leaving the route visibly blank.
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: const [
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.sm),
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.sm),
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+      ],
+    ),
   );
 }
