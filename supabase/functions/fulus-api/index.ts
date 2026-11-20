@@ -596,6 +596,22 @@ Deno.serve(async req => {
       target_request_hash: requestHash,
     });
     if (error) {
+      // Keep database diagnostics server-side. PostgREST's details can contain
+      // submitted values, so log only the SQLSTATE and a sanitized message.
+      const diagnosticMessage = String(error.message ?? "Unknown database error")
+        .replace(/invalid input syntax for [^:]+:\\s*.+$/i, "invalid input syntax for database value")
+        .replace(/duplicate key value violates unique constraint.*/i, "duplicate key violates unique constraint")
+        .replace(/\\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\b/gi, "[uuid]")
+        .replace(/\\b[\\w.+-]+@[\\w.-]+\\.[A-Z]{2,}\\b/gi, "[email]")
+        .replace(/\\b\\d{7,}\\b/g, "[number]")
+        .slice(0, 240);
+      console.error("fulus-api catalog mutation failed", {
+        entity,
+        operation,
+        database_error_code: error.code ?? "UNKNOWN",
+        database_error_message: diagnosticMessage,
+      });
+
       const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "P0009" || error.code === "P0008" ? 409 : 400;
       const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : error.code === "P0008" ? "SYNC_CONFLICT" : "CATALOG_WRITE_FAILED";
       return out({ error: { code, message: code === "IDEMPOTENCY_CONFLICT" ? "This request was already processed with different data" : code === "SYNC_CONFLICT" ? "The server has a newer version of this catalog record" : "Unable to update catalog" } }, status);
