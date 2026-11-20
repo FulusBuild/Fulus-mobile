@@ -102,6 +102,7 @@ declare
   result jsonb;
   retry_result jsonb;
   balance numeric;
+  archived_is_active boolean;
   ledger_count integer;
   ledger_amount numeric;
   customer_change_count integer;
@@ -233,11 +234,41 @@ begin
     raise exception 'FAIL: over-repayment ledger is count %, amount %, expected 1 and 500',
       ledger_count, ledger_amount;
   end if;
+
+  -- Archived customers retain their account and must still be able to repay
+  -- existing credit without being reactivated.
+  update public.customers
+  set outstanding_balance = 200, is_active = false
+  where id = ids.customer_id;
+
+  result := public.fulus_api_record_customer_repayment(
+    ids.user_id, ids.business_id, ids.customer_id, 50,
+    'repayment-regression-archived-customer', 'cash', null, ids.device_id
+  );
+
+  if result->>'status' <> 'applied' or (result->>'new_balance')::numeric <> 150 then
+    raise exception 'FAIL: archived customer repayment returned unexpected result: %', result;
+  end if;
+
+  select outstanding_balance, is_active into balance, archived_is_active
+  from public.customers where id = ids.customer_id;
+  if balance <> 150 or archived_is_active then
+    raise exception 'FAIL: archived repayment balance/status is %, %, expected 150 and inactive',
+      balance, archived_is_active;
+  end if;
+
+  select count(*) into ledger_count
+  from public.customer_ledger_entries
+  where business_id = ids.business_id and customer_id = ids.customer_id
+    and operation_id = 'repayment-regression-archived-customer' and entry_type = 'repayment';
+  if ledger_count <> 1 then
+    raise exception 'FAIL: archived repayment produced % ledger entries, expected 1', ledger_count;
+  end if;
 end
 $$;
 
 reset role;
 
-select 'PASS: repayment wrapper reaches restored mutation; balance, ledger, canonical sync, idempotency and overpayment semantics are correct' as result;
+select 'PASS: repayment wrapper reaches restored mutation; balance, ledger, canonical sync, idempotency, overpayment and archived-customer semantics are correct' as result;
 
 rollback;

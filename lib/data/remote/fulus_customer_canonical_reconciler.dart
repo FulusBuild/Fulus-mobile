@@ -35,6 +35,7 @@ class FulusCustomerCanonicalReconciler {
       address: dto.address,
       notes: dto.notes,
       outstandingBalance: dto.outstandingBalance,
+      creditLimit: dto.creditLimit,
       duplicateWarning: dto.duplicateWarning,
       locationId: dto.locationId,
       updatedAt: _parseUpdatedAt(json),

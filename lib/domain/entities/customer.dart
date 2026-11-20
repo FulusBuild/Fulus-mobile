@@ -37,11 +37,9 @@ class Customer {
   @MoneyJsonConverter()
   final Money outstandingBalance;
 
-  /// **Bible-only** (Product Design Bible Volume 7: "Credit limit —
-  /// No [required] — A guide, not an automatic block — see Decision
-  /// 23"). No backend column — confirmed directly against
-  /// backend/app/models/customer.py, same audit as Product's
-  /// tracksStock. Never enforced as a hard block anywhere this is read.
+  /// Optional soft limit stored with the customer and synced across devices.
+  /// It does not block credit sales automatically; the customer form
+  /// currently does not expose an editor.
   @MoneyJsonConverter()
   final Money? creditLimit;
 
@@ -64,9 +62,8 @@ class Customer {
 
   /// Backed by the `lastSyncWarning` column (tables.dart) — set once by
   /// markSynced if a create response carried `duplicate_warning`, read
-  /// back here on every later load of this row. See that column's own
-  /// doc comment for the full trail: persisted and queryable, but
-  /// nothing in this pass builds a UI that actually surfaces it.
+  /// back here on every later load of this row and surfaced on the customer
+  /// profile so the operator can review a possible duplicate.
   final String? duplicateWarning;
 
   final DateTime createdAt;
@@ -96,6 +93,9 @@ class Customer {
     );
   }
 }
+
+Money? _nullableMoneyFromJson(Object? value) =>
+    value == null ? null : moneyFromWire(value);
 
 /// The not-yet-persisted input to CustomerRepository.createCustomer —
 /// the common "new walk-in customer added at checkout" POS flow, same
@@ -174,16 +174,9 @@ class CustomerCreateDto {
   Map<String, dynamic> toJson() => _$CustomerCreateDtoToJson(this);
 }
 
-/// POST /api/customers's response — mirrors CustomerOut exactly,
-/// including `duplicate_warning` (verified directly against
-/// backend/app/schemas/customer.py: `duplicate_warning: str | None =
-/// None`, populated by customer_service.create_customer when the new
-/// customer's phone or email matched an existing active customer —
-/// creates it anyway, just flags it). Wired through to
-/// CustomerSyncHandler → CustomerRepositoryImpl.markSynced below, which
-/// is as far as the data layer can take it — nothing in this pass
-/// builds a UI to actually show a cashier this warning; that's a real,
-/// separate, still-open task, not something this fix silently finishes.
+/// Customer response contract used for sync and canonical reconciliation.
+/// The warning is advisory: a phone/email match is retained for review
+/// instead of silently blocking creation.
 @JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class CustomerResponseDto {
   const CustomerResponseDto({
@@ -194,6 +187,7 @@ class CustomerResponseDto {
     this.address,
     this.notes,
     required this.outstandingBalance,
+    this.creditLimit,
     this.duplicateWarning,
     this.locationId,
   });
@@ -206,6 +200,8 @@ class CustomerResponseDto {
   final String? notes;
   @MoneyJsonConverter()
   final Money outstandingBalance;
+  @JsonKey(fromJson: _nullableMoneyFromJson)
+  final Money? creditLimit;
   final String? duplicateWarning;
   final String? locationId;
 

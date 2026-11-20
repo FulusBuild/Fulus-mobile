@@ -185,6 +185,28 @@ void main() {
       expect(result.newBalance, 0.0);
     });
 
+    test('repayment remains available after the customer is archived', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 3000,
+        saleLocalId: 'sale-1',
+      );
+      await customerRepository.archiveCustomer(customerId);
+
+      final result = await creditRepository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 1000,
+      );
+
+      expect(result.newBalance, 2000);
+      final stored = await (db.select(db.customers)
+            ..where((row) => row.localId.equals(customerId)))
+          .getSingle();
+      expect(stored.deletedAt, isA<DateTime>());
+      expect(stored.outstandingBalance, 2000);
+    });
+
     test('rejects a non-positive amount', () async {
       final customerId = await createTestCustomer();
       await expectLater(

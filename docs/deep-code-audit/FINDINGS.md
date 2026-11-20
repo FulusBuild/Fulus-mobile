@@ -94,3 +94,13 @@ Baseline: merged `main` at `707b85e594d95c49bc56833e99e4833c71656ffc`; branch `c
 | G-006 | Medium | Fixed in source; cloud/runtime verification pending | Account-credit refunds now require a customer, eligible credit sale leg, and sufficient current balance; local credit reversal is capped to that balance. | Ineligible-credit and partially-repaid-balance regressions pass in the 36-test focused return suite. |
 | G-007 | High | Fixed in migration; disposable CI pending | Every refund method now posts an eligible credit reversal to the customer balance and ledger before any remaining cash refund is posted; zero cash remainder creates no cash-ledger row. | Split-credit, duplicate-line, and idempotent-retry behavioral cases added to `financial_fidelity.sql`; workflow pending. |
 
+## Current campaign findings — Part H (2026-11-20)
+
+Baseline: `main` at `1383627c58edd8fe4d668951a841444fa94c2642`; branch `codex/part-h-customers-credit`. See [`../product-audit/PART-H-CUSTOMERS-AND-CREDIT.md`](../product-audit/PART-H-CUSTOMERS-AND-CREDIT.md) for the end-to-end source trace, commands, and remaining runtime evidence.
+
+| ID | Severity | Status | Finding / disposition | Verification |
+|---|---|---|---|---|
+| H-001 | Medium | Fixed in local/cloud source; disposable SQL workflow pending | Archived customer profiles offered repayment, but local and cloud mutations rejected inactive customers. Repayment/refund adjustments now update retained credit accounts without reactivating the customer; active credit sales remain guarded. | Local archived-repayment regression passes. SQL wrapped-operation regression added to `customer_repayment.sql`; CI pending. |
+| H-002 | Medium | Fixed in source; focused tests pass | Customer canonical reconciliation omitted the persisted `credit_limit`, leaving other devices stale after canonical changes. DTO and repository now retain the cloud value; missing legacy values preserve existing local state. | Canonical DTO and Drift persistence regressions pass in the focused suite. |
+| H-003 | Low | Display implemented; widget/runtime verification pending | A server duplicate warning was stored but not shown. Customer profile now renders the advisory when present. | Source reviewed; no widget regression or physical-device confirmation yet. |
+

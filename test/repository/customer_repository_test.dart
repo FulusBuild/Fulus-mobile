@@ -3,6 +3,7 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
@@ -115,6 +116,35 @@ void main() {
       final fetched = await repository.getCustomerById('does-not-exist');
       expect(fetched, isNull);
     });
+  });
+
+  test('canonical customer reconciliation preserves the cloud credit limit', () async {
+    final now = DateTime.utc(2026, 11, 20);
+    await db.into(db.customers).insert(CustomersCompanion.insert(
+      localId: 'customer-canonical',
+      serverId: const Value('server-customer-canonical'),
+      locationId: const Value('location-1'),
+      name: 'Canonical Customer',
+      creditLimit: const Value(10000),
+      createdAt: now,
+      updatedAt: now,
+      syncStatus: SyncStatus.settled,
+    ));
+
+    await repository.reconcileServerState(
+      serverId: 'server-customer-canonical',
+      name: 'Canonical Customer',
+      outstandingBalance: moneyFromMajor(0),
+      creditLimit: moneyFromMajor(250),
+      updatedAt: now.add(const Duration(minutes: 1)),
+    );
+
+    final row = await (db.select(db.customers)
+          ..where((customer) => customer.localId.equals('customer-canonical')))
+        .getSingle();
+    expect(row.creditLimit, moneyFromMajor(250));
+    expect(row.syncStatus, SyncStatus.settled);
+    expect(await db.select(db.syncQueueItems).get(), isEmpty);
   });
 
   group('location isolation', () {
