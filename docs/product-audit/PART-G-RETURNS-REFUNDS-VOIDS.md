@@ -91,4 +91,3 @@ No Part G SQL behavior test, live sync, physical-device flow, app lifecycle case
 4. Request a physical-device walkthrough when an Android device is available.
 5. Recheck the full diff and preserved user files before merging the Part G PR.
 
-\n

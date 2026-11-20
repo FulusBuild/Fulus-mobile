@@ -402,8 +402,11 @@ begin
   end if;
   new_return_id := (return_result->>'return_id')::uuid;
 
-  select min(id) into expected_sale_item_id
-  from public.sale_items where sale_id=duplicate_sale_id;
+  select id into expected_sale_item_id
+  from public.sale_items
+  where sale_id=duplicate_sale_id
+  order by id
+  limit 1;
   if not exists (
     select 1 from public.return_items ri
     where ri.return_id=new_return_id
