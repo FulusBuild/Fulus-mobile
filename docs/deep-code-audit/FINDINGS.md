@@ -100,7 +100,7 @@ Baseline: `main` at `1383627c58edd8fe4d668951a841444fa94c2642`; branch `codex/pa
 
 | ID | Severity | Status | Finding / disposition | Verification |
 |---|---|---|---|---|
-| H-001 | Medium | Fixed in local/cloud source; disposable SQL workflow pending | Archived customer profiles offered repayment, but local and cloud mutations rejected inactive customers. Repayment/refund adjustments now update retained credit accounts without reactivating the customer; active credit sales remain guarded. | Local archived-repayment regression passes. SQL wrapped-operation regression added to `customer_repayment.sql`; CI pending. |
+| H-001 | Medium | Fixed in local/cloud source; disposable Supabase CI green | Archived customer profiles offered repayment, but local and cloud mutations rejected inactive customers. Repayment/refund adjustments now update retained credit accounts without reactivating the customer; active credit sales remain guarded. | Local archived-repayment regression and `customer_repayment.sql` pass; Supabase Migration Chain #875 rebuilt the schema and passed security invariants. |
 | H-002 | Medium | Fixed in source; focused tests pass | Customer canonical reconciliation omitted the persisted `credit_limit`, leaving other devices stale after canonical changes. DTO and repository now retain the cloud value; missing legacy values preserve existing local state. | Canonical DTO and Drift persistence regressions pass in the focused suite. |
 | H-003 | Low | Display implemented; widget/runtime verification pending | A server duplicate warning was stored but not shown. Customer profile now renders the advisory when present. | Source reviewed; no widget regression or physical-device confirmation yet. |
 
