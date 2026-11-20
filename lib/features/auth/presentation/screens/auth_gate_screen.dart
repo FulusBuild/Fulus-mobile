@@ -25,27 +25,28 @@ class AuthGateScreen extends ConsumerStatefulWidget {
 
 class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
   // Cache the startup future so rebuilds do not repeat the local checks.
-  late Future<(bool, bool, bool)> _stageInputsFuture = _loadStageInputs();
+  late Future<(bool, bool, bool, bool)> _stageInputsFuture = _loadStageInputs();
+  bool _continueWithoutBackup = false;
 
   Never _startupFailure(String phase, Object error) {
-    throw StateError(
-      'STARTUP_${phase}_FAILED: ${error.runtimeType}: $error',
-    );
+    throw StateError('STARTUP_${phase}_FAILED: ${error.runtimeType}: $error');
   }
 
-  Future<(bool, bool, bool)> _loadStageInputs() async {
+  Future<(bool, bool, bool, bool)> _loadStageInputs() async {
     late final bool hasOwnerAccount;
     try {
-      hasOwnerAccount =
-          await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
+      hasOwnerAccount = await ref
+          .read(authRepositoryProvider)
+          .hasAnyOwnerAccount();
     } catch (error) {
       _startupFailure('AUTH_CHECK', error);
     }
 
     late final bool businessConfigured;
     try {
-      businessConfigured =
-          await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+      businessConfigured = await ref
+          .read(businessSettingsRepositoryProvider)
+          .hasBeenConfigured();
     } catch (error) {
       _startupFailure('BUSINESS_CHECK', error);
     }
@@ -53,28 +54,35 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
     // A cross-device employee installation legitimately has no local Owner
     // row. It still has a real local identity and must land on the identity
     // picker rather than being treated as a fresh owner install.
-    final hasAnyLocalIdentity = (await ref.read(databaseProvider).select(ref.read(databaseProvider).users).get()).isNotEmpty;
+    final hasAnyLocalIdentity =
+        (await ref
+                .read(databaseProvider)
+                .select(ref.read(databaseProvider).users)
+                .get())
+            .isNotEmpty;
     final hasAnySignInIdentity = hasOwnerAccount || hasAnyLocalIdentity;
 
     // Durable-backup discovery is best-effort. It is useful for detecting
     // a backup that survived an uninstall, but it must never prevent a
     // fresh install from reaching onboarding. The native MediaStore call
-    // is therefore bounded and any failure is treated as "not detected".
+    // is bounded. A timeout/error is surfaced as an unknown state so it cannot be mistaken for no backup.
     final backupRepo = ref.read(backupRepositoryProvider);
     var hasDetectedBackup = false;
+    var backupDiscoveryFailed = false;
     if (!hasOwnerAccount && !businessConfigured) {
       try {
         hasDetectedBackup = (await backupRepo.listBackups()).isNotEmpty;
         if (!hasDetectedBackup) {
-          hasDetectedBackup = (await backupRepo.findDurableBackup().timeout(
+          hasDetectedBackup =
+              (await backupRepo.findDurableBackup().timeout(
                 const Duration(seconds: 3),
               )) !=
               null;
         }
       } on TimeoutException {
-        hasDetectedBackup = false;
+        backupDiscoveryFailed = true;
       } catch (_) {
-        hasDetectedBackup = false;
+        backupDiscoveryFailed = true;
       }
     }
 
@@ -82,6 +90,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
       hasOwnerAccount: hasAnySignInIdentity,
       businessConfigured: businessConfigured,
       hasDetectedBackup: hasDetectedBackup,
+      backupDiscoveryFailed: backupDiscoveryFailed,
     );
 
     if (stage == AuthGateStage.needsAccountCreation) {
@@ -96,19 +105,24 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
         _startupFailure('ONBOARDING_STATE', error);
       }
     }
-    return (hasAnySignInIdentity, businessConfigured, hasDetectedBackup);
+    return (
+      hasAnySignInIdentity,
+      businessConfigured,
+      hasDetectedBackup,
+      backupDiscoveryFailed,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<(bool, bool, bool)>(
+    return FutureBuilder<(bool, bool, bool, bool)>(
       future: _stageInputsFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           final error = snapshot.error.toString().replaceFirst(
-                'Bad state: ',
-                '',
-              );
+            'Bad state: ',
+            '',
+          );
           return FulusScreen(
             body: Center(
               child: SingleChildScrollView(
@@ -127,7 +141,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                               height: 72,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.errorContainer,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.errorContainer,
                                 borderRadius: BorderRadius.circular(22),
                               ),
                               child: Icon(
@@ -140,7 +156,8 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                             Text(
                               'Fulus could not finish starting.',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -156,7 +173,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                         label: 'Try again',
                         subtitle: 'Run the startup checks again.',
                         icon: Icons.refresh_rounded,
-                        onTap: () => setState(() => _stageInputsFuture = _loadStageInputs()),
+                        onTap: () => setState(
+                          () => _stageInputsFuture = _loadStageInputs(),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       FulusCard(
@@ -165,7 +184,8 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                           children: [
                             Text(
                               'Startup diagnostic',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 8),
                             SelectableText(error),
@@ -180,15 +200,32 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
           );
         }
         if (!snapshot.hasData) {
-          return const FulusScreen(body: FulusLoadingIndicator());
+          return const FulusScreen(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FulusLoadingIndicator(),
+                  SizedBox(height: 12),
+                  Text('Checking this device for a saved Fulus backup…'),
+                ],
+              ),
+            ),
+          );
         }
 
-        final (hasOwnerAccount, businessConfigured, hasDetectedBackup) =
-            snapshot.data!;
+        final (
+          hasOwnerAccount,
+          businessConfigured,
+          hasDetectedBackup,
+          backupDiscoveryFailed,
+        ) = snapshot.data!;
         final stage = resolveAuthGateStage(
           hasOwnerAccount: hasOwnerAccount,
           businessConfigured: businessConfigured,
           hasDetectedBackup: hasDetectedBackup,
+          backupDiscoveryFailed:
+              backupDiscoveryFailed && !_continueWithoutBackup,
         );
         switch (stage) {
           case AuthGateStage.needsAccountCreation:
@@ -199,6 +236,36 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
             return const RestoreProgressScreen();
           case AuthGateStage.needsBackupDecision:
             return const BackupRestoreDecisionScreen();
+          case AuthGateStage.backupDiscoveryUnavailable:
+            return FulusScreen(
+              title: 'Couldn’t check for a backup',
+              body: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Fulus could not confirm whether this device has a saved backup. Retry the check before starting fresh, or continue without restoring if you are sure you do not need an older business.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  FulusButton(
+                    label: 'Try again',
+                    icon: Icons.refresh_rounded,
+                    onPressed: () => setState(() {
+                      _continueWithoutBackup = false;
+                      _stageInputsFuture = _loadStageInputs();
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  FulusButton(
+                    label: 'Continue without restoring',
+                    variant: FulusButtonVariant.secondary,
+                    onPressed: () =>
+                        setState(() => _continueWithoutBackup = true),
+                  ),
+                ],
+              ),
+            );
         }
       },
     );

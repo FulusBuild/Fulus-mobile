@@ -5,11 +5,16 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/theme/fulus_art.dart';
+import '../../../../core/export/export_metadata.dart';
+import '../../../../core/export/export_service.dart';
+import '../../../../domain/usecases/product_catalog_csv.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
+import '../../../money/presentation/providers/money_providers.dart'
+    show businessNameProvider, moneyCurrencySymbolProvider;
 import '../widgets/product_list_tile.dart';
 
 class StockScreen extends ConsumerStatefulWidget {
@@ -19,7 +24,9 @@ class StockScreen extends ConsumerStatefulWidget {
 }
 
 class _StockScreenState extends ConsumerState<StockScreen> {
-  late final _searchController = TextEditingController(text: ref.read(stockFilterProvider).query);
+  late final _searchController = TextEditingController(
+    text: ref.read(stockFilterProvider).query,
+  );
 
   @override
   void dispose() {
@@ -31,7 +38,8 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   Widget build(BuildContext context) {
     final locationAsync = ref.watch(currentLocationIdProvider);
     final user = ref.watch(sessionProvider);
-    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final permissions =
+        ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
     final canManageStock =
         user?.role == AuthRole.owner ||
         permissions.contains(Permission.manageStock);
@@ -58,10 +66,14 @@ class _StockScreenState extends ConsumerState<StockScreen> {
         loading: () => const _StockLocationSkeleton(),
         error: (error, _) => FulusErrorState(
           message: "Couldn't load Stock.",
-          reassurance: 'Nothing here has changed on the device — this is only about loading the view.',
+          reassurance:
+              'Nothing here has changed on the device — this is only about loading the view.',
           onRetry: () => ref.invalidate(currentLocationIdProvider),
         ),
-        data: (locationId) => _StockBody(locationId: locationId, searchController: _searchController),
+        data: (locationId) => _StockBody(
+          locationId: locationId,
+          searchController: _searchController,
+        ),
       ),
     );
   }
@@ -81,9 +93,67 @@ class _StockScreenState extends ConsumerState<StockScreen> {
               context.pushNamed('stockBulkImport');
             },
           ),
+          FulusListRow(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Export products'),
+            subtitle: const Text(
+              'Share active products at this location as CSV.',
+            ),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              _exportProducts(context);
+            },
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _exportProducts(BuildContext context) async {
+    try {
+      final locationId = await ref.read(currentLocationIdProvider.future);
+      final products = await ref
+          .read(productRepositoryProvider)
+          .watchProducts(locationId: locationId)
+          .first
+          .timeout(const Duration(seconds: 10));
+      if (products.isEmpty) {
+        if (context.mounted) {
+          showFulusSnackbar(
+            context,
+            message: 'There are no active products to export.',
+          );
+        }
+        return;
+      }
+      final businessName =
+          (await ref.read(businessNameProvider.future)) ?? 'Fulus business';
+      final currencySymbol = await ref.read(moneyCurrencySymbolProvider.future);
+      await ref
+          .read(exportServiceProvider)
+          .export(
+            format: ExportFormat.csv,
+            fileName:
+                'fulus_products_${DateTime.now().toIso8601String().substring(0, 10)}',
+            title: 'Fulus product catalog',
+            metadata: ExportMetadata(
+              businessName: businessName,
+              reportName: 'Product catalog',
+              dateRangeLabel: 'All active products at the selected location',
+              generatedAt: DateTime.now(),
+              currencySymbol: currencySymbol,
+            ),
+            headers: ProductCatalogCsv.headers,
+            rows: ProductCatalogCsv.rows(products),
+          );
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(
+          context,
+          message: "Couldn't export products. Try again.",
+        );
+      }
+    }
   }
 }
 
@@ -102,23 +172,44 @@ class _StockBody extends ConsumerWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final contentWidth = width >= 1200 ? 1120.0 : width;
-        final inset = width >= 1200 ? ((width - contentWidth) / 2) + AppSpacing.lg : AppSpacing.lg;
+        final inset = width >= 1200
+            ? ((width - contentWidth) / 2) + AppSpacing.lg
+            : AppSpacing.lg;
 
         return productsAsync.when(
           loading: () => ListView(
-            padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.xxxl),
-            children: const [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()],
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              AppSpacing.lg,
+              inset,
+              AppSpacing.xxxl,
+            ),
+            children: const [
+              FulusListRowSkeleton(),
+              FulusListRowSkeleton(),
+              FulusListRowSkeleton(),
+            ],
           ),
           error: (error, _) => FulusErrorState(
             message: "Couldn't load your products.",
-            reassurance: 'Nothing in your catalog was changed — this is only about viewing it right now.',
-            onRetry: () => ref.invalidate(productsWithStockProvider(locationId)),
+            reassurance:
+                'Nothing in your catalog was changed — this is only about viewing it right now.',
+            onRetry: () =>
+                ref.invalidate(productsWithStockProvider(locationId)),
           ),
           data: (products) {
-            final categories = categoriesAsync.asData?.value ?? const <Category>[];
+            final categories =
+                categoriesAsync.asData?.value ?? const <Category>[];
             final categoryById = {for (final c in categories) c.localId: c};
             final filtered = applyStockFilter(products, filter);
-            final lowStockCount = products.where((p) => p.product.tracksStock && p.isLowStock && p.currentStock > 0).length;
+            final lowStockCount = products
+                .where(
+                  (p) =>
+                      p.product.tracksStock &&
+                      p.isLowStock &&
+                      p.currentStock > 0,
+                )
+                .length;
             final outOfStock = outOfStockCount(products);
 
             if (products.isEmpty) {
@@ -134,39 +225,58 @@ class _StockBody extends ConsumerWidget {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
+                    padding: EdgeInsets.fromLTRB(
+                      inset,
+                      AppSpacing.sm,
+                      inset,
+                      AppSpacing.sm,
+                    ),
                     child: FulusSearchField(
                       controller: searchController,
                       hintText: 'Search products, SKU, barcode…',
-                      onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
+                      onChanged: (value) =>
+                          ref.read(stockFilterProvider.notifier).state = filter
+                              .copyWith(query: value),
                     ),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
+                    padding: EdgeInsets.fromLTRB(
+                      inset,
+                      AppSpacing.lg,
+                      inset,
+                      AppSpacing.sm,
+                    ),
                     child: Row(
                       children: [
-                        Expanded(child: FulusActionTile(
-                          icon: FulusIcons.stockIn,
-                          art: FulusArt.stockIn,
-                          label: 'Stock In',
-                          onTap: () => context.pushNamed('stockRecordMovement'),
-                        )),
+                        Expanded(
+                          child: FulusActionTile(
+                            icon: FulusIcons.stockIn,
+                            art: FulusArt.stockIn,
+                            label: 'Stock In',
+                            onTap: () =>
+                                context.pushNamed('stockRecordMovement'),
+                          ),
+                        ),
                         const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: FulusActionTile(
-                          icon: FulusIcons.stockMovement,
-                          art: FulusArt.stockMovement,
-                          label: 'Movement',
-                          onTap: () => context.pushNamed('stockHistory'),
-                        )),
+                        Expanded(
+                          child: FulusActionTile(
+                            icon: FulusIcons.stockMovement,
+                            art: FulusArt.stockMovement,
+                            label: 'Movement',
+                            onTap: () => context.pushNamed('stockHistory'),
+                          ),
+                        ),
                         const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: FulusActionTile(
-                          icon: FulusIcons.category,
-                          art: FulusArt.category,
-                          label: 'Categories',
-                          onTap: () => context.pushNamed('stockCategories'),
-                        )),
+                        Expanded(
+                          child: FulusActionTile(
+                            icon: FulusIcons.category,
+                            art: FulusArt.category,
+                            label: 'Categories',
+                            onTap: () => context.pushNamed('stockCategories'),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -174,15 +284,22 @@ class _StockBody extends ConsumerWidget {
                 if (lowStockCount > 0)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
+                      padding: EdgeInsets.fromLTRB(
+                        inset,
+                        AppSpacing.xs,
+                        inset,
+                        AppSpacing.sm,
+                      ),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: FulusChip(
                           compact: true,
                           label: '$lowStockCount low',
                           selected: filter.lowStockOnly,
-                          onTap: () => ref.read(stockFilterProvider.notifier).state =
-                              filter.copyWith(
+                          onTap: () =>
+                              ref
+                                  .read(stockFilterProvider.notifier)
+                                  .state = filter.copyWith(
                                 lowStockOnly: !filter.lowStockOnly,
                                 outOfStockOnly: false,
                               ),
@@ -192,7 +309,12 @@ class _StockBody extends ConsumerWidget {
                   ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
+                    padding: EdgeInsets.fromLTRB(
+                      inset,
+                      AppSpacing.xs,
+                      inset,
+                      AppSpacing.sm,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
@@ -203,8 +325,12 @@ class _StockBody extends ConsumerWidget {
                                     compact: true,
                                     label: 'Out of stock · $outOfStock',
                                     selected: true,
-                                    onTap: () => ref.read(stockFilterProvider.notifier).state =
-                                        filter.copyWith(outOfStockOnly: false),
+                                    onTap: () =>
+                                        ref
+                                            .read(stockFilterProvider.notifier)
+                                            .state = filter.copyWith(
+                                          outOfStockOnly: false,
+                                        ),
                                   )
                                 : const SizedBox.shrink(),
                           ),
@@ -224,29 +350,36 @@ class _StockBody extends ConsumerWidget {
                       headline: 'Nothing matches.',
                       body: 'Try a different search or clear your filters.',
                       actionLabel: filter.isDefault ? null : 'Clear filters',
-                      onAction: filter.isDefault ? null : () {
-                        searchController.clear();
-                        ref.read(stockFilterProvider.notifier).state = const StockFilterState();
-                      },
+                      onAction: filter.isDefault
+                          ? null
+                          : () {
+                              searchController.clear();
+                              ref.read(stockFilterProvider.notifier).state =
+                                  const StockFilterState();
+                            },
                     ),
                   )
                 else
                   SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        if (index.isOdd) return const FulusListDivider();
-                        final item = filtered[index ~/ 2];
-                        return Padding(
-                          padding: EdgeInsets.symmetric(horizontal: width >= 1200 ? inset - AppSpacing.lg : 0),
-                          child: ProductListTile(
-                            item: item,
-                            category: item.product.categoryId == null ? null : categoryById[item.product.categoryId],
-                            onTap: () => context.pushNamed('stockProductDetail', pathParameters: {'productId': item.product.localId}),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      if (index.isOdd) return const FulusListDivider();
+                      final item = filtered[index ~/ 2];
+                      return Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: width >= 1200 ? inset - AppSpacing.lg : 0,
+                        ),
+                        child: ProductListTile(
+                          item: item,
+                          category: item.product.categoryId == null
+                              ? null
+                              : categoryById[item.product.categoryId],
+                          onTap: () => context.pushNamed(
+                            'stockProductDetail',
+                            pathParameters: {'productId': item.product.localId},
                           ),
-                        );
-                      },
-                      childCount: filtered.length * 2 - 1,
-                    ),
+                        ),
+                      );
+                    }, childCount: filtered.length * 2 - 1),
                   ),
                 SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxxl)),
               ],
@@ -257,7 +390,11 @@ class _StockBody extends ConsumerWidget {
     );
   }
 
-  void _showSortSheet(BuildContext context, WidgetRef ref, StockFilterState filter) {
+  void _showSortSheet(
+    BuildContext context,
+    WidgetRef ref,
+    StockFilterState filter,
+  ) {
     showFulusBottomSheet<void>(
       context: context,
       title: 'Sort by',
@@ -267,9 +404,16 @@ class _StockBody extends ConsumerWidget {
           for (final option in StockSortOrder.values)
             FulusListRow(
               title: Text(option.label),
-              trailing: filter.sort == option ? Icon(FulusIcons.check, color: AppColors.primaryOf(sheetContext)) : null,
+              trailing: filter.sort == option
+                  ? Icon(
+                      FulusIcons.check,
+                      color: AppColors.primaryOf(sheetContext),
+                    )
+                  : null,
               onTap: () {
-                ref.read(stockFilterProvider.notifier).state = filter.copyWith(sort: option);
+                ref.read(stockFilterProvider.notifier).state = filter.copyWith(
+                  sort: option,
+                );
                 Navigator.of(sheetContext).pop();
               },
             ),
@@ -291,11 +435,14 @@ class _StockLocationSkeleton extends StatelessWidget {
             ? ((width - 1120.0) / 2) + AppSpacing.lg
             : AppSpacing.lg;
         return ListView(
-          padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxxl),
+          padding: EdgeInsets.fromLTRB(
+            inset,
+            AppSpacing.sm,
+            inset,
+            AppSpacing.xxxl,
+          ),
           children: [
-            const FulusDelayedSkeleton(
-              skeleton: FulusSkeletonBox(height: 52),
-            ),
+            const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 52)),
             const SizedBox(height: AppSpacing.lg),
             GridView.count(
               crossAxisCount: 2,
@@ -305,10 +452,18 @@ class _StockLocationSkeleton extends StatelessWidget {
               mainAxisSpacing: AppSpacing.sm,
               childAspectRatio: 1.15,
               children: const [
-                FulusSkeletonBox(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
-                FulusSkeletonBox(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
-                FulusSkeletonBox(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
-                FulusSkeletonBox(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+                FulusSkeletonBox(
+                  borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
+                ),
+                FulusSkeletonBox(
+                  borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
+                ),
+                FulusSkeletonBox(
+                  borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
+                ),
+                FulusSkeletonBox(
+                  borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),

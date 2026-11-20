@@ -19,15 +19,13 @@
 ///   syncFromServer, no local write path) — so this validation would
 ///   have nothing to attach to. Dropped rather than written as dead
 ///   code with no caller.
-/// - A local "is there enough stock" guard: genuinely tempting, but this
-///   device's locally-known ProductStockLevels.currentStock can be
-///   stale after any time offline, and the real, authoritative check
-///   already happens server-side and comes back correctly as a
-///   `BusinessRuleFailure` via StockMovementSyncHandler's existing sync
-///   path. A soft local warning built on data that might be wrong risks
-///   being actively misleading in either direction — blocking a
-///   stock-out that would have succeeded, or okaying one that won't.
-///   Left to the server, which already handles it correctly end to end.
+/// - An authoritative local insufficient-stock rule: that decision does
+///   not belong in this field-validation helper. The repository currently
+///   applies an optimistic guard using cached `ProductStockLevels`, while
+///   the cloud command performs the authoritative check. Because the cache
+///   may be stale offline, that local guard can reject a movement that the
+///   server would accept; Part E tracks this as a behavior to validate and
+///   decide with the product's offline-stock policy.
 ///
 /// What's left — quantity/reason field shape — has no such staleness
 /// problem: `quantity > 0` is either true or false regardless of how

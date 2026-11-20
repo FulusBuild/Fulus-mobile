@@ -51,9 +51,11 @@ The signed-out auth gate checks local owner/business/identity state and performs
 
 **Runtime still required:** Complete a fresh owner signup and local/offline setup on Android. Confirm each enters Essential Settings, force-stop/reopen during setup, and verify the correct step resumes. No real account or data was changed for this source/test fix.
 
-## Observation A-002 — First-use gate waits for bounded backup discovery
+## Observation A-002 — Backup discovery uncertainty could look like “no backup”
 
-On a device with no local owner/business and no listed app backup, `AuthGateScreen._loadStageInputs` awaits `findDurableBackup().timeout(Duration(seconds: 3))` before rendering Get Started. The bound prevents an indefinite wait, but can add up to three seconds to the first-use path if platform backup discovery stalls. This is a source-level latency risk, not a measured defect. Measure cold start on a fresh install with and without an available backup; keep the restore decision ahead of fresh-account creation without introducing a blank or misleading screen.
+**Status:** Mitigated in source; cold-start timing remains unmeasured.
+
+The first-use gate waits for bounded backup discovery. Previously a timeout/error could be treated as an empty result, making the new-account path appear available even though the app could not confirm whether a backup existed. The gate now shows a checking state and, if discovery fails, an explicit retry or “Continue without restoring” choice. A pure routing regression verifies the failure state. This avoids silently equating an unknown result with no backup; it does not reduce the maximum discovery wait or establish physical cold-start performance.
 
 ## Other checks and gaps
 
