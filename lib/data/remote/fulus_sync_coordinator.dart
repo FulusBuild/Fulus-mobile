@@ -101,6 +101,7 @@ class FulusSyncCoordinator {
       // was suspended. Never issue a request from a stale cursor when the
       // durable acknowledgement has already advanced.
       cursor = _maxCursor(cursor, await _cursorStore.durableCursorFor(businessId));
+      final requestedCursor = cursor;
       final page = await _api.pullChanges(
         businessId: businessId,
         cursor: cursor,
@@ -112,18 +113,38 @@ class FulusSyncCoordinator {
       // Otherwise a stale runtime could reapply a page that a newer runtime
       // has already acknowledged.
       cursor = _maxCursor(cursor, cursorFor(businessId));
-      if (page.changes.isEmpty) {
-        if (page.hasMore) {
-          throw StateError(
-            'Cloud Sync returned an empty page while reporting more changes.',
-          );
-        }
-        return cursor;
-      }
-
       if (page.cursor > cursor) {
         throw StateError(
           'Cloud Sync response cursor is ahead of the requested cursor.',
+        );
+      }
+      if (page.changes.isEmpty) {
+        // The server filters location-inaccessible feed rows and reports the
+        // last sequence it scanned separately from returned changes. Those
+        // rows are intentionally excluded, so they can be acknowledged once
+        // the server confirms there were no visible changes in that range.
+        if (page.nextCursor > cursor) {
+          await _persistCursor(businessId, page.nextCursor);
+          cursor = _maxCursor(
+            page.nextCursor,
+            await _cursorStore.durableCursorFor(businessId),
+          );
+        }
+        if (page.hasMore && cursor <= requestedCursor) {
+          throw StateError(
+            'Cloud Sync returned an empty page without cursor progress while reporting more changes.',
+          );
+        }
+        if (page.hasMore) continue;
+        return cursor;
+      }
+
+      final lastReturnedSequence = page.changes
+          .map((change) => change.sequence)
+          .reduce((a, b) => a > b ? a : b);
+      if (page.nextCursor < lastReturnedSequence) {
+        throw StateError(
+          'Cloud Sync scan cursor is behind a returned change.',
         );
       }
       final unapplied = page.changes.where((change) => change.sequence > cursor).toList(growable: false);
@@ -262,20 +283,24 @@ class FulusSyncCoordinator {
         cursor = _maxCursor(cursor, cursorFor(businessId));
       }
 
-      if (!page.hasMore) return cursor;
-      if (unapplied.isEmpty) {
-        final durableCursor = await _cursorStore.durableCursorFor(businessId);
-        if (durableCursor > cursor) {
-          cursor = durableCursor;
-          continue;
-        }
-        throw StateError(
-          'Cloud Sync returned a page with no forward progress while reporting more changes.',
+      // next_cursor may pass intentionally filtered location changes after
+      // every returned change was applied. Acknowledging it here prevents the
+      // next pull from rescanning the same inaccessible tail. The server's
+      // feed-order lock guarantees no lower sequence can commit later.
+      if (page.nextCursor > cursor) {
+        await _persistCursor(businessId, page.nextCursor);
+        cursor = _maxCursor(
+          page.nextCursor,
+          await _cursorStore.durableCursorFor(businessId),
         );
       }
-      // page.nextCursor is only a pagination hint. Never persist it as an
-      // acknowledgement because a process could have died before applying
-      // one of the returned changes.
+
+      if (!page.hasMore) return cursor;
+      if (cursor <= requestedCursor) {
+        throw StateError(
+          'Cloud Sync returned a page with no forward cursor progress while reporting more changes.',
+        );
+      }
     }
   }
 

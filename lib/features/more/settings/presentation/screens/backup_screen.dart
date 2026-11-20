@@ -197,8 +197,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                               Expanded(
                                 child: Text(
                                   snapshot.data == null
-                                      ? 'Automatic backups are kept locally, with a copy in Downloads/Fulus that survives a reinstall.'
-                                      : 'Saved to ${snapshot.data}\nAutomatic backups also keep a copy in Downloads/Fulus.',
+                                      ? 'Backups are stored on this device. An automatic copy may also be saved in Downloads/Fulus. Check that folder before relying on a copy outside this device.'
+                                      : 'Saved to ${snapshot.data}\nAn automatic copy may also be saved in Downloads/Fulus. Check that folder before relying on a copy outside this device.',
                                   style: AppTypography.caption.copyWith(
                                     color:
                                         AppColors.textSecondaryOf(context),

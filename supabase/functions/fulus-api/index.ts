@@ -201,7 +201,13 @@ Deno.serve(async req => {
         .limit(Math.min(500, Math.max(limit, 100)));
       if (ce) return out({ error: { code: "SYNC_PULL_FAILED", message: "Unable to read server changes" } }, 500);
       const batch = changes ?? [];
-      if (batch.length === 0) break;
+      if (batch.length === 0) {
+        // A prior full batch may have contained only rows hidden by location
+        // authorization. Once this query reaches the end, there is no later
+        // page even though an earlier raw batch was full.
+        hasMore = false;
+        break;
+      }
 
       const saleIds = [...new Set(batch.flatMap(change => {
         const entityType = String(change.entity_type ?? "");
@@ -277,7 +283,10 @@ Deno.serve(async req => {
           if (rows.length >= limit) break;
         }
       }
-      if (batch.length < Math.min(500, Math.max(limit, 100))) break;
+      if (batch.length < Math.min(500, Math.max(limit, 100))) {
+        hasMore = false;
+        break;
+      }
       hasMore = true;
     }
     return out({ data: { changes: rows, cursor, next_cursor: scanCursor, has_more: hasMore || rows.length === limit, server_authoritative: true } });

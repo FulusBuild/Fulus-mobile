@@ -2,10 +2,9 @@ import '../../../domain/repositories/database_lifecycle.dart';
 import '../../../sync/sync_execution_lease.dart';
 import 'database.dart';
 
-/// The concrete `AppDatabase`-backed `DatabaseLifecycle` INTEGRATION.md
-/// asked for — used only by `BackupRepositoryImpl` (Stage 10) to close
-/// the live connection before a restore overwrites the file, then get a
-/// working connection back afterward.
+/// Concrete `AppDatabase`-backed `DatabaseLifecycle`, wired during app
+/// bootstrap. It closes the live connection before restore replaces the
+/// file, then opens a fresh connection afterward.
 ///
 /// IMPORTANT, found while actually wiring this rather than templating
 /// it: [reopenAfterMaintenance] can only give the app *a* fresh,
@@ -67,8 +66,8 @@ class AppDatabaseLifecycle implements DatabaseLifecycle {
     _maintenanceLease = lease;
     try {
       // The SQLite lease row cannot be renewed after this connection closes.
-      // Keep the physical sidecar FileLock held instead while the database
-      // pathname is replaced.
+      // Keep the atomic sidecar maintenance marker and its heartbeat active
+      // while the database pathname is replaced.
       lease.suspendMaintenanceRenewalForDatabaseReplacement();
       await database.close();
       // Closing the live database is the irreversible DI boundary: existing

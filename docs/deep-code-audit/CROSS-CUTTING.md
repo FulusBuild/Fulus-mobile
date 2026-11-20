@@ -5,9 +5,9 @@
 
 ## X-001 — Restore / sync maintenance boundary
 
-Status: **Revalidated on `main` at `65ef6460f5ed6d20306b34ba509623cd028118c3`: source/protocol fixed and the cross-process regression passes in Flutter CI run 44741737242; physical Android restore/lifecycle evidence remains pending.**
+Status: **Source/protocol revalidated against `main` at `04403935748d3c36894480d62655a0b06585ddf0`: fixed in the prior merge; physical Android restore/lifecycle evidence remains pending.**
 
-Restore now acquires an exclusive filesystem sidecar `FileLock` before closing or replacing the live SQLite file. Normal sync acquires a shared lock on the same sidecar before entering its SQLite execution lease. The sidecar therefore remains valid even when the SQLite file containing the logical lease row is replaced.
+Restore atomically creates an exclusive filesystem sidecar marker before closing or replacing the live SQLite file. Normal sync checks the same marker before entering its SQLite execution lease. The marker remains valid even when the SQLite file containing the logical lease row is replaced. It is not a Dart `FileLock`; atomic exclusive file creation is used because Dart file locks are advisory and process-scoped on Android/Linux.
 
 Before the live database connection is closed, maintenance-row renewal is suspended because that row cannot safely be renewed through a closed connection. The physical sidecar lock remains held until the fresh database connection is reopened and the maintenance owner releases it.
 

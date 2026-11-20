@@ -1,7 +1,7 @@
 # Part M — Sync and Multi-Device
 
-**Status:** Historical source findings revalidated and fixed; focused suite has a Windows subprocess-harness failure; live sync and multi-device CI passed; physical Android convergence remains unverified.
-**Baseline:** `main` at `65ef6460f5ed6d20306b34ba509623cd028118c3`
+**Status:** Deep source audit complete; two additional sync defects have source fixes and regressions in the PR #237. The filtered-feed coordinator suite passes; the full sync suite has one known Windows subprocess-harness failure. New SQL migration contract awaits disposable Supabase CI. Physical Android convergence remains unverified.
+**Baseline:** `main` at `04403935748d3c36894480d62655a0b06585ddf0`
 **Audit branch:** `codex/part-mn-sync-restore`
 **Audit date:** 2026-11-20
 **Environment:** Windows PowerShell; Flutter 3.44.9; no Android device attached to this worktree. No production business data was accessed or changed.
@@ -73,5 +73,33 @@ Fulus Mobile CI run **44741737242**, on PR #235 head `2ebd4caa1e1e8a31b641e51678
 - Concurrent edits and conflict resolution through the actual app UI on authorized QA devices.
 - Android process death/force-stop and WorkManager scheduling (also tracked by Part Q/Part O operational scope and historical P17-001).
 - Windows execution of the cross-process lease test remains blocked by nested Flutter/native-asset file locking; Linux CI provides the passing automated evidence.
+
+## Deep re-audit — 2026-11-20
+
+The current pass mapped all 15 registered sync handlers and 46 files under `test/sync`, then traced queue persistence, retry/permanent-failure states, handler dispatch, HTTP authorization, database change-feed writes, location filtering, page/cursor parsing, canonical reconciliation, and maintenance fencing. The 15 handlers are `sale`, `customer`, `employee`, `customer_ledger`, `category`, `supplier`, `location`, `return`, `expense_category`, `cash_drawer_shift`, `expense`, `income_record`, `stock_movement`, `product`, and `product_photo`. No local-device or production-business mutation was performed.
+
+### M-002 — Change-feed identity sequence could commit out of order
+
+**Severity:** High
+**Status:** Source migration and SQL contract test added; not yet applied to production or merged.
+
+PostgreSQL identity allocation is not transaction/commit ordered. Two concurrent transactions for the same business could allocate sequences 41 and 42, commit 42 first, and commit 41 after a client had acknowledged 42. The client would then permanently miss 41. Current event writes flow through `_fulus_append_change` or `_fulus_catalog_change`; both now acquire a transaction-scoped advisory lock keyed by business before inserting into `sync_changes`. The lock is held through the caller's commit, while mutations for different businesses remain independent. `supabase/tests/sync_change_feed_ordering.sql` checks both helpers acquire the lock before insertion and that client roles cannot invoke the helper directly. Local PostgreSQL execution was unavailable (`supabase`, `docker`, and `deno` CLIs are not installed), so the migration-chain CI test is pending.
+
+### M-003 — Filtered pagination could falsely report more and stall the client cursor
+
+**Severity:** Medium
+**Status:** Edge Function and coordinator fixes added; focused regressions pass locally.
+
+The Edge Function scans location-scoped events in batches and can filter every row in a batch. A full raw batch followed by an empty/short query retained `has_more=true`; the response could contain no visible changes and a cursor that did not advance. The coordinator rejected that response, causing repeated scans. The API now clears `has_more` after reaching the feed end. The client accepts the server's scan cursor only after every returned visible change has applied; an empty filtered range advances directly when the cursor moves. It still refuses to acknowledge a page after a canonical apply failure. Tests cover empty filtered ranges, hidden rows after visible rows, failed apply, and pagination progress.
+
+### Current deep-pass evidence
+
+- `flutter test test/sync/fulus_sync_coordinator_test.dart`: **25 passed**.
+- `flutter test test/sync/sync_cursor_transaction_boundary_test.dart`: **5 passed**.
+- `flutter test test/sync`: **278 passed, 1 skipped, 1 failed**. The failure is `sync_execution_lease_test.dart: maintenance fence survives SQLite file replacement across processes`; Windows cannot launch nested Flutter while the parent process holds the native SQLite asset DLL. This reproduces the documented platform harness limitation; no new product assertion failed.
+- `dart analyze lib/data/remote/fulus_sync_coordinator.dart test/sync/fulus_sync_coordinator_test.dart`: **No issues found**.
+- No local Supabase migration-chain test, Deno type-check, Android device test, or production backend mutation was performed. The new migration contract is wired into `.github/workflows/supabase-migrations.yml` for disposable CI.
+
+The prior baseline/CI evidence above this section is historical to its named PR/run. The M-002/M-003 changes need a fresh migration-chain run and full CI against their current PR commit before they can be called merged or deployed.
 
 No release-readiness conclusion is made from this source, automated, and live-API evidence.
