@@ -71,3 +71,12 @@ Baseline: current main after Part D merge, `dce7d074d0d41ddd89f06e9be705ebdfdcac
 | E-002 | Medium | Open implementation; product decision recorded and limitation disclosed in app | Supplier payables are business-wide accounting state and need a canonical cloud ledger; current balance/history remain device-local. | Supplier profile disclosure reduces misunderstanding; implement idempotent server mutation, sync/reconciliation, and snapshot/restore before claiming resolution. |
 | E-003 | Medium | Fixed in source | Restore omitted local supplier ledger from clear order, so supplier rows could not be replaced while referenced ledger rows existed. Clear ledger before suppliers. | Restore regression passes in expanded 63-test suite. |
 | E-004 | Low | Fixed in source | Stock movement and validation comments inaccurately described local stock writes and insufficient-stock checks. | Source correction; focused inventory suite passes. |
+
+## Current campaign findings — Part F (2026-11-20)
+
+Baseline: `origin/main` at `8029e09ee87f387dab8544dd54789ccf937e0b4e`; working branch `codex/part-f-sales-checkout`. The detailed trace, evidence layers, and remaining verification are in [`../product-audit/PART-F-SALES-AND-CHECKOUT.md`](../product-audit/PART-F-SALES-AND-CHECKOUT.md).
+
+| ID | Severity | Status | Finding / disposition | Verification |
+|---|---|---|---|---|
+| F-001 | Medium | Fixed in source migration; SQL/CI/runtime pending | Prior V2 RPC tolerance of one cent could let the cloud cash/payment ledger exceed the server-capped sale amount. Public location-authorized wrapper now enforces exact two-decimal equality for payment total, collected amount, credit, and request amount paid. | 72 focused Flutter tests pass; SQL regression now covers exact cash, split cash+credit, one-cent overpayment rollback, and requested-paid mismatch rollback. Execute via isolated Supabase CI, then Android offline→sync. |
+

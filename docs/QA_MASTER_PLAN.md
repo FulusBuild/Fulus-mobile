@@ -163,7 +163,7 @@ Recommend release only after all parts have a disposition; no unexplained core c
 
 Use one of: `Not ready`, `Conditionally ready with listed gaps`, or `Evidence supports readiness for the tested scope`. Scope readiness by version, platform, account type, and scenarios. One phone/account cannot establish readiness for millions of users.
 
-## 10. Current campaign status — 2026-11-19
+## 10. Current campaign status — 2026-11-20
 
 - Automated baseline observed: `flutter analyze` passed; `flutter test` had 1,083 passed, 1 skipped, 2 failed. Failures were a timezone-assumption assertion and a Windows subprocess invocation of `flutter`; recheck before closure.
 - Android: debug APK built and launched on TECNO KI5k / Android 12. A read-only smoke test on the persisted Muhammed owner session was observed; ADB wireless disconnected during further navigation.
@@ -173,6 +173,8 @@ Use one of: `Not ready`, `Conditionally ready with listed gaps`, or `Evidence su
 - Part B source and focused automated audit fixed per-user refresh identity binding, durable local-session transition ordering, and authenticated access to the employee login route. Focused auth/session suite: 53 tests passed; targeted analyzer: no issues. Physical Android and live Supabase auth scenarios remain open. See [`product-audit/PART-B-AUTHENTICATION-SESSIONS.md`](product-audit/PART-B-AUTHENTICATION-SESSIONS.md).
 - Part C source review found no new product/security defect in the reviewed scope. A timezone-dependent employee reconciliation test assertion was corrected; 67 focused staff, permission, restore, and location tests pass. Supabase schema/policies/advisors were checked read-only. Authenticated QA mutations, local SQL fixtures, and physical-device staff/location workflows remain open. See [`product-audit/PART-C-STAFF-ROLES-BUSINESS-LOCATION.md`](product-audit/PART-C-STAFF-ROLES-BUSINESS-LOCATION.md).
 - Follow-up fixes across A, D, and E add explicit backup-discovery failure handling, product validation widget coverage, product CSV export, and canonical stock reconciliation after permanent server rejection. The expanded focused suite passed 63 tests and targeted analysis reported no issues. D-002/D-003 migration execution, D-005 safe image-object cleanup, and E-002 cloud supplier-ledger implementation remain open. Android and isolated QA backend convergence remain unverified. See the current Part A/D/E reports linked above.
+- Part F source review revalidated the local sale transaction, split-payment/credit/tender handling, sale sync, and canonical flow. Six focused Dart test files passed 72 tests. The audit found and prepared a strict exact-cent guard for the cloud sale RPC because the previous one-cent tolerance could let payment/cash-ledger totals differ from the server-capped sale amount. SQL regression now covers exact cash, split credit, rejected one-cent overpayment rollback, and requested-paid mismatch rollback; execute the SQL migration suite via isolated Supabase CI. Android offline-to-sync evidence remains pending. See [`product-audit/PART-F-SALES-AND-CHECKOUT.md`](product-audit/PART-F-SALES-AND-CHECKOUT.md).
 - AWS is paused; no AWS provisioning is in scope.
 
 These are dated observations, not claims about later builds. Update this section and link the detailed audit report at each campaign handoff.
+
