@@ -175,12 +175,12 @@ begin
       raise exception using errcode='22023',message='Invalid return quantity';
     end if;
 
-    select coalesce(sum(si.quantity),0)::integer,
-           coalesce(sum(si.quantity * si.unit_price),0)::numeric
+    select coalesce(sum(source_line.quantity),0)::integer,
+           coalesce(sum(source_line.quantity * source_line.unit_price),0)::numeric
     into product_quantity,product_raw_total
-    from public.sale_items si
-    where si.sale_id=target_sale_id
-      and si.product_id=(item->>'product_id')::uuid;
+    from public.sale_items source_line
+    where source_line.sale_id=target_sale_id
+      and source_line.product_id=(item->>'product_id')::uuid;
     if product_quantity <= 0 then
       raise exception using errcode='22023',message='Invalid return item';
     end if;
