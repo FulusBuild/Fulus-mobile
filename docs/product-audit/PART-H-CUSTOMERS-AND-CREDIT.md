@@ -1,6 +1,6 @@
 # Part H — Customers and Credit
 
-**Status:** Source fixes implemented; focused mobile verification and disposable Supabase workflow #875 passed; device/runtime evidence pending  
+**Status:** Source fixes implemented; focused mobile verification and disposable Supabase workflow #875 passed; device/runtime evidence pending
 **Baseline:** `main` at `1383627c58edd8fe4d668951a841444fa94c2642`
 **Working branch:** `codex/part-h-customers-credit`
 **Audit date:** 2026-11-20
