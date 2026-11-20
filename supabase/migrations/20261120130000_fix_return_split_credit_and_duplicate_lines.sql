@@ -456,3 +456,55 @@ begin
   return result;
 end;
 $function$;
+
+-- Repeated sale lines for the same product need distinct stock movement
+-- operation IDs. Keep the legacy ID for the first occurrence so existing
+-- single-line clients and reconciliation records remain compatible.
+do $$
+declare
+  sale_oid oid;
+  sale_definition text;
+  old_declaration text := '  balance_due numeric;';
+  new_declaration text := '  balance_due numeric;' || chr(10) || '  item_index integer := 0;';
+  old_loop text := '  returning id into sale_id;' || chr(10) || chr(10) ||
+    '  for item in select * from jsonb_array_elements(target_items) loop';
+  new_loop text := '  returning id into sale_id;' || chr(10) || chr(10) ||
+    '  item_index := 0;' || chr(10) ||
+    '  for item in select * from jsonb_array_elements(target_items) loop' || chr(10) ||
+    '    item_index := item_index + 1;';
+  old_operation text := '        target_client_reference || '':stock:'' || product.id, actor, target_device_id';
+  new_operation text := '        target_client_reference || '':stock:'' || product.id ||' || chr(10) ||
+    '          case when exists (' || chr(10) ||
+    '            select 1 from public.inventory_movements prior_movement' || chr(10) ||
+    '            where prior_movement.business_id = target_business_id' || chr(10) ||
+    '              and prior_movement.operation_id = target_client_reference || '':stock:'' || product.id' || chr(10) ||
+    '          ) then '':'' || item_index::text else '''' end,' || chr(10) ||
+    '        actor, target_device_id';
+begin
+  select p.oid into sale_oid
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.proname = 'create_sale_atomic'
+    and p.prokind = 'f'
+  limit 1;
+
+  if sale_oid is null then
+    raise exception 'create_sale_atomic was not found; refusing to skip duplicate-line stock fix';
+  end if;
+
+  sale_definition := pg_get_functiondef(sale_oid);
+  if position('item_index integer := 0' in sale_definition) > 0 then
+    return;
+  end if;
+  if position(old_declaration in sale_definition) = 0
+     or position(old_loop in sale_definition) = 0
+     or position(old_operation in sale_definition) = 0 then
+    raise exception 'Expected create_sale_atomic stock fragments were not found; refusing partial fix';
+  end if;
+
+  sale_definition := replace(sale_definition, old_declaration, new_declaration);
+  sale_definition := replace(sale_definition, old_loop, new_loop);
+  sale_definition := replace(sale_definition, old_operation, new_operation);
+  execute sale_definition;
+end $$;

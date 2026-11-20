@@ -373,6 +373,17 @@ begin
   end if;
   duplicate_sale_id := (accepted->>'sale_id')::uuid;
 
+  select count(*) into row_count
+  from public.inventory_movements
+  where business_id=ids.business_id
+    and operation_id in (
+      'sale-fidelity-duplicate-product-lines:stock:' || ids.product_id::text,
+      'sale-fidelity-duplicate-product-lines:stock:' || ids.product_id::text || ':2'
+    );
+  if row_count <> 2 then
+    raise exception 'FAIL: duplicate sale lines did not create two idempotent stock movements';
+  end if;
+
   return_result := public.fulus_api_create_return_atomic_v2(
     ids.user_id, ids.business_id, duplicate_sale_id,
     'return-fidelity-duplicate-product-lines',
