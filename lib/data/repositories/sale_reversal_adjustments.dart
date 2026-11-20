@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../core/money/money.dart';
 
 import '../local/database/database.dart';
+import 'sale_mapper.dart';
 
 /// Reversal data for a set of sales — how much of each sale's revenue,
 /// cost of goods sold, and cash received has been undone by a
@@ -53,21 +54,25 @@ class SaleReversalAdjustments {
   SaleReversalAdjustments._({
     required this.voidedSaleIds,
     required Map<String, Money> refundedAmountBySale,
+    required Map<String, Money> creditReversedBySale,
     required Map<String, Money> refundedCostBySale,
     required Map<String, Map<String, ({int quantity, Money amount})>> refundedByProductBySale,
   })  : _refundedAmountBySale = refundedAmountBySale,
+        _creditReversedBySale = creditReversedBySale,
         _refundedCostBySale = refundedCostBySale,
         _refundedByProductBySale = refundedByProductBySale;
 
   static final SaleReversalAdjustments empty = SaleReversalAdjustments._(
     voidedSaleIds: const {},
     refundedAmountBySale: const {},
+    creditReversedBySale: const {},
     refundedCostBySale: const {},
     refundedByProductBySale: const {},
   );
 
   final Set<String> voidedSaleIds;
   final Map<String, Money> _refundedAmountBySale;
+  final Map<String, Money> _creditReversedBySale;
   final Map<String, Money> _refundedCostBySale;
   final Map<String, Map<String, ({int quantity, Money amount})>> _refundedByProductBySale;
 
@@ -77,10 +82,8 @@ class SaleReversalAdjustments {
   Money refundedAmountFor(String saleLocalId) => _refundedAmountBySale[saleLocalId] ?? 0;
 
   /// Total cost-of-goods-sold attributable to refunded (non-void)
-  /// quantity against this sale — weighted-average cost per product,
-  /// same fairness convention `ReturnRepositoryImpl._weightedAveragePrice`
-  /// already uses for refund pricing, applied here to `costPriceAtSale`
-  /// instead of `unitPrice`.
+  /// quantity against this sale — weighted-average cost per product
+  /// from the sale-time cost snapshots.
   Money refundedCostFor(String saleLocalId) => _refundedCostBySale[saleLocalId] ?? 0;
 
   /// Per-product (quantity, amount) refunded against this sale — for
@@ -110,15 +113,16 @@ class SaleReversalAdjustments {
   }
 
   /// The net cash this sale should be treated as having brought in —
-  /// for cash-flow, not revenue. `amountPaid` less whatever of that
-  /// payment has actually been given back. A refund/void can only ever
-  /// return cash that was actually collected — the excess (reversing
-  /// an unpaid credit balance) is a credit-balance adjustment
-  /// (`CustomerCreditRepository.recordRefundAdjustment` already
-  /// handles that separately), never cash leaving twice.
+  /// for cash-flow, not revenue. The local customer ledger records the
+  /// part that reverses outstanding credit; only the remaining amount
+  /// is cash owed back. Cash is capped at what the sale actually collected.
   Money netCashReceived(SaleRow sale) {
     final reversedValue = isVoided(sale.localId) ? sale.total : refundedAmountFor(sale.localId);
-    final cashGivenBack = reversedValue < sale.amountPaid ? reversedValue : sale.amountPaid;
+    final creditReversed = _creditReversedBySale[sale.localId] ?? 0;
+    final cashRefund = reversedValue > creditReversed
+        ? reversedValue - creditReversed
+        : 0;
+    final cashGivenBack = cashRefund < sale.amountPaid ? cashRefund : sale.amountPaid;
     final net = sale.amountPaid - cashGivenBack;
     return net < 0 ? 0 : net;
   }
@@ -131,6 +135,25 @@ class SaleReversalAdjustments {
         .get();
     if (completedReturns.isEmpty) return empty;
 
+    final refundedAmountBySale = <String, Money>{};
+    for (final request in completedReturns.where((row) => !row.isVoid)) {
+      refundedAmountBySale[request.originalSaleLocalId] =
+          (refundedAmountBySale[request.originalSaleLocalId] ?? 0) +
+              request.refundAmount;
+    }
+    final creditLedgerRows = await (db.select(db.customerLedgerEntries)
+          ..where((entry) =>
+              entry.saleLocalId.isIn(saleIds) &
+              entry.entryType.equals('refundAdjustment')))
+        .get();
+    final creditReversedBySale = <String, Money>{};
+    for (final entry in creditLedgerRows) {
+      final saleId = entry.saleLocalId;
+      if (saleId == null) continue;
+      creditReversedBySale[saleId] =
+          (creditReversedBySale[saleId] ?? 0) + entry.amount;
+    }
+
     final saleIdByReturnId = {for (final r in completedReturns) r.localId: r.originalSaleLocalId};
     final isVoidByReturnId = {for (final r in completedReturns) r.localId: r.isVoid};
     final voidedSaleIds = completedReturns.where((r) => r.isVoid).map((r) => r.originalSaleLocalId).toSet();
@@ -141,33 +164,38 @@ class SaleReversalAdjustments {
     if (returnItems.isEmpty) {
       return SaleReversalAdjustments._(
         voidedSaleIds: voidedSaleIds,
-        refundedAmountBySale: const {},
+        refundedAmountBySale: refundedAmountBySale,
+        creditReversedBySale: creditReversedBySale,
         refundedCostBySale: const {},
         refundedByProductBySale: const {},
       );
     }
 
-    // Weighted-average price/cost per (sale, product) — recomputed
-    // from SaleItems directly rather than trusted off ReturnRequests.
-    // refundAmount (one aggregate figure across every line in a
-    // possibly multi-product return, not a per-product breakdown), so
-    // refunded quantity can be priced and costed back out product by
-    // product for Top Products / COGS netting.
+    // Weighted-average cost per (sale, product) comes from sale-time
+    // cost snapshots. The server's aggregate refund is authoritative for
+    // revenue and cash projections; the Sale helper allocates that net
+    // value to products for Top Products.
     final saleItems = await (db.select(db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
-    final linesBySaleProduct = <String, Map<String, ({int quantity, Money amount, Money cost})>>{};
+    final saleRows = await (db.select(db.sales)..where((sale) => sale.localId.isIn(saleIds))).get();
+    final saleItemsById = <String, List<SaleItemRow>>{};
+    final linesBySaleProduct = <String, Map<String, ({int quantity, Money cost})>>{};
     for (final item in saleItems) {
+      saleItemsById.putIfAbsent(item.saleLocalId, () => []).add(item);
       final productId = item.productLocalId;
       if (productId == null) continue;
       final bySale = linesBySaleProduct.putIfAbsent(item.saleLocalId, () => {});
       final existing = bySale[productId];
       bySale[productId] = (
         quantity: (existing?.quantity ?? 0) + item.quantity,
-        amount: (existing?.amount ?? 0) + item.quantity * item.unitPrice,
         cost: (existing?.cost ?? 0) + item.quantity * item.costPriceAtSale,
       );
     }
 
-    final refundedAmountBySale = <String, Money>{};
+    final salesById = {
+      for (final row in saleRows)
+        row.localId: row.toDomain(saleItemsById[row.localId] ?? const []),
+    };
+
     final refundedCostBySale = <String, Money>{};
     final refundedByProductBySale = <String, Map<String, ({int quantity, Money amount})>>{};
 
@@ -180,12 +208,13 @@ class SaleReversalAdjustments {
       if (isVoidByReturnId[item.returnLocalId] ?? false) continue;
 
       final line = linesBySaleProduct[saleId]?[item.productLocalId];
-      final unitPrice = (line == null || line.quantity == 0) ? 0 : (line.amount / line.quantity).round();
       final unitCost = (line == null || line.quantity == 0) ? 0 : (line.cost / line.quantity).round();
-      final refundedAmount = unitPrice * item.quantity;
+      final refundedAmount = salesById[saleId]?.refundAmountFor({
+            item.productLocalId: item.quantity,
+          }) ??
+          0;
       final refundedCost = unitCost * item.quantity;
 
-      refundedAmountBySale[saleId] = (refundedAmountBySale[saleId] ?? 0) + refundedAmount;
       refundedCostBySale[saleId] = (refundedCostBySale[saleId] ?? 0) + refundedCost;
       final byProduct = refundedByProductBySale.putIfAbsent(saleId, () => {});
       final existing = byProduct[item.productLocalId];
@@ -198,6 +227,7 @@ class SaleReversalAdjustments {
     return SaleReversalAdjustments._(
       voidedSaleIds: voidedSaleIds,
       refundedAmountBySale: refundedAmountBySale,
+      creditReversedBySale: creditReversedBySale,
       refundedCostBySale: refundedCostBySale,
       refundedByProductBySale: refundedByProductBySale,
     );

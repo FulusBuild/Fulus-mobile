@@ -9,6 +9,8 @@ ReturnStatus _statusFromColumn(String value) {
     'pending' => ReturnStatus.pending,
     'approved' => ReturnStatus.approved,
     'rejected' => ReturnStatus.rejected,
+    'reconciliation_pending' => ReturnStatus.reconciliationPending,
+    'reconciliationPending' => ReturnStatus.reconciliationPending,
     'completed' => ReturnStatus.completed,
     _ => throw ArgumentError.value(value, 'status', 'unrecognized return status'),
   };
@@ -19,7 +21,9 @@ extension ReturnRequestToCompanion on ReturnRequest {
     return ReturnRequestsCompanion.insert(
       localId: localId,
       originalSaleLocalId: originalSaleLocalId,
-      status: status.name,
+      status: status == ReturnStatus.reconciliationPending
+          ? 'reconciliation_pending'
+          : status.name,
       returnReason: returnReason,
       refundAmount: refundAmount,
       refundMethod: refundMethod,

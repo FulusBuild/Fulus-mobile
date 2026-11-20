@@ -920,12 +920,11 @@ class SalePayments extends Table {
 /// The real refund/return mechanism: full or partial (specific line
 /// items), a distinct workflow against a past sale. Lives in
 /// `POST /api/pos/returns` + `/approve`/`/complete` (`pos_service.py`'s
-/// `create_return`/`approve_return`/`complete_return`), a genuinely
-/// sophisticated, tested piece of server-side logic — weighted-average
-/// pricing per product (a product can appear more than once in a sale
-/// at different effective prices), and eligibility tracked across every
-/// non-rejected prior return against the same sale, not just the most
-/// recent one. Nothing on mobile called any of this before this table.
+/// `create_return`/`approve_return`/`complete_return`), including
+/// proportional pricing from the authoritative net sale total and
+/// eligibility tracked across every non-rejected prior return against
+/// the same sale, not just the most recent one. Mobile sync submits
+/// completed returns through its own idempotent Fulus Cloud mutation.
 ///
 /// Backend stores `items` as a JSON blob directly on the `Return` row —
 /// its own comment calls this "a deliberate tradeoff... worth a real
@@ -947,18 +946,15 @@ class SalePayments extends Table {
 /// collision exists in Python, so the backend's own `Return` name never
 /// had a reason to avoid it. `ReturnRequest` is this schema's name for
 /// the same thing throughout.
-/// **No `clientReference`** — checked directly against
-/// `backend/app/schemas/pos.py`'s `ReturnCreate`, which has no such
-/// field, unlike Customer/Sale/StockMovement. Same confirmed gap as
-/// Categories/Suppliers: a sync retry after a dropped response can
-/// create a genuine duplicate return request server-side. Learned to
-/// check this per-schema rather than assume it from Customer/Sale's
-/// pattern after getting exactly this wrong once already for Categories
-/// (see that table's own doc comment).
+/// This local table has no separate `clientReference` column. The Fulus
+/// Cloud sync handler uses this stable `localId` as its client reference
+/// and operation identity, so a retry replays the same return command.
+/// The legacy `/api/pos/returns` DTO is a separate path and has no
+/// client-reference field.
 @DataClassName('ReturnRequestRow')
 class ReturnRequests extends Table with SyncableColumns {
   TextColumn get originalSaleLocalId => text().references(Sales, #localId)();
-  TextColumn get status => text()(); // pending | approved | rejected | completed
+  TextColumn get status => text()(); // pending | approved | rejected | completed | local reconciliation_pending
   TextColumn get returnReason => text().withLength(min: 1, max: 500)();
   IntColumn get refundAmount => integer()();
   TextColumn get refundMethod => text().withLength(min: 1, max: 30)();

@@ -6,6 +6,7 @@ declare
   sale_sig text := 'public.fulus_api_create_sale_atomic_v2(uuid,uuid,uuid,uuid,text,timestamptz,numeric,numeric,numeric,text,text,uuid,jsonb,jsonb)';
   return_sig text := 'public.fulus_api_create_return_atomic_v2(uuid,uuid,uuid,text,text,numeric,text,uuid,jsonb)';
   return_impl_sig text := 'public.fulus_api_create_return_atomic_v2_unchecked(uuid,uuid,uuid,text,text,numeric,text,uuid,jsonb)';
+  return_function_definition text;
   income_scale int;
   income_precision int;
 begin
@@ -77,6 +78,15 @@ begin
   end if;
   if position('previously_refunded' in pg_get_functiondef(to_regprocedure(return_impl_sig))) = 0 then
     raise exception 'return RPC does not cap cumulative refunds against prior returns';
+  end if;
+  return_function_definition := pg_get_functiondef(to_regprocedure(return_impl_sig));
+  if position('weighted_refund_amount' in return_function_definition) = 0
+     or position('order by id' in return_function_definition) = 0 then
+    raise exception 'return RPC does not deterministically allocate product-only requests across duplicate sale lines';
+  end if;
+  if position('if credit_reversal > 0 then' in return_function_definition) = 0
+     or position('if method<>''credit'' and cash_refund > 0 then' in return_function_definition) = 0 then
+    raise exception 'return RPC does not post split-credit reversal and any remaining cash refund';
   end if;
 
   -- Idempotent replay must be resolved before the refundable-balance guard.
@@ -173,7 +183,7 @@ where name = 'Sale Fidelity Regression Business';
 insert into public.role_permissions (role_id, permission_id)
 select r.id, p.id
 from public.roles r
-join public.permissions p on p.code in ('sales.create', 'credit.manage')
+join public.permissions p on p.code in ('sales.create', 'credit.manage', 'returns.create')
 where r.name = 'sale-fidelity-role';
 
 insert into public.business_memberships (business_id, user_id, role_id, status, joined_at)
@@ -212,7 +222,7 @@ join public.locations l on l.business_id = b.id and l.name = 'Sale Fidelity Loca
 where b.name = 'Sale Fidelity Regression Business';
 
 insert into public.product_stock_levels (product_id, location_id, current_stock)
-select p.id, p.location_id, 3
+select p.id, p.location_id, 10
 from public.products p
 where p.sku = 'SALE-FIDELITY-SKU';
 
@@ -249,6 +259,10 @@ declare
   row_count integer;
   stock integer;
   ledger_amount numeric;
+  return_result jsonb;
+  duplicate_sale_id uuid;
+  new_return_id uuid;
+  expected_sale_item_id uuid;
 begin
   select * into ids from _sale_fidelity_ids;
 
@@ -328,6 +342,106 @@ begin
     raise exception 'FAIL: split credit did not create the expected customer balance and ledger row';
   end if;
 
+  accepted := public.fulus_api_create_sale_atomic_v2(
+    ids.user_id, ids.business_id, ids.location_id, ids.customer_id,
+    'sale-fidelity-duplicate-product-lines', now(), 0, 0, 20, 'split', null,
+    ids.device_id,
+    jsonb_build_array(
+      jsonb_build_object(
+        'product_id', ids.product_id::text,
+        'description', 'Sale Fidelity Product line A',
+        'quantity', 1,
+        'unit_price', '10.00',
+        'cost_price_at_sale', '4.00'
+      ),
+      jsonb_build_object(
+        'product_id', ids.product_id::text,
+        'description', 'Sale Fidelity Product line B',
+        'quantity', 1,
+        'unit_price', '20.00',
+        'cost_price_at_sale', '4.00'
+      )
+    ),
+    jsonb_build_array(
+      jsonb_build_object('method', 'cash', 'amount', '20.00', 'tendered_amount', '20.00'),
+      jsonb_build_object('method', 'credit', 'amount', '10.00')
+    )
+  );
+  if accepted->>'status' <> 'applied'
+     or round((accepted->>'total')::numeric,2) <> 30 then
+    raise exception 'FAIL: duplicate-product-line sale was not persisted: %', accepted;
+  end if;
+  duplicate_sale_id := (accepted->>'sale_id')::uuid;
+
+  return_result := public.fulus_api_create_return_atomic_v2(
+    ids.user_id, ids.business_id, duplicate_sale_id,
+    'return-fidelity-duplicate-product-lines',
+    'Regression for product-only split-credit return',
+    15, 'cash', ids.device_id,
+    jsonb_build_array(jsonb_build_object(
+      'product_id', ids.product_id::text,
+      'quantity', 1
+    ))
+  );
+  if return_result->>'status' <> 'applied'
+     or round((return_result->>'refund_amount')::numeric,2) <> 15
+     or round((return_result->>'credit_reversal')::numeric,2) <> 10
+     or round((return_result->>'cash_refund')::numeric,2) <> 5 then
+    raise exception 'FAIL: duplicate-line split-credit refund returned unexpected allocation: %', return_result;
+  end if;
+  new_return_id := (return_result->>'return_id')::uuid;
+
+  select min(id) into expected_sale_item_id
+  from public.sale_items where sale_id=duplicate_sale_id;
+  if not exists (
+    select 1 from public.return_items ri
+    where ri.return_id=new_return_id
+      and ri.sale_item_id=expected_sale_item_id
+      and ri.quantity=1
+      and ri.amount=15
+  ) then
+    raise exception 'FAIL: product-only return did not resolve to a stable sale line and weighted refund amount';
+  end if;
+
+  if (select outstanding_balance from public.customers where id=ids.customer_id) <> 2
+     or not exists (
+       select 1 from public.customer_ledger_entries
+       where business_id=ids.business_id
+         and customer_id=ids.customer_id
+         and operation_id='return-fidelity-duplicate-product-lines:credit-reversal'
+         and entry_type='credit_reversal'
+         and amount=10
+     ) then
+    raise exception 'FAIL: cash refund did not reverse the eligible split-credit balance exactly once';
+  end if;
+  select count(*),coalesce(max(amount),0)
+  into row_count,ledger_amount
+  from public.cash_ledger
+  where business_id=ids.business_id
+    and operation_id='return-fidelity-duplicate-product-lines:cash';
+  if row_count <> 1 or ledger_amount <> 5 then
+    raise exception 'FAIL: split-credit cash refund ledger is count %, amount %',row_count,ledger_amount;
+  end if;
+
+  -- Exact retries must replay the same return without another stock, credit,
+  -- or cash-ledger effect.
+  if public.fulus_api_create_return_atomic_v2(
+    ids.user_id, ids.business_id, duplicate_sale_id,
+    'return-fidelity-duplicate-product-lines',
+    'Regression for product-only split-credit return',
+    15, 'cash', ids.device_id,
+    jsonb_build_array(jsonb_build_object(
+      'product_id', ids.product_id::text,
+      'quantity', 1
+    ))
+  ) <> return_result then
+    raise exception 'FAIL: exact return retry did not replay its original response';
+  end if;
+  select count(*) into row_count from public.returns where id=new_return_id;
+  if row_count <> 1 then
+    raise exception 'FAIL: idempotent return retry created another return row';
+  end if;
+
   begin
     perform public.fulus_api_create_sale_atomic_v2(
       ids.user_id, ids.business_id, ids.location_id, null,
@@ -396,8 +510,8 @@ begin
   select current_stock into stock
   from public.product_stock_levels
   where product_id = ids.product_id and location_id = ids.location_id;
-  if stock <> 1 then
-    raise exception 'FAIL: rejected sale changed stock to %, expected 1', stock;
+  if stock <> 7 then
+    raise exception 'FAIL: rejected sale changed stock to %, expected 7', stock;
   end if;
 
   select count(*) into row_count

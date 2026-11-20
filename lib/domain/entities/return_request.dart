@@ -3,9 +3,9 @@ import 'package:fulus_mobile/core/money/money.dart';
 
 part 'return_request.g.dart';
 
-/// Mirrors the backend's `Return` status values exactly:
-/// pending → approved/rejected → (approved only) completed. See
-/// tables.dart's `ReturnRequests` doc comment for the full context.
+/// Mirrors the backend's `Return` statuses, with [reconciliationPending] as
+/// a local-only state while canonical projections are repaired after cloud
+/// rejection. See tables.dart's `ReturnRequests` doc comment for context.
 enum ReturnStatus {
   /// Volume 5: "Like discounts, an employee-initiated refund requires
   /// the same owner approval as Decision 16." Whether a given return
@@ -17,9 +17,15 @@ enum ReturnStatus {
   approved,
   rejected,
 
+  /// Local-only state for a permanent cloud rejection whose stock/customer
+  /// projections still need canonical repair. It keeps the return visible as
+  /// unresolved and preserves its eligibility claim until compensation ends.
+  @JsonValue('reconciliation_pending')
+  reconciliationPending,
+
   /// Only reachable from `approved` — mirrors `complete_return`'s own
   /// guard: "This return must be approved before it can be completed."
-  completed;
+  completed,
 }
 
 /// Named `ReturnRequest` rather than `Return` — see tables.dart's own
@@ -51,10 +57,9 @@ class ReturnRequest {
   /// — required, unlike a stock-out's optional free-text note.
   final String returnReason;
 
-  /// Computed by `ReturnRepository.createReturn` from each returned
-  /// line's *weighted-average* price within the original sale — see
-  /// that method's own doc comment for why a plain per-line price isn't
-  /// enough. Never caller-supplied.
+  /// Computed by `ReturnRepository.createReturn` by allocating the
+  /// authoritative net sale total proportionally across the raw sale
+  /// subtotal, matching the cloud return RPC. Never caller-supplied.
   final Money refundAmount;
 
   /// Same plain-string choice `SalePayment.method` made — defaults to
@@ -116,7 +121,10 @@ class ReturnItem {
 /// product+quantity, before it's been checked against what's actually
 /// still eligible.
 class ReturnItemRequest {
-  const ReturnItemRequest({required this.productLocalId, required this.quantity});
+  const ReturnItemRequest({
+    required this.productLocalId,
+    required this.quantity,
+  });
 
   final String productLocalId;
   final int quantity;

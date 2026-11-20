@@ -1,12 +1,14 @@
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/return_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/sale_reversal_adjustments.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
@@ -36,15 +38,21 @@ class _FakeAuthRepository implements AuthRepository {
   Future<AuthUser> createFirstOwner({required String fullName}) async =>
       throw UnimplementedError();
   @override
-  Future<void> setOwnLoginPin({required String pin}) async => throw UnimplementedError();
-  @override
-  Future<List<AuthUser>> listLocalIdentities() async => throw UnimplementedError();
-  @override
-  Future<AuthUser> switchLocalUser({required String userId, String? pin}) async =>
+  Future<void> setOwnLoginPin({required String pin}) async =>
       throw UnimplementedError();
   @override
-  Future<AuthUser> createAdditionalOwner({required String fullName, required String pin}) async =>
+  Future<List<AuthUser>> listLocalIdentities() async =>
       throw UnimplementedError();
+  @override
+  Future<AuthUser> switchLocalUser({
+    required String userId,
+    String? pin,
+  }) async => throw UnimplementedError();
+  @override
+  Future<AuthUser> createAdditionalOwner({
+    required String fullName,
+    required String pin,
+  }) async => throw UnimplementedError();
   @override
   Future<AuthUser> createEmployeeAccount({
     required String employeeId,
@@ -58,7 +66,8 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<String?> getActiveLocationId() async => throw UnimplementedError();
   @override
-  Future<void> setActiveLocationId(String locationId) async => throw UnimplementedError();
+  Future<void> setActiveLocationId(String locationId) async =>
+      throw UnimplementedError();
 }
 
 /// Real, no-mocks tests against an in-memory Drift database — same
@@ -81,14 +90,21 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     await seedLocation(db, localId: locationId);
     await seedUser(db, localId: 'user-cashier-1');
-    await db.into(db.sessions).insert(SessionsCompanion.insert(
-      id: 'current', userId: 'user-cashier-1',
-      activeLocationId: const Value(locationId),
-    ));
+    await db
+        .into(db.sessions)
+        .insert(
+          SessionsCompanion.insert(
+            id: 'current',
+            userId: 'user-cashier-1',
+            activeLocationId: const Value(locationId),
+          ),
+        );
 
     final now = DateTime(2026, 1, 1);
     for (final id in [productAId, productBId]) {
-      await db.into(db.products).insert(
+      await db
+          .into(db.products)
+          .insert(
             ProductsCompanion.insert(
               localId: id,
               locationId: const Value(locationId),
@@ -101,7 +117,9 @@ void main() {
               syncStatus: SyncStatus.settled,
             ),
           );
-      await db.into(db.productStockLevels).insert(
+      await db
+          .into(db.productStockLevels)
+          .insert(
             ProductStockLevelsCompanion.insert(
               productLocalId: id,
               locationLocalId: locationId,
@@ -124,7 +142,10 @@ void main() {
         hasLoginPin: true,
       ),
     );
-    final customerCreditRepository = CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db));
+    final customerCreditRepository = CustomerCreditRepositoryImpl(
+      db: db,
+      syncQueue: SyncQueue(db),
+    );
     customerRepository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
     saleRepository = SaleRepositoryImpl(
       db: db,
@@ -186,28 +207,34 @@ void main() {
       expect(a.remainingReturnable, 5);
     });
 
-    test('reduces remaining eligibility by a completed return\'s quantity',
-        () async {
-      final sale = await purchase();
-      await returnRepository.createReturn(
-        originalSaleLocalId: sale.localId,
-        items: [const ReturnItemRequest(productLocalId: productAId, quantity: 2)],
-        returnReason: 'Wrong size',
-        refundMethod: 'cash',
-        autoApprove: true,
-      );
+    test(
+      'reduces remaining eligibility by a completed return\'s quantity',
+      () async {
+        final sale = await purchase();
+        await returnRepository.createReturn(
+          originalSaleLocalId: sale.localId,
+          items: [
+            const ReturnItemRequest(productLocalId: productAId, quantity: 2),
+          ],
+          returnReason: 'Wrong size',
+          refundMethod: 'cash',
+          autoApprove: true,
+        );
 
-      final lines = await returnRepository.getReturnEligibility(sale.localId);
-      final a = lines.firstWhere((l) => l.productLocalId == productAId);
-      expect(a.alreadyReturned, 2);
-      expect(a.remainingReturnable, 3);
-    });
+        final lines = await returnRepository.getReturnEligibility(sale.localId);
+        final a = lines.firstWhere((l) => l.productLocalId == productAId);
+        expect(a.alreadyReturned, 2);
+        expect(a.remainingReturnable, 3);
+      },
+    );
 
     test('a rejected return frees its claimed quantity back up', () async {
       final sale = await purchase();
       final firstReturn = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: [const ReturnItemRequest(productLocalId: productAId, quantity: 2)],
+        items: [
+          const ReturnItemRequest(productLocalId: productAId, quantity: 2),
+        ],
         returnReason: 'Changed mind',
         refundMethod: 'cash',
         autoApprove: false,
@@ -219,26 +246,67 @@ void main() {
 
       final lines = await returnRepository.getReturnEligibility(sale.localId);
       final a = lines.firstWhere((l) => l.productLocalId == productAId);
-      expect(a.alreadyReturned, 0,
-          reason: 'a rejected return must not still count as claimed');
+      expect(
+        a.alreadyReturned,
+        0,
+        reason: 'a rejected return must not still count as claimed',
+      );
       expect(a.remainingReturnable, 5);
+    });
+
+    test('a cloud-rejected completed return is no longer counted after '
+        'canonical compensation', () async {
+      final sale = await purchase();
+      final request = await returnRepository.createReturn(
+        originalSaleLocalId: sale.localId,
+        items: [
+          const ReturnItemRequest(productLocalId: productAId, quantity: 2),
+        ],
+        returnReason: 'Cloud rejected the stale refund amount',
+        refundMethod: 'cash',
+        autoApprove: true,
+      );
+      final completed = await returnRepository.completeReturn(request.localId);
+      expect(completed.status, ReturnStatus.completed);
+      expect(completed.inventoryRestored, isTrue);
+
+      await returnRepository.markReconciliationPending(
+        localId: request.localId,
+      );
+      expect(
+        (await returnRepository.getReturnById(request.localId))!.status,
+        ReturnStatus.reconciliationPending,
+      );
+      await returnRepository.markRejected(localId: request.localId);
+
+      final rejected = await returnRepository.getReturnById(request.localId);
+      expect(rejected!.status, ReturnStatus.rejected);
+      expect(rejected.inventoryRestored, isFalse);
+      final lines = await returnRepository.getReturnEligibility(sale.localId);
+      final productA = lines.firstWhere(
+        (line) => line.productLocalId == productAId,
+      );
+      expect(productA.alreadyReturned, 0);
+      expect(productA.remainingReturnable, 5);
     });
   });
 
   test('reverses the actual credit leg for a split-payment return', () async {
     const customerId = 'customer-credit-split';
     final now = DateTime(2026, 1, 1);
-    await db.into(db.customers).insert(
-      CustomersCompanion.insert(
-        localId: customerId,
-        locationId: const Value(locationId),
-        name: 'Credit Split Customer',
-        outstandingBalance: Value(moneyFromMajor(500)),
-        createdAt: now,
-        updatedAt: now,
-        syncStatus: SyncStatus.settled,
-      ),
-    );
+    await db
+        .into(db.customers)
+        .insert(
+          CustomersCompanion.insert(
+            localId: customerId,
+            locationId: const Value(locationId),
+            name: 'Credit Split Customer',
+            outstandingBalance: Value(moneyFromMajor(500)),
+            createdAt: now,
+            updatedAt: now,
+            syncStatus: SyncStatus.settled,
+          ),
+        );
 
     final items = [
       SaleItem(
@@ -257,15 +325,25 @@ void main() {
         amountPaid: moneyFromMajor(4500),
         paymentMethod: 'split',
         payments: [
-          SalePayment(localId: Ulid().toString(), method: 'cash', amount: moneyFromMajor(4500), recordedAt: now),
-          SalePayment(localId: Ulid().toString(), method: 'credit', amount: moneyFromMajor(500), recordedAt: now),
+          SalePayment(
+            localId: Ulid().toString(),
+            method: 'cash',
+            amount: moneyFromMajor(4500),
+            recordedAt: now,
+          ),
+          SalePayment(
+            localId: Ulid().toString(),
+            method: 'credit',
+            amount: moneyFromMajor(500),
+            recordedAt: now,
+          ),
         ],
       ),
     );
 
-    final customerBefore = await (db.select(db.customers)
-          ..where((c) => c.localId.equals(customerId)))
-        .getSingle();
+    final customerBefore = await (db.select(
+      db.customers,
+    )..where((c) => c.localId.equals(customerId))).getSingle();
     expect(customerBefore.outstandingBalance, moneyFromMajor(1000));
 
     final ret = await returnRepository.createReturn(
@@ -277,42 +355,61 @@ void main() {
     );
     await returnRepository.completeReturn(ret.localId);
 
-    final customerAfter = await (db.select(db.customers)
-          ..where((c) => c.localId.equals(customerId)))
-        .getSingle();
+    final customerAfter = await (db.select(
+      db.customers,
+    )..where((c) => c.localId.equals(customerId))).getSingle();
     expect(customerAfter.outstandingBalance, moneyFromMajor(500));
 
-    final adjustments = await (db.select(db.customerLedgerEntries)
-          ..where((e) =>
-              e.customerLocalId.equals(customerId) &
-              e.entryType.equals(CustomerLedgerEntryType.refundAdjustment.name)))
-        .get();
+    final saleRow = await (db.select(
+      db.sales,
+    )..where((row) => row.localId.equals(sale.localId))).getSingle();
+    final reportAdjustments = await SaleReversalAdjustments.load(db, {
+      sale.localId,
+    });
+    expect(
+      reportAdjustments.refundedAmountFor(sale.localId),
+      moneyFromMajor(1000),
+    );
+    expect(reportAdjustments.netCashReceived(saleRow), moneyFromMajor(4000));
+
+    final adjustments =
+        await (db.select(db.customerLedgerEntries)..where(
+              (e) =>
+                  e.customerLocalId.equals(customerId) &
+                  e.entryType.equals(
+                    CustomerLedgerEntryType.refundAdjustment.name,
+                  ),
+            ))
+            .get();
     expect(adjustments, hasLength(1));
     expect(adjustments.single.amount, moneyFromMajor(500));
   });
 
   group('createReturn', () {
-    test('queued return remains readable for sync after switching locations', () async {
-      final sale = await purchase();
-      final request = await returnRepository.createReturn(
-        originalSaleLocalId: sale.localId,
-        items: const [
-          ReturnItemRequest(productLocalId: productAId, quantity: 1),
-        ],
-        returnReason: 'Pending return',
-        refundMethod: 'cash',
-        autoApprove: false,
-      );
-      await seedLocation(db, localId: 'loc-2');
-      await (db.update(db.sessions)..where((s) => s.id.equals('current')))
-          .write(const SessionsCompanion(activeLocationId: Value('loc-2')));
+    test(
+      'queued return remains readable for sync after switching locations',
+      () async {
+        final sale = await purchase();
+        final request = await returnRepository.createReturn(
+          originalSaleLocalId: sale.localId,
+          items: const [
+            ReturnItemRequest(productLocalId: productAId, quantity: 1),
+          ],
+          returnReason: 'Pending return',
+          refundMethod: 'cash',
+          autoApprove: false,
+        );
+        await seedLocation(db, localId: 'loc-2');
+        await (db.update(db.sessions)..where((s) => s.id.equals('current')))
+            .write(const SessionsCompanion(activeLocationId: Value('loc-2')));
 
-      expect(await returnRepository.getReturnById(request.localId), isNull);
-      expect(
-        await returnRepository.getReturnById(request.localId, forSync: true),
-        isNotNull,
-      );
-    });
+        expect(await returnRepository.getReturnById(request.localId), isNull);
+        expect(
+          await returnRepository.getReturnById(request.localId, forSync: true),
+          isNotNull,
+        );
+      },
+    );
 
     test('fails closed when there is no active location session', () async {
       final sale = await purchase();
@@ -333,20 +430,210 @@ void main() {
 
       expect(await db.select(db.returnRequests).get(), isEmpty);
     });
-    test('computes the refund amount from the sale\'s own unit price',
-        () async {
-      final sale = await purchase();
+    test(
+      'computes the refund amount from the sale\'s own unit price',
+      () async {
+        final sale = await purchase();
+
+        final ret = await returnRepository.createReturn(
+          originalSaleLocalId: sale.localId,
+          items: [
+            const ReturnItemRequest(productLocalId: productAId, quantity: 2),
+          ],
+          returnReason: 'Wrong size',
+          refundMethod: 'cash',
+          autoApprove: true,
+        );
+
+        expect(ret.refundAmount, moneyFromMajor(2000));
+      },
+    );
+
+    test('allocates a discounted sale refund from its net total', () async {
+      final sale = await saleRepository.createSale(
+        SaleDraft(
+          items: [
+            SaleItem(
+              localId: Ulid().toString(),
+              productLocalId: productAId,
+              quantity: 5,
+              unitPrice: moneyFromMajor(1000),
+              costPriceAtSale: moneyFromMajor(400),
+            ),
+          ],
+          locationId: locationId,
+          discount: moneyFromMajor(500),
+          amountPaid: moneyFromMajor(4500),
+        ),
+      );
 
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: [const ReturnItemRequest(productLocalId: productAId, quantity: 2)],
-        returnReason: 'Wrong size',
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
+        returnReason: 'Discounted return',
+        refundMethod: 'cash',
+        autoApprove: true,
+      );
+      await returnRepository.completeReturn(ret.localId);
+
+      expect(ret.refundAmount, moneyFromMajor(900));
+      final saleRow = await (db.select(
+        db.sales,
+      )..where((row) => row.localId.equals(sale.localId))).getSingle();
+      final adjustments = await SaleReversalAdjustments.load(db, {
+        sale.localId,
+      });
+      expect(adjustments.refundedAmountFor(sale.localId), moneyFromMajor(900));
+      expect(adjustments.netRevenue(saleRow), moneyFromMajor(3600));
+      expect(adjustments.netCashReceived(saleRow), moneyFromMajor(3600));
+      expect(
+        adjustments.refundedItemsFor(sale.localId)[productAId]?.amount,
+        moneyFromMajor(900),
+      );
+    });
+
+    test('allocates product-only refunds by weighted price across duplicate '
+        'sale lines', () async {
+      final sale = await saleRepository.createSale(
+        SaleDraft(
+          items: [
+            SaleItem(
+              localId: Ulid().toString(),
+              productLocalId: productAId,
+              quantity: 1,
+              unitPrice: moneyFromMajor(1000),
+              costPriceAtSale: moneyFromMajor(400),
+            ),
+            SaleItem(
+              localId: Ulid().toString(),
+              productLocalId: productAId,
+              quantity: 1,
+              unitPrice: moneyFromMajor(2000),
+              costPriceAtSale: moneyFromMajor(400),
+            ),
+          ],
+          locationId: locationId,
+          amountPaid: moneyFromMajor(3000),
+        ),
+      );
+
+      final request = await returnRepository.createReturn(
+        originalSaleLocalId: sale.localId,
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
+        returnReason: 'Product-only return across duplicate sale lines',
         refundMethod: 'cash',
         autoApprove: true,
       );
 
-      expect(ret.refundAmount, moneyFromMajor(2000));
+      expect(request.refundAmount, moneyFromMajor(1500));
     });
+
+    test(
+      'combines duplicate product requests before eligibility checks',
+      () async {
+        final sale = await purchase(); // 5 units of productA.
+
+        await expectLater(
+          returnRepository.createReturn(
+            originalSaleLocalId: sale.localId,
+            items: const [
+              ReturnItemRequest(productLocalId: productAId, quantity: 3),
+              ReturnItemRequest(productLocalId: productAId, quantity: 3),
+            ],
+            returnReason: 'Duplicate line quantity',
+            refundMethod: 'cash',
+            autoApprove: true,
+          ),
+          throwsArgumentError,
+        );
+        expect(await db.select(db.returnRequests).get(), isEmpty);
+      },
+    );
+
+    test(
+      'rejects account-credit refund when the original sale has no customer',
+      () async {
+        final sale = await purchase();
+
+        await expectLater(
+          returnRepository.createReturn(
+            originalSaleLocalId: sale.localId,
+            items: const [
+              ReturnItemRequest(productLocalId: productAId, quantity: 1),
+            ],
+            returnReason: 'Account credit requested',
+            refundMethod: 'credit',
+            autoApprove: true,
+          ),
+          throwsA(isA<BusinessRuleFailure>()),
+        );
+        expect(await db.select(db.returnRequests).get(), isEmpty);
+      },
+    );
+
+    test(
+      "caps local credit reversal to the customer's current balance",
+      () async {
+        final customer = await customerRepository.createCustomer(
+          const CustomerDraft(
+            name: 'Partially Repaid Customer',
+            locationId: locationId,
+          ),
+        );
+        final sale = await saleRepository.createSale(
+          SaleDraft(
+            items: [
+              SaleItem(
+                localId: Ulid().toString(),
+                productLocalId: productAId,
+                quantity: 2,
+                unitPrice: moneyFromMajor(500),
+                costPriceAtSale: moneyFromMajor(200),
+              ),
+            ],
+            locationId: locationId,
+            customerId: customer.localId,
+            amountPaid: 0,
+            paymentMethod: 'credit',
+          ),
+        );
+        await (db.update(
+          db.customers,
+        )..where((row) => row.localId.equals(customer.localId))).write(
+          CustomersCompanion(outstandingBalance: Value(moneyFromMajor(200))),
+        );
+
+        final request = await returnRepository.createReturn(
+          originalSaleLocalId: sale.localId,
+          items: const [
+            ReturnItemRequest(productLocalId: productAId, quantity: 1),
+          ],
+          returnReason: 'Partially repaid credit sale',
+          refundMethod: 'cash',
+          autoApprove: true,
+        );
+        await returnRepository.completeReturn(request.localId);
+
+        final customerAfter = await customerRepository.getCustomerById(
+          customer.localId,
+        );
+        expect(customerAfter!.outstandingBalance, 0);
+        final adjustments =
+            await (db.select(db.customerLedgerEntries)..where(
+                  (entry) =>
+                      entry.customerLocalId.equals(customer.localId) &
+                      entry.entryType.equals(
+                        CustomerLedgerEntryType.refundAdjustment.name,
+                      ),
+                ))
+                .get();
+        expect(adjustments.single.amount, moneyFromMajor(200));
+      },
+    );
 
     test('autoApprove: false creates a pending return; true creates an '
         'approved one', () async {
@@ -354,19 +641,23 @@ void main() {
 
       final pending = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: [const ReturnItemRequest(productLocalId: productAId, quantity: 1)],
+        items: [
+          const ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: false,
       );
-      final queuedBeforeCompletion = await (db.select(db.syncQueueItems)
-            ..where((q) => q.entityLocalId.equals(pending.localId)))
-          .get();
+      final queuedBeforeCompletion = await (db.select(
+        db.syncQueueItems,
+      )..where((q) => q.entityLocalId.equals(pending.localId))).get();
       expect(queuedBeforeCompletion, isEmpty);
 
       final approved = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: [const ReturnItemRequest(productLocalId: productBId, quantity: 1)],
+        items: [
+          const ReturnItemRequest(productLocalId: productBId, quantity: 1),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: true,
@@ -374,21 +665,22 @@ void main() {
       expect(approved.status, ReturnStatus.approved);
 
       await returnRepository.completeReturn(approved.localId);
-      final queuedAfterCompletion = await (db.select(db.syncQueueItems)
-            ..where((q) => q.entityLocalId.equals(approved.localId)))
-          .get();
+      final queuedAfterCompletion = await (db.select(
+        db.syncQueueItems,
+      )..where((q) => q.entityLocalId.equals(approved.localId))).get();
       expect(queuedAfterCompletion, hasLength(1));
       expect(queuedAfterCompletion.single.operation, 'create');
     });
 
-    test('rejects a product that was not part of the original sale',
-        () async {
+    test('rejects a product that was not part of the original sale', () async {
       final sale = await purchase();
 
       await expectLater(
         returnRepository.createReturn(
           originalSaleLocalId: sale.localId,
-          items: const [ReturnItemRequest(productLocalId: 'not-purchased', quantity: 1)],
+          items: const [
+            ReturnItemRequest(productLocalId: 'not-purchased', quantity: 1),
+          ],
           returnReason: 'x',
           refundMethod: 'cash',
           autoApprove: true,
@@ -403,7 +695,9 @@ void main() {
       await expectLater(
         returnRepository.createReturn(
           originalSaleLocalId: sale.localId,
-          items: const [ReturnItemRequest(productLocalId: productAId, quantity: 6)],
+          items: const [
+            ReturnItemRequest(productLocalId: productAId, quantity: 6),
+          ],
           returnReason: 'x',
           refundMethod: 'cash',
           autoApprove: true,
@@ -422,7 +716,9 @@ void main() {
       final sale = await purchase(); // 5x productA
       await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 3)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 3),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: true,
@@ -432,7 +728,9 @@ void main() {
       await expectLater(
         returnRepository.createReturn(
           originalSaleLocalId: sale.localId,
-          items: const [ReturnItemRequest(productLocalId: productAId, quantity: 3)],
+          items: const [
+            ReturnItemRequest(productLocalId: productAId, quantity: 3),
+          ],
           returnReason: 'x',
           refundMethod: 'cash',
           autoApprove: true,
@@ -446,14 +744,18 @@ void main() {
       final sale = await purchase(); // 5x productA
       await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 3)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 3),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: true,
       );
       final second = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 2)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 2),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: true,
@@ -462,7 +764,9 @@ void main() {
       expect(second.refundAmount, moneyFromMajor(2000));
       final lines = await returnRepository.getReturnEligibility(sale.localId);
       expect(
-        lines.firstWhere((l) => l.productLocalId == productAId).remainingReturnable,
+        lines
+            .firstWhere((l) => l.productLocalId == productAId)
+            .remainingReturnable,
         0,
       );
     });
@@ -486,7 +790,9 @@ void main() {
       await expectLater(
         returnRepository.createReturn(
           originalSaleLocalId: sale.localId,
-          items: const [ReturnItemRequest(productLocalId: productAId, quantity: 1)],
+          items: const [
+            ReturnItemRequest(productLocalId: productAId, quantity: 1),
+          ],
           returnReason: '   ',
           refundMethod: 'cash',
           autoApprove: true,
@@ -497,25 +803,29 @@ void main() {
   });
 
   group('approveOrRejectReturn', () {
-    test('rejects trying to approve a return that is already approved',
-        () async {
-      final sale = await purchase();
-      final ret = await returnRepository.createReturn(
-        originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 1)],
-        returnReason: 'x',
-        refundMethod: 'cash',
-        autoApprove: true,
-      );
+    test(
+      'rejects trying to approve a return that is already approved',
+      () async {
+        final sale = await purchase();
+        final ret = await returnRepository.createReturn(
+          originalSaleLocalId: sale.localId,
+          items: const [
+            ReturnItemRequest(productLocalId: productAId, quantity: 1),
+          ],
+          returnReason: 'x',
+          refundMethod: 'cash',
+          autoApprove: true,
+        );
 
-      await expectLater(
-        returnRepository.approveOrRejectReturn(
-          returnLocalId: ret.localId,
-          approve: true,
-        ),
-        throwsStateError,
-      );
-    });
+        await expectLater(
+          returnRepository.approveOrRejectReturn(
+            returnLocalId: ret.localId,
+            approve: true,
+          ),
+          throwsStateError,
+        );
+      },
+    );
   });
 
   group('completeReturn', () {
@@ -523,7 +833,9 @@ void main() {
       final sale = await purchase();
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 1)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: false, // stays pending
@@ -537,39 +849,42 @@ void main() {
 
     test('restores stock for every returned line', () async {
       final sale = await purchase();
-      final before = await (db.select(db.productStockLevels)
-            ..where(
-              (s) =>
-                  s.productLocalId.equals(productAId) &
-                  s.locationLocalId.equals(locationId),
-            ))
-          .getSingle();
+      final before =
+          await (db.select(db.productStockLevels)..where(
+                (s) =>
+                    s.productLocalId.equals(productAId) &
+                    s.locationLocalId.equals(locationId),
+              ))
+              .getSingle();
 
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 2)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 2),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: true,
       );
       await returnRepository.completeReturn(ret.localId);
 
-      final after = await (db.select(db.productStockLevels)
-            ..where(
-              (s) =>
-                  s.productLocalId.equals(productAId) &
-                  s.locationLocalId.equals(locationId),
-            ))
-          .getSingle();
+      final after =
+          await (db.select(db.productStockLevels)..where(
+                (s) =>
+                    s.productLocalId.equals(productAId) &
+                    s.locationLocalId.equals(locationId),
+              ))
+              .getSingle();
       expect(after.currentStock, before.currentStock + 2);
     });
 
-    test('marks the return completed with inventoryRestored true',
-        () async {
+    test('marks the return completed with inventoryRestored true', () async {
       final sale = await purchase();
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 1)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: true,
@@ -588,18 +903,25 @@ void main() {
         const CustomerDraft(name: 'Test Customer', locationId: locationId),
       );
       // 8000 total, 3000 paid up front — 5000 still owed on credit.
-      final sale = await purchase(customerId: customer.localId, amountPaid: moneyFromMajor(3000));
+      final sale = await purchase(
+        customerId: customer.localId,
+        amountPaid: moneyFromMajor(3000),
+      );
 
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 5)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 5),
+        ],
         returnReason: 'x',
         refundMethod: 'account credit',
         autoApprove: true,
       ); // refundAmount = 5000, exactly what's owed
       await returnRepository.completeReturn(ret.localId);
 
-      final updatedCustomer = await customerRepository.getCustomerById(customer.localId);
+      final updatedCustomer = await customerRepository.getCustomerById(
+        customer.localId,
+      );
       expect(updatedCustomer!.outstandingBalance, moneyFromMajor(0));
     });
 
@@ -612,14 +934,18 @@ void main() {
 
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 1)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
         returnReason: 'x',
         refundMethod: 'cash',
         autoApprove: true,
       );
       await returnRepository.completeReturn(ret.localId);
 
-      final updatedCustomer = await customerRepository.getCustomerById(customer.localId);
+      final updatedCustomer = await customerRepository.getCustomerById(
+        customer.localId,
+      );
       expect(updatedCustomer!.outstandingBalance, moneyFromMajor(0));
     });
   });
@@ -637,7 +963,10 @@ void main() {
       expect(voided.status, ReturnStatus.completed);
       expect(voided.isVoid, isTrue);
       expect(voided.inventoryRestored, isTrue);
-      expect(voided.items.fold<int>(0, (sum, i) => sum + i.quantity), 8); // 5 + 3
+      expect(
+        voided.items.fold<int>(0, (sum, i) => sum + i.quantity),
+        8,
+      ); // 5 + 3
 
       final lines = await returnRepository.getReturnEligibility(sale.localId);
       for (final line in lines) {
@@ -647,37 +976,64 @@ void main() {
 
     test('restores stock the same way a completed return does', () async {
       final sale = await purchase();
-      final before = await (db.select(db.productStockLevels)
-            ..where(
-              (s) =>
-                  s.productLocalId.equals(productAId) &
-                  s.locationLocalId.equals(locationId),
-            ))
-          .getSingle();
+      final before =
+          await (db.select(db.productStockLevels)..where(
+                (s) =>
+                    s.productLocalId.equals(productAId) &
+                    s.locationLocalId.equals(locationId),
+              ))
+              .getSingle();
 
-      await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
+      await returnRepository.voidSale(
+        saleLocalId: sale.localId,
+        reason: 'Mistake',
+      );
 
-      final after = await (db.select(db.productStockLevels)
-            ..where(
-              (s) =>
-                  s.productLocalId.equals(productAId) &
-                  s.locationLocalId.equals(locationId),
-            ))
-          .getSingle();
+      final after =
+          await (db.select(db.productStockLevels)..where(
+                (s) =>
+                    s.productLocalId.equals(productAId) &
+                    s.locationLocalId.equals(locationId),
+              ))
+              .getSingle();
       expect(after.currentStock, before.currentStock + 5); // all 5 units back
     });
 
-    test('uses the original sale\'s own payment method, not a caller-'
-        'supplied one', () async {
-      // Explicit, non-'cash' payment method — purchase()'s default sale
-      // never sets one (falls through to null), which would make this
-      // assertion pass for the wrong reason via voidSale's own '??
-      // cash' fallback rather than genuinely reading the sale's value.
+    test(
+      'falls back to cash when the original method is unsupported by cloud',
+      () async {
+        final sale = await saleRepository.createSale(
+          SaleDraft(
+            items: [
+              SaleItem(
+                localId: 'transfer-item-1',
+                productLocalId: productAId,
+                quantity: 1,
+                unitPrice: moneyFromMajor(1000),
+                costPriceAtSale: moneyFromMajor(400),
+              ),
+            ],
+            locationId: locationId,
+            amountPaid: moneyFromMajor(1000),
+            paymentMethod: 'transfer',
+          ),
+        );
+
+        final voided = await returnRepository.voidSale(
+          saleLocalId: sale.localId,
+          reason: 'Mistake',
+        );
+
+        expect(voided.refundMethod, 'cash');
+      },
+    );
+
+    test('uses supported card refund method from the original sale', () async {
       final sale = await saleRepository.createSale(
         SaleDraft(
           items: [
             SaleItem(
-              localId: 'transfer-item-1',
+              localId: 'card-item-1',
               productLocalId: productAId,
               quantity: 1,
               unitPrice: moneyFromMajor(1000),
@@ -686,7 +1042,7 @@ void main() {
           ],
           locationId: locationId,
           amountPaid: moneyFromMajor(1000),
-          paymentMethod: 'transfer',
+          paymentMethod: 'card',
         ),
       );
 
@@ -695,26 +1051,73 @@ void main() {
         reason: 'Mistake',
       );
 
-      expect(voided.refundMethod, 'transfer');
+      expect(voided.refundMethod, 'card');
     });
+
+    test(
+      'uses cash for split payment voids because split is not a refund method',
+      () async {
+        final sale = await saleRepository.createSale(
+          SaleDraft(
+            items: [
+              SaleItem(
+                localId: 'split-item-1',
+                productLocalId: productAId,
+                quantity: 1,
+                unitPrice: moneyFromMajor(1000),
+                costPriceAtSale: moneyFromMajor(400),
+              ),
+            ],
+            locationId: locationId,
+            amountPaid: moneyFromMajor(1000),
+            paymentMethod: 'split',
+            payments: [
+              SalePayment(
+                localId: 'split-payment-1',
+                method: 'cash',
+                amount: moneyFromMajor(1000),
+                recordedAt: DateTime(2026, 1, 1),
+              ),
+            ],
+          ),
+        );
+
+        final voided = await returnRepository.voidSale(
+          saleLocalId: sale.localId,
+          reason: 'Mistake',
+        );
+
+        expect(voided.refundMethod, 'cash');
+      },
+    );
 
     test('reduces an outstanding credit balance the same way a completed '
         'return does', () async {
       final customer = await customerRepository.createCustomer(
         const CustomerDraft(name: 'Test Customer', locationId: locationId),
       );
-      final sale = await purchase(customerId: customer.localId, amountPaid: moneyFromMajor(3000));
+      final sale = await purchase(
+        customerId: customer.localId,
+        amountPaid: moneyFromMajor(3000),
+      );
 
-      await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
+      await returnRepository.voidSale(
+        saleLocalId: sale.localId,
+        reason: 'Mistake',
+      );
 
-      final updated = await customerRepository.getCustomerById(customer.localId);
+      final updated = await customerRepository.getCustomerById(
+        customer.localId,
+      );
       expect(updated!.outstandingBalance, moneyFromMajor(0));
     });
 
-    test('rejects voiding a sale that has already been fully voided',
-        () async {
+    test('rejects voiding a sale that has already been fully voided', () async {
       final sale = await purchase();
-      await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
+      await returnRepository.voidSale(
+        saleLocalId: sale.localId,
+        reason: 'Mistake',
+      );
 
       await expectLater(
         returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Again?'),
@@ -735,10 +1138,15 @@ void main() {
         'customer returns', () async {
       final saleA = await purchase();
       final saleB = await purchase();
-      await returnRepository.voidSale(saleLocalId: saleA.localId, reason: 'Mistake');
+      await returnRepository.voidSale(
+        saleLocalId: saleA.localId,
+        reason: 'Mistake',
+      );
       await returnRepository.createReturn(
         originalSaleLocalId: saleB.localId,
-        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 1)],
+        items: const [
+          ReturnItemRequest(productLocalId: productAId, quantity: 1),
+        ],
         returnReason: 'Customer changed mind',
         refundMethod: 'cash',
         autoApprove: true,

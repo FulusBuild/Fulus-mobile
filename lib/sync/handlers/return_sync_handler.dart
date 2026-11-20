@@ -22,13 +22,13 @@ class ReturnSyncHandler implements SyncHandler {
     required ReturnRepository returnRepository,
     ProductRepository? productRepository,
     CustomerRepository? customerRepository,
-  })  : _db = db,
-        _executionLease = executionLease,
-        _fulusSyncApi = fulusSyncApi,
-        _fulusConnectionState = fulusConnectionState,
-        _returnRepository = returnRepository,
-        _productRepository = productRepository,
-        _customerRepository = customerRepository;
+  }) : _db = db,
+       _executionLease = executionLease,
+       _fulusSyncApi = fulusSyncApi,
+       _fulusConnectionState = fulusConnectionState,
+       _returnRepository = returnRepository,
+       _productRepository = productRepository,
+       _customerRepository = customerRepository;
   final SyncExecutionLease _executionLease;
 
   final AppDatabase _db;
@@ -40,27 +40,46 @@ class ReturnSyncHandler implements SyncHandler {
 
   @override
   Future<void> sync(SyncQueueItem item) async {
-    if (item.operation != 'create') throw StateError('ReturnSyncHandler supports only create.');
+    if (item.operation != 'create')
+      throw StateError('ReturnSyncHandler supports only create.');
     final request = await _returnRepository.getReturnById(
       item.entityLocalId,
       forSync: true,
     );
-    if (request == null) throw StateError('No local return found for ${item.entityLocalId}.');
+    if (request == null)
+      throw StateError('No local return found for ${item.entityLocalId}.');
     if (request.serverId?.isNotEmpty == true) return;
     final businessId = _fulusConnectionState.selectedBusinessId;
     final device = _fulusConnectionState.registeredDevice;
-    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
-      throw StateError('Fulus Cloud device authorization is required for return sync.');
+    if (businessId == null ||
+        businessId.isEmpty ||
+        device?.status != 'active') {
+      throw StateError(
+        'Fulus Cloud device authorization is required for return sync.',
+      );
     }
-    final sale = await (_db.select(_db.sales)..where((s) => s.localId.equals(request.originalSaleLocalId))).getSingleOrNull();
+    final sale =
+        await (_db.select(_db.sales)
+              ..where((s) => s.localId.equals(request.originalSaleLocalId)))
+            .getSingleOrNull();
     final saleId = sale?.serverId;
-    if (saleId == null || saleId.isEmpty) throw StateError('Return cannot sync before its original sale is synced.');
-    final rows = await (_db.select(_db.returnItems)..where((r) => r.returnLocalId.equals(request.localId))).get();
+    if (saleId == null || saleId.isEmpty)
+      throw StateError(
+        'Return cannot sync before its original sale is synced.',
+      );
+    final rows = await (_db.select(
+      _db.returnItems,
+    )..where((r) => r.returnLocalId.equals(request.localId))).get();
     final items = <Map<String, dynamic>>[];
     for (final row in rows) {
-      final product = await (_db.select(_db.products)..where((p) => p.localId.equals(row.productLocalId))).getSingleOrNull();
+      final product = await (_db.select(
+        _db.products,
+      )..where((p) => p.localId.equals(row.productLocalId))).getSingleOrNull();
       final productId = product?.serverId;
-      if (productId == null || productId.isEmpty) throw StateError('Return product ${row.productLocalId} has no server identity yet.');
+      if (productId == null || productId.isEmpty)
+        throw StateError(
+          'Return product ${row.productLocalId} has no server identity yet.',
+        );
       items.add({'product_id': productId, 'quantity': row.quantity});
     }
     late final Map<String, dynamic> result;
@@ -81,27 +100,47 @@ class ReturnSyncHandler implements SyncHandler {
           'items': items,
         },
       );
-    } on BusinessRuleFailure {
-      await _reconcileAfterRejectedReturn(
-        request: request,
-        sale: sale,
-        deviceClientId: device!.deviceClientId,
-        businessId: businessId,
-        operationId: item.id,
-        enqueuedAt: item.enqueuedAt,
-      );
-      rethrow;
+    } on BusinessRuleFailure catch (error, stackTrace) {
+      try {
+        await _returnRepository.markReconciliationPending(
+          localId: request.localId,
+        );
+        final reconciled = await _reconcileAfterRejectedReturn(
+          request: request,
+          sale: sale,
+          deviceClientId: device!.deviceClientId,
+          businessId: businessId,
+          operationId: item.id,
+          enqueuedAt: item.enqueuedAt,
+        );
+        if (reconciled) {
+          await _returnRepository.markRejected(localId: request.localId);
+        }
+      } catch (_) {
+        // Preserve the authoritative rejection for the outbox classifier.
+        // The return remains visibly reconciliation-pending until all local
+        // projections can be repaired safely.
+      }
+      Error.throwWithStackTrace(error, stackTrace);
     }
     final data = result['data'];
-    if (data is! Map) throw StateError('Fulus return sync returned no response data.');
-    final serverId = (data['entity_id'] ?? data['return_id'] ?? data['id'])?.toString();
-    if (serverId == null || serverId.isEmpty) throw StateError('Fulus return sync returned no server entity ID.');
-    await _returnRepository.markSynced(localId: request.localId, serverId: serverId, operationId: item.id);
+    if (data is! Map)
+      throw StateError('Fulus return sync returned no response data.');
+    final serverId = (data['entity_id'] ?? data['return_id'] ?? data['id'])
+        ?.toString();
+    if (serverId == null || serverId.isEmpty)
+      throw StateError('Fulus return sync returned no server entity ID.');
+    await _returnRepository.markSynced(
+      localId: request.localId,
+      serverId: serverId,
+      operationId: item.id,
+    );
   }
+
   /// A return is completed locally before cloud delivery. If the cloud
   /// rejects it, restore local projections from authoritative product/customer
   /// snapshots before leaving the outbox item blocked.
-  Future<void> _reconcileAfterRejectedReturn({
+  Future<bool> _reconcileAfterRejectedReturn({
     required dynamic request,
     required dynamic sale,
     required String deviceClientId,
@@ -109,95 +148,122 @@ class ReturnSyncHandler implements SyncHandler {
     required String operationId,
     required DateTime enqueuedAt,
   }) async {
+    var safelyReconciled = true;
     final productRepository = _productRepository;
+    final rows = await (_db.select(
+      _db.returnItems,
+    )..where((r) => r.returnLocalId.equals(request.localId))).get();
+    if (rows.isNotEmpty && productRepository == null) return false;
     if (productRepository != null) {
-      final reconciler =
-          FulusProductCanonicalReconciler(repository: productRepository);
-      final rows = await (_db.select(_db.returnItems)
-            ..where((r) => r.returnLocalId.equals(request.localId)))
-          .get();
+      final reconciler = FulusProductCanonicalReconciler(
+        repository: productRepository,
+      );
       for (final localId in rows.map((row) => row.productLocalId).toSet()) {
-        final product = await (_db.select(_db.products)
-              ..where((p) => p.localId.equals(localId)))
-            .getSingleOrNull();
+        final product = await (_db.select(
+          _db.products,
+        )..where((p) => p.localId.equals(localId))).getSingleOrNull();
         final serverId = product?.serverId;
-        if (serverId == null || serverId.isEmpty) continue;
-        try {
-          final canonical = await _fulusSyncApi.fetchCanonicalEntity(
-            businessId: businessId,
+        if (serverId == null || serverId.isEmpty) return false;
+        final canonical = await _fulusSyncApi.fetchCanonicalEntity(
+          businessId: businessId,
+          entityType: 'product',
+          entityId: serverId,
+          deviceClientId: deviceClientId,
+        );
+        var skippedNewerMutation = false;
+        await _executionLease.runProtectedTransaction(_db, () async {
+          if (await _executionLease.hasNewerQueueMutation(
             entityType: 'product',
-            entityId: serverId,
-            deviceClientId: deviceClientId,
-          );
-          await _executionLease.runProtectedTransaction(_db, () async {
-            if (await _executionLease.hasNewerQueueMutation(
-              entityType: 'product',
-              entityLocalId: localId,
-              operationId: operationId,
-              enqueuedAt: enqueuedAt,
-            )) return;
-            final newerMovements = await (_db.select(_db.syncQueueItems)
-                  ..where((q) => q.entityType.equals('stock_movement'))
-                  ..where((q) => q.id.isNotIn([operationId]))
-                  ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
-                .get();
-            for (final queued in newerMovements) {
-              final movement = await (_db.select(_db.stockMovements)
-                    ..where((m) => m.localId.equals(queued.entityLocalId))
-                    ..where((m) => m.productLocalId.equals(localId))
-                    ..where((m) => m.locationId.equals(sale.locationId)))
-                  .getSingleOrNull();
-              if (movement != null) return;
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: enqueuedAt,
+          )) {
+            skippedNewerMutation = true;
+            return;
+          }
+          final newerMovements =
+              await (_db.select(_db.syncQueueItems)
+                    ..where((q) => q.entityType.equals('stock_movement'))
+                    ..where((q) => q.id.isNotIn([operationId]))
+                    ..where(
+                      (q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt),
+                    ))
+                  .get();
+          for (final queued in newerMovements) {
+            final movement =
+                await (_db.select(_db.stockMovements)
+                      ..where((m) => m.localId.equals(queued.entityLocalId))
+                      ..where((m) => m.productLocalId.equals(localId))
+                      ..where((m) => m.locationId.equals(sale.locationId)))
+                    .getSingleOrNull();
+            if (movement != null) {
+              skippedNewerMutation = true;
+              return;
             }
-            await reconciler.apply(canonical);
-          });
-        } catch (_) {}
+          }
+          await reconciler.apply(canonical);
+        });
+        if (skippedNewerMutation) safelyReconciled = false;
       }
     }
 
     final customerRepository = _customerRepository;
     final customerLocalId = sale.customerId as String?;
+    if (customerLocalId != null && customerRepository == null) return false;
     if (customerRepository != null && customerLocalId != null) {
-      final customer = await (_db.select(_db.customers)
-            ..where((c) => c.localId.equals(customerLocalId)))
-          .getSingleOrNull();
+      final customer = await (_db.select(
+        _db.customers,
+      )..where((c) => c.localId.equals(customerLocalId))).getSingleOrNull();
       final serverId = customer?.serverId;
-      if (serverId != null && serverId.isNotEmpty) {
-        try {
-          final canonical = await _fulusSyncApi.fetchCanonicalEntity(
-            businessId: businessId,
+      if (serverId == null || serverId.isEmpty) return false;
+      {
+        final canonical = await _fulusSyncApi.fetchCanonicalEntity(
+          businessId: businessId,
+          entityType: 'customer',
+          entityId: serverId,
+          deviceClientId: deviceClientId,
+        );
+        var skippedNewerMutation = false;
+        await _executionLease.runProtectedTransaction(_db, () async {
+          if (await _executionLease.hasNewerQueueMutation(
             entityType: 'customer',
-            entityId: serverId,
-            deviceClientId: deviceClientId,
-          );
-          await _executionLease.runProtectedTransaction(
-            _db,
-            () async {
-              if (await _executionLease.hasNewerQueueMutation(
-                entityType: 'customer',
-                entityLocalId: customerLocalId,
-                operationId: operationId,
-                enqueuedAt: enqueuedAt,
-              )) return;
-              final newerRepayments = await (_db.select(_db.syncQueueItems)
+            entityLocalId: customerLocalId,
+            operationId: operationId,
+            enqueuedAt: enqueuedAt,
+          )) {
+            skippedNewerMutation = true;
+            return;
+          }
+          final newerRepayments =
+              await (_db.select(_db.syncQueueItems)
                     ..where((q) => q.entityType.equals('customer_ledger'))
                     ..where((q) => q.id.isNotIn([operationId]))
-                    ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+                    ..where(
+                      (q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt),
+                    ))
                   .get();
-              for (final queued in newerRepayments) {
-                final ledger = await (_db.select(_db.customerLedgerEntries)
+          for (final queued in newerRepayments) {
+            final ledger =
+                await (_db.select(_db.customerLedgerEntries)
                       ..where((e) => e.localId.equals(queued.entityLocalId))
-                      ..where((e) =>
-                          e.customerLocalId.equals(customerLocalId) & e.entryType.equals('repayment')))
+                      ..where(
+                        (e) =>
+                            e.customerLocalId.equals(customerLocalId) &
+                            e.entryType.equals('repayment'),
+                      ))
                     .getSingleOrNull();
-                if (ledger != null) return;
-              }
-              await FulusCustomerCanonicalReconciler(repository: customerRepository).apply(canonical);
-            },
-          );
-        } catch (_) {}
+            if (ledger != null) {
+              skippedNewerMutation = true;
+              return;
+            }
+          }
+          await FulusCustomerCanonicalReconciler(
+            repository: customerRepository,
+          ).apply(canonical);
+        });
+        if (skippedNewerMutation) safelyReconciled = false;
       }
     }
+    return safelyReconciled;
   }
-
 }
