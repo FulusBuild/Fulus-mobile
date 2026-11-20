@@ -45,9 +45,9 @@ The local UI groups eligible quantity by product and `ReturnSyncHandler` sends o
 ### G-004 — Permanent cloud rejection leaves the local return marked completed
 
 **Severity:** Medium<br>
-**Status:** Fix implemented; repository transition regression passes; handler-level and runtime verification pending
+**Status:** Fix implemented; repository transition and deferred-handler regressions pass; successful-handler and runtime verification pending
 
-`ReturnSyncHandler` now first marks the local row `reconciliation_pending`, which is a local-only state that remains visible and continues to reserve the claimed quantity. It changes the row to `rejected`, clears `inventoryRestored`, and releases that quantity only after all required canonical product/customer projections are successfully applied. Failed fetches or newer queued mutations leave the row `reconciliation_pending` while preserving the original permanent error for the outbox. A repository regression verifies the state transition and eligibility behavior. A handler-level rejection test and device/offline lifecycle verification remain pending.
+`ReturnSyncHandler` now first marks the local row `reconciliation_pending`, which is a local-only state that remains visible and continues to reserve the claimed quantity. It changes the row to `rejected`, clears `inventoryRestored`, and releases that quantity only after all required canonical product/customer projections are successfully applied. Failed fetches or newer queued mutations leave the row `reconciliation_pending` while preserving the original permanent error for the outbox. A repository regression verifies the state transition and eligibility behavior; a direct handler regression verifies that canonical-fetch failure does not mark the return rejected and preserves the original business-rule error. Successful handler reconciliation and device/offline lifecycle verification remain pending.
 
 ### G-005 — Local report reversal math still uses pre-discount product prices
 
@@ -83,18 +83,18 @@ Focused command:
 
 ```powershell
 & 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\dart.bat' run build_runner build
-& 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\flutter.bat' test test/repository/return_repository_test.dart test/sync/fulus_sale_return_canonical_reconciler_test.dart
+& 'C:\Users\Sanni\Documents\Codex\tools\flutter-3.44.9\bin\flutter.bat' test test/repository/reports_repository_impl_test.dart test/repository/return_repository_test.dart test/sync/fulus_sale_return_canonical_reconciler_test.dart test/sync/return_sync_handler_test.dart
 ```
 
-Result after the current source changes: **38 tests passed, 0 failed, 0 skipped**. Regressions cover net-total and weighted duplicate-line allocation, report/cash-flow/product projections, duplicate requested quantities, account-credit eligibility and balance caps, rejection status/eligibility transitions, supported/unsupported original refund methods, and split-payment void fallback. Targeted Dart analysis of the changed repositories, sync handler, entities, refund screen, and repository tests reported **no issues**. Missing generated `*.g.dart` files were regenerated with build_runner for the run and removed afterward.
+Result after the current source changes: **61 tests passed, 0 failed, 0 skipped**. Regressions cover net-total and weighted duplicate-line allocation, report/cash-flow/product projections, duplicate requested quantities, account-credit eligibility and balance caps, rejection status/eligibility transitions, deferred handler compensation, supported/unsupported original refund methods, and split-payment void fallback. Targeted Dart analysis of the changed repositories, sync handler, entities, refund screen, and repository tests reported **no issues**. Missing generated `*.g.dart` files were regenerated with build_runner for the run and removed afterward.
 
-The disposable Supabase Migration Chain run **#870** passed from a clean schema, including all migrations and SQL contract tests. The financial-fidelity test covers duplicate sale lines, product-only partial return allocation, split-credit ledger reversal, cash remainder, and idempotent retry. Focused Flutter coverage passes **38 tests**, and targeted Dart analysis reports no issues. Production Supabase was not accessed or mutated.
+The disposable Supabase Migration Chain run **#871** passed from a clean schema, including all migrations and SQL contract tests. The financial-fidelity test covers duplicate sale lines, product-only partial return allocation, split-credit ledger reversal, cash remainder, and idempotent retry. Fulus Mobile CI run **#5088** passed static analysis and **1,111 Flutter tests with 1 skipped**; the newly added handler regression is covered by the 61-test focused local run and will be included in the next CI run. Production Supabase was not accessed or mutated.
 
-Live sync, physical-device flow, app lifecycle handling, explicit concurrent-return contention, and multi-device convergence have not been exercised. The handler-level permanent-rejection path is covered at the repository boundary, but still lacks a direct `ReturnSyncHandler` test for successful compensation and deferred reconciliation.
+Live sync, physical-device flow, app lifecycle handling, explicit concurrent-return contention, and multi-device convergence have not been exercised. Direct `ReturnSyncHandler` coverage now verifies deferred reconciliation when canonical state cannot be fetched; successful compensation still needs a direct handler test.
 
 ## Next work
 
-1. Add handler-level regression coverage for successful, partial, and deferred rejection compensation.
+1. Add direct handler regression coverage for successful canonical compensation.
 2. Exercise refund-method eligibility, approval semantics, concurrent returns, process restart, and multi-device convergence in an isolated QA setup.
 3. Request a physical-device walkthrough when an Android device is available.
 4. Recheck the full diff and preserved user files before merging the Part G PR.
