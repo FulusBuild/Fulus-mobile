@@ -61,12 +61,16 @@ where b.name = 'Supplier Ledger Contract Business'
 insert into public.suppliers (business_id, name)
 select id, 'Contract Supplier' from public.businesses
 where name = 'Supplier Ledger Contract Business';
-insert into public.products (business_id, name, sku, supplier_id, cost_price, selling_price)
-select b.id, 'Contract Item', 'SUPPLIER-LEDGER-ITEM', s.id, 10, 20
+insert into public.products (
+  business_id, location_id, name, sku, supplier_id, cost_price, selling_price
+)
+select b.id, l.id, 'Contract Item', 'SUPPLIER-LEDGER-ITEM', s.id, 10, 20
 from public.businesses b
 join public.suppliers s on s.business_id = b.id
+join public.locations l on l.business_id = b.id
 where b.name = 'Supplier Ledger Contract Business'
-  and s.name = 'Contract Supplier';
+  and s.name = 'Contract Supplier'
+  and l.name = 'Supplier Ledger Location';
 insert into public.inventory_movements (
   business_id, product_id, location_id, quantity_delta, reason, operation_id, user_id
 )
