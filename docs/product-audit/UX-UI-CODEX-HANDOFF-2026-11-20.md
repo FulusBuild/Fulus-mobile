@@ -9,7 +9,7 @@ This handoff is for another Codex session continuing the physical-device UX/UI w
 - Current branch: `codex/recording-ux-followup`, based on `main` at merge commit `ce77e3c062c3c18376d42502863223b99188b533` (PR #238).
 - PR #238, “Fix physical device UX audit findings,” is merged. Its CI passed analysis, Flutter tests, live sync contract, and multi-device convergence; APK jobs were skipped.
 - PR #240, “Clarify onboarding for restored businesses,” is open at the original local base head `d3a12dfe`. Its recorded Fulus Mobile CI run 5108 and Vercel status succeeded for that commit. The new 2026-11-21 working-tree changes are not included in those remote checks.
-- The follow-up onboarding copy and report updates in this checkout are not committed or pushed yet. Review `git status` first.
+- UX follow-up commit `9ed0e3e3` is pushed to `codex/recording-ux-followup`; PR #240 is open against `main`. New-head CI was still pending at the latest check. Review `git status` before further work.
 - Preserve the preexisting untracked `android/app/src/main/java/` and `android/local.properties`. Local build-runner `.g.dart` outputs are generated artifacts and should not be committed.
 
 ## User goal and workflow
@@ -46,7 +46,6 @@ The working tree now includes report layout improvements; neutral completion cop
 
 ## Next actions
 
-1. Inspect the complete diff and status; preserve user Android files and omit generated files.
-2. Commit/push the UX follow-up source, migration, tests, and audit/handoff docs on `codex/recording-ux-followup`; update PR #240 and report the new CI state. Do not merge unless the user asks.
-3. Ask the user to install a fresh APK and reconnect the TECNO KI5k to ADB for the onboarding, four-card Home, stock-history, cash-close, Reports, large-text, and sync-status recheck.
-4. Use a disposable QA business for conflict-resolution and staff-invite success-path testing. Keep production business data read-only.
+1. Check PR #240's new-head CI and keep the PR open; do not merge unless the user asks.
+2. Ask the user to install a fresh APK and reconnect the TECNO KI5k to ADB for the onboarding, four-card Home, stock-history, cash-close, Reports, large-text, and sync-status recheck.
+3. Use a disposable QA business for conflict-resolution and staff-invite success-path testing. Keep production business data read-only.
