@@ -15,6 +15,7 @@ import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'cloud_restore_screen.dart';
 import '../../../../sync/sync_user_message.dart';
+import '../../../onboarding/presentation/widgets/onboarding_intro_panel.dart';
 
 /// Account-first entry point for a fresh installation.
 ///
@@ -81,15 +82,18 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     // without a background readiness trigger racing the handoff.
     connection.beginCloudOnboarding();
     try {
-      final hasLocalBusiness =
-          await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+      final hasLocalBusiness = await ref
+          .read(businessSettingsRepositoryProvider)
+          .hasBeenConfigured();
       if (hasLocalBusiness) {
         throw StateError(
           'This device already has a business. Account sign-in is only for restoring a cloud business during fresh setup.',
         );
       }
 
-      await ref.read(authApiProvider).connectServer(
+      await ref
+          .read(authApiProvider)
+          .connectServer(
             email: email,
             password: password,
             supabaseUrl: SupabaseConfig.url,
@@ -130,7 +134,10 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       return;
     }
     if (email.isEmpty || password.length < 8) {
-      setState(() => _error = 'Enter an email and a password of at least 8 characters.');
+      setState(
+        () =>
+            _error = 'Enter an email and a password of at least 8 characters.',
+      );
       return;
     }
 
@@ -147,7 +154,9 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       final preferences = await SharedPreferences.getInstance();
       await preferences.setString(_pendingSignupEmailKey, email);
 
-      final result = await ref.read(authApiProvider).signUpServer(
+      final result = await ref
+          .read(authApiProvider)
+          .signUpServer(
             email: email,
             password: password,
             supabaseUrl: SupabaseConfig.url,
@@ -159,7 +168,8 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
         setState(() => _awaitingVerification = true);
         showFulusSnackbar(
           context,
-          message: 'Check your email to verify your account, then tap “I’ve verified my email”.',
+          message:
+              'Check your email to verify your account, then tap “I’ve verified my email”.',
         );
         return;
       }
@@ -171,9 +181,12 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       // Never strand that account behind "email already exists": if local
       // onboarding progress is present, authenticate with the supplied
       // credentials and resume the idempotent setup flow.
-      if (failure.code == 'email_exists' && await _hasLocalSetupProgress(email)) {
+      if (failure.code == 'email_exists' &&
+          await _hasLocalSetupProgress(email)) {
         try {
-          await ref.read(authApiProvider).connectServer(
+          await ref
+              .read(authApiProvider)
+              .connectServer(
                 email: email,
                 password: password,
                 supabaseUrl: SupabaseConfig.url,
@@ -206,7 +219,10 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _error = 'Enter the same email and password you used to create the account.');
+      setState(
+        () => _error =
+            'Enter the same email and password you used to create the account.',
+      );
       return;
     }
 
@@ -216,7 +232,9 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     });
 
     try {
-      await ref.read(authApiProvider).connectServer(
+      await ref
+          .read(authApiProvider)
+          .connectServer(
             email: email,
             password: password,
             supabaseUrl: SupabaseConfig.url,
@@ -238,12 +256,17 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
 
   Future<bool> _hasLocalSetupProgress(String email) async {
     final preferences = await SharedPreferences.getInstance();
-    final pendingEmail = preferences.getString(_pendingSignupEmailKey)?.trim().toLowerCase();
+    final pendingEmail = preferences
+        .getString(_pendingSignupEmailKey)
+        ?.trim()
+        .toLowerCase();
     if (pendingEmail != email.trim().toLowerCase()) return false;
-    final hasOwner =
-        await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
-    final hasBusiness =
-        await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+    final hasOwner = await ref
+        .read(authRepositoryProvider)
+        .hasAnyOwnerAccount();
+    final hasBusiness = await ref
+        .read(businessSettingsRepositoryProvider)
+        .hasBeenConfigured();
     // Only auto-resume when both halves of this account's local
     // onboarding already exist. A lone local business or owner can be a
     // legitimate pre-cloud/on-device state and must not silently bind to
@@ -251,9 +274,14 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     return hasOwner && hasBusiness;
   }
 
-  Future<void> _finishNewAccount({required String name, required String businessName}) async {
+  Future<void> _finishNewAccount({
+    required String name,
+    required String businessName,
+  }) async {
     if (name.isEmpty || businessName.isEmpty) {
-      throw StateError('Your name and business name are required to finish setup.');
+      throw StateError(
+        'Your name and business name are required to finish setup.',
+      );
     }
 
     final authRepository = ref.read(authRepositoryProvider);
@@ -291,21 +319,27 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     // Server provisioning is an ensure operation: a retry after a
     // successful cloud transaction returns the existing business instead of
     // treating the already-linked account as a failure.
-    await ref.read(authApiProvider).createCloudBusiness(
+    await ref
+        .read(authApiProvider)
+        .createCloudBusiness(
           name: businessName,
           functionBaseUrl: SupabaseConfig.functionBaseUrl,
-          businessProvisionFunctionUrl: SupabaseConfig.businessProvisionFunctionUrl,
+          businessProvisionFunctionUrl:
+              SupabaseConfig.businessProvisionFunctionUrl,
           publishableKey: SupabaseConfig.publishableKey,
         );
 
     final connection = ref.read(fulusConnectionStateProvider);
     await connection.refresh();
-    final active = connection.membershipContext?.memberships
+    final active =
+        connection.membershipContext?.memberships
             .where((membership) => membership.status == 'active')
             .toList(growable: false) ??
         const [];
     if (active.length != 1) {
-      throw StateError('Your account was created, but the business connection is not ready yet.');
+      throw StateError(
+        'Your account was created, but the business connection is not ready yet.',
+      );
     }
 
     await connection.selectBusiness(active.single.businessId);
@@ -336,7 +370,8 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     if (!mounted) return;
     showFulusSnackbar(
       context,
-      message: 'Your Fulus account is ready. Your business will sync automatically when you’re online.',
+      message:
+          'Your Fulus account is ready. Your business will sync automatically when you’re online.',
     );
     Navigator.of(context).pop();
   }
@@ -381,22 +416,19 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xxl),
-                        Text(
-                          creating ? 'Create your Fulus account' : 'Welcome to Fulus',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.display.copyWith(
-                            color: AppColors.textPrimaryOf(context),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          creating
-                              ? 'Create one account for your business. Your work stays on this device and backs up automatically.'
-                              : 'Sign in to bring your Fulus business back to this device.',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.bodyLarge.copyWith(
-                            color: AppColors.textSecondaryOf(context),
-                          ),
+                        OnboardingIntroPanel(
+                          icon: creating
+                              ? Icons.storefront_outlined
+                              : Icons.lock_open_outlined,
+                          eyebrow: creating
+                              ? 'Get started'
+                              : 'Your Fulus account',
+                          title: creating
+                              ? 'Create your account'
+                              : 'Welcome back',
+                          description: creating
+                              ? 'Set up one account for your business. Your work is saved on this device and can sync when you’re online.'
+                              : 'Sign in to restore your Fulus business to this device.',
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         FulusChipRow(
@@ -444,7 +476,9 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                                 controller: _passwordController,
                                 obscureText: _obscurePassword,
                                 enabled: !_busy,
-                                helperText: creating ? 'Use at least 8 characters.' : null,
+                                helperText: creating
+                                    ? 'Use at least 8 characters.'
+                                    : null,
                                 suffixIcon: IconButton(
                                   tooltip: _obscurePassword
                                       ? 'Show password'
@@ -452,9 +486,9 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                                   onPressed: _busy
                                       ? null
                                       : () => setState(
-                                            () => _obscurePassword =
-                                                !_obscurePassword,
-                                          ),
+                                          () => _obscurePassword =
+                                              !_obscurePassword,
+                                        ),
                                   icon: Icon(
                                     _obscurePassword
                                         ? FulusIcons.visibility
@@ -500,4 +534,5 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
         ),
       ),
     );
-  }}
+  }
+}

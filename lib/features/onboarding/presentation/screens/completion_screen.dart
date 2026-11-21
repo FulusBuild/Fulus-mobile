@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/theme/fulus_art.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../widgets/onboarding_intro_panel.dart';
 
 /// Walkthrough Phase 11. `walkthroughStep` is already
 /// [OnboardingStep.completion] by the time this screen shows —
@@ -28,29 +29,34 @@ class CompletionScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-              const OnboardingStepHeader(step: 7, total: 7, title: 'Your business is ready'),
-            Center(
-              child: Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryOf(context).withValues(alpha: .10),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                ),
-                child: Icon(FulusIcons.check, color: AppColors.primaryOf(context), size: 40),
-              ),
+            const OnboardingStepHeader(
+              step: 7,
+              total: 7,
+              title: 'Your business is ready',
+            ),
+            const OnboardingIntroPanel(
+              icon: Icons.celebration_outlined,
+              eyebrow: 'You’re all set',
+              title: 'Your business is ready',
+              description:
+                  'Your setup is complete. Head to Home or choose what you’d like to do next.',
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text(
-              "You're ready to run your business with Fulus.",
-              style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Your business is set up. Add products and record sales whenever you’re ready.',
-              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            FulusButton(
+              label: 'Go to Home',
+              icon: FulusIcons.home,
+              onPressed: () => _goAndClose(context, 'home'),
             ),
             const SizedBox(height: AppSpacing.xl),
+            Text(
+              'KEEP GOING',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.mutedOf(context),
+                fontWeight: FontWeight.w800,
+                letterSpacing: .8,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             FulusActionTile(
               icon: FulusIcons.add,
               label: 'Add more products',
@@ -82,13 +88,6 @@ class CompletionScreen extends ConsumerWidget {
               onTap: () => _goAndClose(context, 'moneyCustomers'),
             ),
             const SizedBox(height: AppSpacing.md),
-            FulusActionTile(
-              icon: FulusIcons.home,
-              art: FulusArt.home,
-              label: 'Start using Fulus',
-              subtitle: 'Return to your business home.',
-              onTap: () => _goAndClose(context, 'home'),
-            ),
           ],
         ),
       ),

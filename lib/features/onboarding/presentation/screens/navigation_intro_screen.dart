@@ -7,6 +7,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../widgets/onboarding_intro_panel.dart';
 
 /// Walkthrough Phase 5. One static screen, not a coach-mark tour over
 /// the running app — matches the spec's own visual-design guidance
@@ -19,9 +20,21 @@ class NavigationIntroScreen extends ConsumerWidget {
   const NavigationIntroScreen({super.key});
 
   static const _destinations = [
-    _NavDestination(Icons.home_outlined, 'Home', 'See how your business is doing at a glance.'),
-    _NavDestination(Icons.inventory_2_outlined, 'Stock', 'Manage your products and stock levels.'),
-    _NavDestination(Icons.point_of_sale, 'Sell', 'Make sales and take payment.'),
+    _NavDestination(
+      Icons.home_outlined,
+      'Home',
+      'See how your business is doing at a glance.',
+    ),
+    _NavDestination(
+      Icons.inventory_2_outlined,
+      'Stock',
+      'Manage your products and stock levels.',
+    ),
+    _NavDestination(
+      Icons.point_of_sale,
+      'Sell',
+      'Make sales and take payment.',
+    ),
     _NavDestination(
       Icons.account_balance_wallet_outlined,
       'Money',
@@ -44,7 +57,8 @@ class NavigationIntroScreen extends ConsumerWidget {
     final onboardingState = ref.read(onboardingStateProvider);
     await onboardingState.skipWalkthroughStep(OnboardingStep.navigationIntro);
     await onboardingState.advanceWalkthroughTo(OnboardingStep.completion);
-    ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.completion;
+    ref.read(walkthroughStepProvider.notifier).state =
+        OnboardingStep.completion;
     if (context.mounted) context.goNamed('home');
   }
 
@@ -59,8 +73,19 @@ class NavigationIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-              const OnboardingStepHeader(step: 4, total: 7, title: 'Getting around Fulus'),
-                const SizedBox(height: AppSpacing.md),
+                const OnboardingStepHeader(
+                  step: 4,
+                  total: 7,
+                  title: 'Getting around Fulus',
+                ),
+                const OnboardingIntroPanel(
+                  icon: Icons.explore_outlined,
+                  eyebrow: 'A quick tour',
+                  title: 'Everything has a place',
+                  description:
+                      'Your everyday tools are one tap away. Here’s where to find them.',
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 for (final destination in _destinations) ...[
                   _DestinationRow(destination: destination),
                   const SizedBox(height: AppSpacing.md),
@@ -106,7 +131,11 @@ class _DestinationRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(destination.icon, color: AppColors.primaryOf(context), size: AppIconSize.base),
+        Icon(
+          destination.icon,
+          color: AppColors.primaryOf(context),
+          size: AppIconSize.base,
+        ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
           child: Column(
@@ -114,11 +143,15 @@ class _DestinationRow extends StatelessWidget {
             children: [
               Text(
                 destination.label,
-                style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                style: AppTypography.subheading.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                ),
               ),
               Text(
                 destination.description,
-                style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
               ),
             ],
           ),
