@@ -17,10 +17,11 @@ import 'providers.dart';
 /// Global Fulus workspace shell.
 /// Primary navigation is persistent and uses the mockup-aligned bottom bar.
 class FulusAppShell extends StatelessWidget {
-  const FulusAppShell({super.key, required this.navigationShell, required this.showMoneyTab});
+  const FulusAppShell({super.key, required this.navigationShell, required this.showMoneyTab, this.showStockTab = true});
 
   final StatefulNavigationShell navigationShell;
   final bool showMoneyTab;
+  final bool showStockTab;
 
   static const _maxContentWidth = 1120.0;
   @override
@@ -52,6 +53,7 @@ class FulusAppShell extends StatelessWidget {
       bottomNavigationBar: _FulusBottomNavigationBar(
         navigationShell: navigationShell,
         showMoneyTab: showMoneyTab,
+        showStockTab: showStockTab,
       ),
     );
   }
@@ -61,10 +63,12 @@ class _FulusBottomNavigationBar extends StatelessWidget {
   const _FulusBottomNavigationBar({
     required this.navigationShell,
     required this.showMoneyTab,
+    required this.showStockTab,
   });
 
   final StatefulNavigationShell navigationShell;
   final bool showMoneyTab;
+  final bool showStockTab;
 
   void _select(int branch) {
     FulusHaptics.selection();
@@ -79,7 +83,7 @@ class _FulusBottomNavigationBar extends StatelessWidget {
     final items = <(int, FulusArt, String)>[
       (FulusNavBranch.home, FulusArt.home, 'Home'),
       (FulusNavBranch.sell, FulusArt.sell, 'Sell'),
-      (FulusNavBranch.stock, FulusArt.stock, 'Stock'),
+      if (showStockTab) (FulusNavBranch.stock, FulusArt.stock, 'Stock'),
       if (showMoneyTab) (FulusNavBranch.money, FulusArt.money, 'Money'),
       (FulusNavBranch.more, FulusArt.more, 'More'),
     ];

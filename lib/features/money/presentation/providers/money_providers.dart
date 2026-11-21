@@ -14,6 +14,7 @@ import '../../../../domain/entities/supplier_ledger_entry.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../data/money_repository.dart';
 import '../../data/real_money_repository.dart';
+import '../../domain/cash_drawer_state.dart';
 import '../../domain/money_transaction.dart';
 
 /// A single [RealMoneyRepositoryImpl] instance for the whole app
@@ -44,6 +45,13 @@ final moneyRepositoryProvider = Provider<MoneyRepository>((ref) {
     resolveActiveLocation: ref.read(resolveActiveLocationProvider),
   );
 });
+
+/// Current drawer session for the active location. Payment reads this only to
+/// explain whether a cash sale will be part of a drawer close; it never blocks
+/// checkout while the local session state is loading.
+final activeMoneyDrawerSessionProvider = FutureProvider<MoneyDrawerSession?>(
+  (ref) => ref.watch(moneyRepositoryProvider).getActiveDrawerSession(),
+);
 
 /// Volume 8's shared period selector (Today / This Week / This Month /
 /// Custom) — one selection drives the Cash Flow screen, the breakdown

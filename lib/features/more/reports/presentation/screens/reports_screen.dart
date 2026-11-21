@@ -1033,7 +1033,9 @@ class _SalesChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const left = 52.0;
+    // Axis labels use compact units so long currency amounts don't wrap over
+    // the plot or force the chart to lose most of its usable width on phones.
+    const left = 64.0;
     const right = 8.0;
     const top = 10.0;
     const bottom = 30.0;
@@ -1052,9 +1054,7 @@ class _SalesChartPainter extends CustomPainter {
       final y = chart.bottom - chart.height * (i / 3);
       canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
       final value = maxValue * (i / 3);
-      final label = value == 0
-          ? '0'
-          : formatMoney(moneyFromMajor(value), symbol: currencySymbol);
+      final label = _compactAxisLabel(value, currencySymbol);
       final tp = TextPainter(
         text: TextSpan(text: label, style: textStyle),
         textDirection: TextDirection.ltr,
@@ -1104,6 +1104,22 @@ class _SalesChartPainter extends CustomPainter {
           .toDouble();
       tp.paint(canvas, Offset(x, chart.bottom + 7));
     }
+  }
+
+  String _compactAxisLabel(double value, String symbol) {
+    if (value == 0) return '0';
+    final absolute = value.abs();
+    final units = <double, String>{1e9: 'B', 1e6: 'M', 1e3: 'K'};
+    for (final entry in units.entries) {
+      if (absolute >= entry.key) {
+        final scaled = value / entry.key;
+        final formatted = scaled == scaled.roundToDouble()
+            ? scaled.toStringAsFixed(0)
+            : scaled.toStringAsFixed(1);
+        return '$symbol$formatted${entry.value}';
+      }
+    }
+    return '$symbol${value.round()}';
   }
 
   @override
@@ -1444,10 +1460,24 @@ class _EmployeesTab extends StatelessWidget {
       builder: (context, r) => _ReportScaffold(
         insights: r.insights,
         children: [
-          for (final p in r.performance)
-            _StatCard(
-              label: p.employeeName,
-              value: '${p.daysPresent} present, ${p.daysAbsent} absent',
+          for (final p in r.performance) ...[
+            FulusListRow(
+              title: Text(
+                p.employeeName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  Text('${p.daysPresent} present'),
+                  Text('${p.daysAbsent} absent'),
+                ],
+              ),
+              trailing: canManageEmployees
+                  ? const Icon(Icons.chevron_right)
+                  : null,
               onTap: canManageEmployees
                   ? () => context.pushNamed(
                       'moreEmployeeDetail',
@@ -1455,6 +1485,8 @@ class _EmployeesTab extends StatelessWidget {
                     )
                   : null,
             ),
+            const FulusListDivider(indented: false),
+          ],
         ],
       ),
     );

@@ -128,7 +128,7 @@ class EmployeeCloudSessionCoordinator {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_localCloudBusinessKey, claim.businessId);
 
-      onProgress?.call('Finishing setup…');
+      onProgress?.call('Finishing setup on this phone. This can take a minute; keep Fulus open.');
 
       // The restore snapshot is already a complete point-in-time business
       // image. Establish the claimed local identity before enabling sync so

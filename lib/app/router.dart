@@ -14,6 +14,7 @@ import '../domain/entities/product.dart';
 import '../domain/entities/supplier.dart';
 import '../features/auth/presentation/screens/auth_gate_screen.dart';
 import '../features/auth/presentation/screens/employee_login_screen.dart';
+import '../features/auth/presentation/screens/get_started_screen.dart';
 import '../features/auth/presentation/screens/owner_setup_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/money/domain/cash_drawer_state.dart';
@@ -199,6 +200,14 @@ final appRouter = GoRouter(
       pageBuilder: (context, state) =>
           _fulusNoTransitionPage(state, const EmployeeLoginScreen()),
     ),
+    GoRoute(
+      path: '/welcome',
+      name: 'getStarted',
+      pageBuilder: (context, state) => _fulusNoTransitionPage(
+        state,
+        const GetStartedScreen(returningLocalBusiness: true),
+      ),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) => _ShellGate(navigationShell: navigationShell),
       branches: [
@@ -239,6 +248,8 @@ final appRouter = GoRouter(
                       canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
                       canViewMoney: permissions.contains(Permission.viewMoney),
                       canViewReports: permissions.contains(Permission.viewReports),
+                      canManageStock: permissions.contains(Permission.manageStock),
+                      canManageSettings: permissions.contains(Permission.manageSettings),
                     );
                   },
                 ),
@@ -749,6 +760,7 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
       return FulusAppShell(
         navigationShell: widget.navigationShell,
         showMoneyTab: permissions.contains(Permission.viewMoney),
+        showStockTab: permissions.contains(Permission.manageStock),
       );
     }
 

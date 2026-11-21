@@ -324,22 +324,50 @@ void main() {
   });
 
   group('markSettled', () {
-    test('sets syncStatus to settled without touching serverId', () async {
+    test('sets syncStatus and associates the canonical server identity', () async {
       final created = await repository.recordStockIn(
         const StockInDraft(productLocalId: productLocalId, locationId: locationId, quantity: 20),
       );
 
-      await repository.markSettled(localId: created.localId);
+      await repository.markSettled(localId: created.localId, serverId: 'server-movement-1');
 
       final row = await (db.select(db.stockMovements)
             ..where((m) => m.localId.equals(created.localId)))
           .getSingle();
       expect(row.syncStatus, SyncStatus.settled);
-      // No serverId ever gets set for a stock movement — see
-      // StockMovementRepository.markSettled's own doc comment on why
-      // none of the three write endpoints ever return one for the
-      // movement itself.
-      expect(row.serverId, isNull);
+      expect(row.serverId, 'server-movement-1');
     });
+  });
+
+  test('canonical event reuses its optimistic row by outbox operation id', () async {
+    final created = await repository.recordStockIn(
+      const StockInDraft(productLocalId: productLocalId, locationId: locationId, quantity: 7),
+    );
+    final queueItem = await (db.select(db.syncQueueItems)
+          ..where((q) => q.entityLocalId.equals(created.localId)))
+        .getSingle();
+    await (db.update(db.products)..where((p) => p.localId.equals(productLocalId)))
+        .write(const ProductsCompanion(serverId: Value('product-server')));
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('location-server')));
+
+    await repository.reconcileServerState(
+      serverId: 'movement-server',
+      operationId: queueItem.id,
+      productServerId: 'product-server',
+      locationServerId: 'location-server',
+      movementType: StockMovementType.stockIn,
+      quantity: 7,
+      reason: created.reason,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+    );
+
+    final rows = await (db.select(db.stockMovements)
+          ..where((m) => m.productLocalId.equals(productLocalId)))
+        .get();
+    expect(rows, hasLength(1));
+    expect(rows.single.localId, created.localId);
+    expect(rows.single.serverId, 'movement-server');
   });
 }

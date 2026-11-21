@@ -116,6 +116,7 @@ class StockMovementSyncHandler implements SyncHandler {
       await _stockMovementRepository.markSettled(
         localId: movement.localId,
         operationId: item.id,
+        serverId: (data['entity_id'] ?? data['movement_id'])?.toString(),
       );
       return;
     }
@@ -159,6 +160,7 @@ class StockMovementSyncHandler implements SyncHandler {
     await _stockMovementRepository.markSettled(
       localId: movement.localId,
       operationId: item.id,
+      serverId: (data['entity_id'] ?? data['movement_id'])?.toString(),
     );
   }
 

@@ -16,10 +16,32 @@ import '../../../../domain/entities/dashboard_summary.dart';
 import '../../../../domain/entities/location.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../auth/presentation/screens/identity_picker_screen.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
+import '../../../money/presentation/providers/money_providers.dart'
+    show moneyCurrencySymbolProvider;
 
-final _homeLocationsProvider = StreamProvider<List<Location>>((ref) =>
-    ref.watch(locationRepositoryProvider).watchLocations());
+final _homeLocationsProvider = StreamProvider<List<Location>>(
+  (ref) => ref.watch(locationRepositoryProvider).watchLocations(),
+);
+
+@visibleForTesting
+String homeSalesPeriodLabel(HomeHeroState? hero) => switch (hero) {
+  NotYetOpenedHero() => 'YESTERDAY’S SALES',
+  EmployeeShiftHero() => 'YOUR SHIFT SALES',
+  _ => 'TODAY’S SALES',
+};
+
+@visibleForTesting
+String homeSalesCountLabel(HomeHeroState? hero) => switch (hero) {
+  null => 'Sales data unavailable',
+  NotYetOpenedHero(:final yesterdaySalesCount) =>
+    '$yesterdaySalesCount sale${yesterdaySalesCount == 1 ? '' : 's'} yesterday',
+  EmployeeShiftHero(:final shiftSalesCount) =>
+    '$shiftSalesCount sale${shiftSalesCount == 1 ? '' : 's'} this shift',
+  OpenHero(:final todaySalesCount) =>
+    '$todaySalesCount sale${todaySalesCount == 1 ? '' : 's'} today',
+  ClosedHero(:final finalSalesCount) =>
+    '$finalSalesCount sale${finalSalesCount == 1 ? '' : 's'} today',
+};
 
 /// Owner/manager workspace home. Data and permissions remain repository-backed;
 /// this screen only changes the presentation hierarchy to match the reference UI.
@@ -31,6 +53,8 @@ class HomeScreen extends ConsumerStatefulWidget {
     required this.canViewDashboardStats,
     required this.canViewMoney,
     required this.canViewReports,
+    required this.canManageStock,
+    required this.canManageSettings,
   });
 
   final String currentAuthUserId;
@@ -38,6 +62,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   final bool canViewDashboardStats;
   final bool canViewMoney;
   final bool canViewReports;
+  final bool canManageStock;
+  final bool canManageSettings;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -45,6 +71,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
+  late Future<SecondaryNoticeSelection> _noticesFuture;
 
   @override
   void initState() {
@@ -56,11 +83,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final repo = ref.read(dashboardRepositoryProvider);
     final showBusinessWide = widget.isOwner || widget.canViewDashboardStats;
     final locationFuture = ref.read(activeLocationIdProvider.future);
-    _heroFuture = locationFuture.then((locationId) => repo.getHeroState(
-          currentAuthUserId: widget.currentAuthUserId,
-          isOwner: showBusinessWide,
-          locationId: locationId,
-        ));
+    _heroFuture = locationFuture.then(
+      (locationId) => repo.getHeroState(
+        currentAuthUserId: widget.currentAuthUserId,
+        isOwner: showBusinessWide,
+        locationId: locationId,
+      ),
+    );
+    _noticesFuture = showBusinessWide
+        ? locationFuture.then(
+            (locationId) => repo.getSecondaryNotices(locationId: locationId),
+          )
+        : Future.value(
+            const SecondaryNoticeSelection(shown: [], overflowCount: 0),
+          );
   }
 
   Future<void> _refresh() async {
@@ -95,61 +131,95 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-              final inset = fulusHorizontalInset(context);
-              final maxWidth = constraints.maxWidth >= 760 ? 1120.0 : double.infinity;
-              return Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxWidth),
-                  child: CustomScrollView(
-                    // Keep the dashboard vertically scrollable so larger cards remain accessible
-                    // on smaller screens without adding extra whitespace above the navbar.
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      SliverPadding(
-                        padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, 0),
-                        sliver: SliverToBoxAdapter(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _HomeHeader(
-                                businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
-                                locationName: _activeLocationName(ref),
-                                greeting: 'Good ${_greeting()}, ${_displayName(ref)}',
-                                onSwitchLocation: widget.isOwner ? () => _showLocationSwitcher(context) : null,
-                                onSwitchAccount: () => Navigator.of(context).push<void>(
-                                  MaterialPageRoute(
-                                    builder: (_) => const IdentityPickerScreen(),
+            final inset = fulusHorizontalInset(context);
+            final maxWidth = constraints.maxWidth >= 760
+                ? 1120.0
+                : double.infinity;
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: CustomScrollView(
+                  // Keep the dashboard vertically scrollable so larger cards remain accessible
+                  // on smaller screens without adding extra whitespace above the navbar.
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(
+                        inset,
+                        AppSpacing.md,
+                        inset,
+                        0,
+                      ),
+                      sliver: SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _HomeHeader(
+                              businessName:
+                                  ref
+                                      .watch(_businessProfileProvider)
+                                      .value
+                                      ?.businessName
+                                      .trim() ??
+                                  '',
+                              locationName: _activeLocationName(ref),
+                              greeting:
+                                  'Good ${_greeting()}, ${_displayName(ref)}',
+                              accountActionLabel: widget.isOwner
+                                  ? 'Switch profile'
+                                  : 'Switch employee',
+                              onSwitchLocation: widget.isOwner
+                                  ? () => _showLocationSwitcher(context)
+                                  : null,
+                              onSwitchAccount: () =>
+                                  Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const IdentityPickerScreen(),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
                         ),
                       ),
-                      SliverPadding(
-                        padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.lg),
-                        sliver: SliverToBoxAdapter(
-                          child: _HomeDashboardHydration(
-                            heroFuture: _heroFuture,
-                            currencySymbol: currencySymbol,
-                            canViewDashboardStats: widget.isOwner || widget.canViewDashboardStats,
-                            canViewMoney: widget.isOwner || widget.canViewMoney,
-                            canViewReports: widget.isOwner || widget.canViewReports,
-                            onRetry: _refresh,
-                          ),
+                    ),
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(
+                        inset,
+                        0,
+                        inset,
+                        AppSpacing.lg,
+                      ),
+                      sliver: SliverToBoxAdapter(
+                        child: _HomeDashboardHydration(
+                          heroFuture: _heroFuture,
+                          currencySymbol: currencySymbol,
+                          canViewDashboardStats:
+                              widget.isOwner || widget.canViewDashboardStats,
+                          canViewMoney: widget.isOwner || widget.canViewMoney,
+                          canViewReports:
+                              widget.isOwner || widget.canViewReports,
+                          canManageStock:
+                              widget.isOwner || widget.canManageStock,
+                          canManageSettings:
+                              widget.isOwner || widget.canManageSettings,
+                          onRetry: _refresh,
+                          noticesFuture: _noticesFuture,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
+      ),
     );
   }
+
   String? _activeLocationName(WidgetRef ref) {
     final activeId = ref.watch(activeLocationIdProvider).value;
     final locations = ref.watch(_homeLocationsProvider).value;
@@ -175,32 +245,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             Future<void> select(Location location) async {
-              if (location.localId == activeId || switchingId.isNotEmpty) return;
+              if (location.localId == activeId || switchingId.isNotEmpty)
+                return;
               setSheetState(() => switchingId = {location.localId});
               try {
                 await ref.read(switchActiveLocationProvider)(location.localId);
                 ref.invalidate(activeLocationIdProvider);
                 ref.read(dataRefreshSignalProvider.notifier).state++;
-                unawaited(ref.read(syncServiceProvider).refreshAfterContextChange());
+                unawaited(
+                  ref.read(syncServiceProvider).refreshAfterContextChange(),
+                );
                 if (context.mounted) Navigator.of(context).pop();
                 if (mounted) {
-                  showFulusSnackbar(context, message: 'Now viewing ' + location.name + '.');
+                  showFulusSnackbar(
+                    context,
+                    message: 'Now viewing ' + location.name + '.',
+                  );
                 }
               } catch (error) {
                 if (context.mounted) {
                   showFulusSnackbar(
                     context,
-                    message: error is StateError ? error.message : "Couldn't switch locations. Try again.",
+                    message: error is StateError
+                        ? error.message
+                        : "Couldn't switch locations. Try again.",
                   );
                 }
-                if (context.mounted) setSheetState(() => switchingId = <String>{});
+                if (context.mounted)
+                  setSheetState(() => switchingId = <String>{});
               }
             }
 
             return SafeArea(
               child: ListView(
                 shrinkWrap: true,
-                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
                 children: [
                   Text(
                     'Switch location',
@@ -212,7 +296,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'Choose where you are working now.',
-                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   for (final location in locations)
@@ -222,8 +308,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         icon: FulusIcons.locations,
                         art: FulusArt.locations,
                         label: location.name,
-                        subtitle: location.localId == activeId ? 'Current location' : 'Switch here',
-                        onTap: switchingId.isEmpty ? () => select(location) : null,
+                        subtitle: location.localId == activeId
+                            ? 'Current location'
+                            : 'Switch here',
+                        onTap: switchingId.isEmpty
+                            ? () => select(location)
+                            : null,
                         trailing: location.localId == activeId
                             ? const Icon(FulusIcons.check)
                             : null,
@@ -248,8 +338,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _displayName(WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
-    if (isOwner) return user?.fullName.trim().isNotEmpty == true ? user!.fullName.trim() : 'there';
-    return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
+    if (isOwner)
+      return user?.fullName.trim().isNotEmpty == true
+          ? user!.fullName.trim()
+          : 'there';
+    return user.fullName.trim().isNotEmpty == true
+        ? user.fullName.trim()
+        : 'there';
   }
 }
 
@@ -258,6 +353,7 @@ class _HomeHeader extends StatelessWidget {
     required this.businessName,
     required this.locationName,
     required this.greeting,
+    required this.accountActionLabel,
     required this.onSwitchLocation,
     required this.onSwitchAccount,
   });
@@ -265,6 +361,7 @@ class _HomeHeader extends StatelessWidget {
   final String businessName;
   final String? locationName;
   final String greeting;
+  final String accountActionLabel;
   final VoidCallback? onSwitchLocation;
   final VoidCallback onSwitchAccount;
 
@@ -301,11 +398,17 @@ class _HomeHeader extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                       onTap: onSwitchLocation,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(FulusIcons.locations, size: 16, color: secondaryText),
+                            Icon(
+                              FulusIcons.locations,
+                              size: 16,
+                              color: secondaryText,
+                            ),
                             const SizedBox(width: AppSpacing.xs),
                             Flexible(
                               child: Text(
@@ -320,7 +423,11 @@ class _HomeHeader extends StatelessWidget {
                             ),
                             if (onSwitchLocation != null) ...[
                               const SizedBox(width: 2),
-                              Icon(FulusIcons.swap, size: 16, color: secondaryText),
+                              Icon(
+                                FulusIcons.swap,
+                                size: 16,
+                                color: secondaryText,
+                              ),
                             ],
                           ],
                         ),
@@ -332,7 +439,7 @@ class _HomeHeader extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             FulusIconButton(
               icon: FulusIcons.people,
-              tooltip: 'Switch employee',
+              tooltip: accountActionLabel,
               onPressed: onSwitchAccount,
             ),
           ],
@@ -362,6 +469,9 @@ class _HomeDashboardHydration extends StatefulWidget {
     required this.canViewMoney,
     required this.canViewReports,
     required this.onRetry,
+    required this.noticesFuture,
+    required this.canManageStock,
+    required this.canManageSettings,
   });
 
   final Future<HomeHeroState> heroFuture;
@@ -370,21 +480,29 @@ class _HomeDashboardHydration extends StatefulWidget {
   final bool canViewMoney;
   final bool canViewReports;
   final VoidCallback onRetry;
+  final Future<SecondaryNoticeSelection> noticesFuture;
+  final bool canManageStock;
+  final bool canManageSettings;
 
   @override
-  State<_HomeDashboardHydration> createState() => _HomeDashboardHydrationState();
+  State<_HomeDashboardHydration> createState() =>
+      _HomeDashboardHydrationState();
 }
 
 class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   HomeHeroState? _hero;
   bool _heroError = false;
+  SecondaryNoticeSelection? _notices;
+  bool _noticesError = false;
 
   @override
   void initState() {
     super.initState();
     // Start the local hero read immediately; the dashboard renders its
     // skeleton until the repository result is ready.
-    widget.heroFuture.then(_setHero, onError: _setHeroError);  }
+    widget.heroFuture.then(_setHero, onError: _setHeroError);
+    widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
+  }
 
   @override
   void didUpdateWidget(covariant _HomeDashboardHydration oldWidget) {
@@ -394,14 +512,35 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
       _heroError = false;
       widget.heroFuture.then(_setHero, onError: _setHeroError);
     }
+    if (oldWidget.noticesFuture != widget.noticesFuture) {
+      _notices = null;
+      _noticesError = false;
+      widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
+    }
   }
 
   void _setHero(HomeHeroState value) {
-    if (mounted) setState(() { _hero = value; _heroError = false; });
+    if (mounted)
+      setState(() {
+        _hero = value;
+        _heroError = false;
+      });
   }
 
   void _setHeroError(Object _, StackTrace __) {
     if (mounted) setState(() => _heroError = true);
+  }
+
+  void _setNotices(SecondaryNoticeSelection value) {
+    if (mounted)
+      setState(() {
+        _notices = value;
+        _noticesError = false;
+      });
+  }
+
+  void _setNoticesError(Object _, StackTrace __) {
+    if (mounted) setState(() => _noticesError = true);
   }
 
   @override
@@ -409,10 +548,16 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     return _HomeMockupDashboard(
       hero: _hero,
       heroError: _heroError,
+      loading: _hero == null && !_heroError,
+      notices: _notices,
+      noticesError: _noticesError,
       currencySymbol: widget.currencySymbol,
       canViewDashboardStats: widget.canViewDashboardStats,
       canViewMoney: widget.canViewMoney,
       canViewReports: widget.canViewReports,
+      canManageStock: widget.canManageStock,
+      canManageSettings: widget.canManageSettings,
+      onRetry: widget.onRetry,
     );
   }
 }
@@ -421,18 +566,30 @@ class _HomeMockupDashboard extends StatelessWidget {
   const _HomeMockupDashboard({
     required this.hero,
     required this.heroError,
+    required this.loading,
+    required this.notices,
+    required this.noticesError,
     required this.currencySymbol,
     required this.canViewDashboardStats,
     required this.canViewMoney,
     required this.canViewReports,
+    required this.canManageStock,
+    required this.canManageSettings,
+    required this.onRetry,
   });
 
   final HomeHeroState? hero;
   final bool heroError;
+  final bool loading;
+  final SecondaryNoticeSelection? notices;
+  final bool noticesError;
   final String currencySymbol;
   final bool canViewDashboardStats;
   final bool canViewMoney;
   final bool canViewReports;
+  final bool canManageStock;
+  final bool canManageSettings;
+  final VoidCallback onRetry;
 
   Money? get _salesTotal => switch (hero) {
     null => null,
@@ -454,11 +611,7 @@ class _HomeMockupDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Equal-tile grid: Sell is always available, the rest follow permissions.
     final shortcuts = <_HomeShortcut>[
-      const _HomeShortcut(
-        art: FulusArt.sell,
-        label: 'Sell',
-        route: 'sell',
-      ),
+      const _HomeShortcut(art: FulusArt.sell, label: 'Sell', route: 'sell'),
       if (canViewDashboardStats)
         const _HomeShortcut(
           art: FulusArt.receipt,
@@ -485,20 +638,151 @@ class _HomeMockupDashboard extends StatelessWidget {
         _HomeSalesHeroCard(
           salesTotal: _salesTotal,
           salesCount: _salesCount,
+          periodLabel: homeSalesPeriodLabel(hero),
+          countLabel: heroError
+              ? 'Sales data unavailable'
+              : homeSalesCountLabel(hero),
           error: heroError,
+          loading: loading,
           currencySymbol: currencySymbol,
         ),
+        if (canViewDashboardStats &&
+            (notices?.shown.isNotEmpty == true || noticesError)) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _HomeAttentionCard(
+            notices: notices?.shown ?? const [],
+            overflowCount: notices?.overflowCount ?? 0,
+            error: noticesError,
+            canViewMoney: canViewMoney,
+            canManageStock: canManageStock,
+            canManageSettings: canManageSettings,
+            onRetry: onRetry,
+          ),
+        ],
         const SizedBox(height: AppSpacing.xl + AppSpacing.md),
         Text(
-          'Quick actions',
+          'Your shortcuts',
           style: AppTypography.bodyLarge.copyWith(
             color: AppColors.textPrimaryOf(context),
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: AppSpacing.md),
         _HomeQuickActions(shortcuts: shortcuts),
       ],
+    );
+  }
+}
+
+class _HomeAttentionCard extends StatelessWidget {
+  const _HomeAttentionCard({
+    required this.notices,
+    required this.overflowCount,
+    required this.error,
+    required this.canViewMoney,
+    required this.canManageStock,
+    required this.canManageSettings,
+    required this.onRetry,
+  });
+
+  final List<SecondaryNotice> notices;
+  final int overflowCount;
+  final bool error;
+  final bool canViewMoney;
+  final bool canManageStock;
+  final bool canManageSettings;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = notices
+        .where(
+          (notice) =>
+              notice.type != SecondaryNoticeType.pendingCredit || canViewMoney,
+        )
+        .toList();
+    if (visible.isEmpty && !error) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          error ? 'Home updates' : 'Needs attention',
+          style: AppTypography.bodyLarge.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        FulusCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              if (error)
+                FulusListRow(
+                  leading: Icon(
+                    Icons.sync_problem_outlined,
+                    color: AppColors.warningOf(context),
+                  ),
+                  title: const Text("Couldn't load Home updates"),
+                  subtitle: const Text(
+                    'Your sales summary and shortcuts are still available.',
+                  ),
+                  trailing: TextButton(
+                    onPressed: onRetry,
+                    child: const Text('Retry'),
+                  ),
+                ),
+              for (var index = 0; index < visible.length; index++) ...[
+                if (index > 0 || error) const FulusListDivider(),
+                _noticeRow(context, visible[index]),
+              ],
+              if (overflowCount > 0) ...[
+                if (visible.isNotEmpty || error) const FulusListDivider(),
+                FulusListRow(
+                  title: Text('And $overflowCount more'),
+                  subtitle: const Text('Open More to review other updates.'),
+                  onTap: () => context.goNamed('more'),
+                  trailing: const Icon(FulusIcons.chevronRight),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _noticeRow(BuildContext context, SecondaryNotice notice) {
+    final (icon, title, subtitle, canOpen, route) = switch (notice.type) {
+      SecondaryNoticeType.lowStock => (
+        FulusIcons.stock,
+        'Low stock',
+        '${notice.value.toInt()} ${notice.value == 1 ? 'product needs' : 'products need'} restocking.',
+        canManageStock,
+        'stock',
+      ),
+      SecondaryNoticeType.pendingCredit => (
+        FulusIcons.people,
+        'Customer credit',
+        '${notice.value.toInt()} customer balance${notice.value == 1 ? '' : 's'} to review.',
+        canViewMoney,
+        'moneyCustomers',
+      ),
+      SecondaryNoticeType.unsyncedItems => (
+        FulusIcons.sync,
+        'Waiting to sync',
+        '${notice.value.toInt()} change${notice.value == 1 ? '' : 's'} waiting for a connection.',
+        canManageSettings,
+        'moreSyncDetail',
+      ),
+    };
+    return FulusListRow(
+      leading: Icon(icon, color: AppColors.primaryOf(context)),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      onTap: canOpen ? () => context.goNamed(route) : null,
+      trailing: canOpen ? const Icon(FulusIcons.chevronRight) : null,
     );
   }
 }
@@ -515,9 +799,9 @@ class _HomeShortcut {
   final String route;
 }
 
-/// Equal-size action tiles in a two-column grid (Sell, Receipts, Customers,
-/// Reports). Every tile shares one size; hidden shortcuts simply leave an empty
-/// cell so the remaining tiles never stretch.
+/// Four stable action tiles in a two-column phone grid and a four-column wide
+/// layout. Keeping their order makes Home easy to learn across roles; a role
+/// with fewer permissions sees only the actions they can use.
 ///
 /// Tile height is derived from the real window height so the block fills the
 /// space above the bottom bar on tall phones, stays within a sensible cap, and
@@ -527,7 +811,6 @@ class _HomeQuickActions extends StatelessWidget {
 
   final List<_HomeShortcut> shortcuts;
 
-  static const _columns = 2;
   static const _tileAspect = 0.88; // width / height
 
   @override
@@ -535,29 +818,53 @@ class _HomeQuickActions extends StatelessWidget {
     const gap = AppSpacing.md;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final minTile = textScale > 1.3 ? 144.0 : 120.0;
-    final rowCount = (shortcuts.length / _columns).ceil().clamp(1, 4).toInt();
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Tile proportions come from the mockup (about 172 x 196 at 390dp
-        // wide), so height follows width instead of a guessed screen reserve.
-        final tileWidth = (constraints.maxWidth - gap * (_columns - 1)) / _columns;
-        final tileHeight = (tileWidth / _tileAspect).clamp(minTile, 220.0).toDouble();
+        final columns = constraints.maxWidth >= 760 ? 4 : 2;
+        final rowCount = (shortcuts.length / columns)
+            .ceil()
+            .clamp(1, 4)
+            .toInt();
+        final tileWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+        final tileHeight = (tileWidth / _tileAspect)
+            .clamp(minTile, 220.0)
+            .toDouble();
 
         return Column(
           children: [
             for (var row = 0; row < rowCount; row++) ...[
               if (row > 0) const SizedBox(height: gap),
-              SizedBox(
-                height: tileHeight,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var col = 0; col < _columns; col++) ...[
-                      if (col > 0) const SizedBox(width: gap),
-                      Expanded(child: _tileAt(context, row * _columns + col)),
-                    ],
-                  ],
-                ),
+              Builder(
+                builder: (context) {
+                  final firstIndex = row * columns;
+                  final itemCount = (shortcuts.length - firstIndex)
+                      .clamp(0, columns)
+                      .toInt();
+                  if (itemCount == 1) {
+                    return SizedBox(
+                      height: tileHeight,
+                      child: Center(
+                        child: SizedBox(
+                          width: tileWidth.clamp(0, 260).toDouble(),
+                          child: _tileAt(context, firstIndex),
+                        ),
+                      ),
+                    );
+                  }
+                  return SizedBox(
+                    height: tileHeight,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var col = 0; col < itemCount; col++) ...[
+                          if (col > 0) const SizedBox(width: gap),
+                          Expanded(child: _tileAt(context, firstIndex + col)),
+                        ],
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           ],
@@ -610,15 +917,15 @@ class _HomeActionTile extends StatelessWidget {
           children: [
             FulusArtIcon(art, size: 56),
             const SizedBox(height: AppSpacing.md),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                maxLines: 1,
-                style: AppTypography.bodyLarge.copyWith(
-                  color: AppColors.textPrimaryOf(context),
-                  fontWeight: FontWeight.w700,
-                ),
+            Text(
+              label,
+              maxLines: 2,
+              softWrap: true,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -632,27 +939,40 @@ class _HomeSalesHeroCard extends StatelessWidget {
   const _HomeSalesHeroCard({
     required this.salesTotal,
     required this.salesCount,
+    required this.periodLabel,
+    required this.countLabel,
     required this.error,
+    required this.loading,
     required this.currencySymbol,
   });
 
   final Money? salesTotal;
   final int? salesCount;
+  final String periodLabel;
+  final String countLabel;
   final bool error;
+  final bool loading;
   final String currencySymbol;
 
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).height < 640;
-    final value = error || salesTotal == null ? '—' : formatMoney(salesTotal!, symbol: currencySymbol);
-    final count = error || salesCount == null
+    final value = loading
+        ? ' '
+        : error || salesTotal == null
+        ? '—'
+        : formatMoney(salesTotal!, symbol: currencySymbol);
+    final count = loading
+        ? 'Loading sales…'
+        : error || salesCount == null
         ? 'Sales data unavailable'
-        : '${salesCount!} sale${salesCount == 1 ? '' : 's'} today';
+        : countLabel;
+    final label = error ? 'SALES' : periodLabel;
     const onPrimary = Colors.white;
     final onPrimaryMuted = Colors.white.withValues(alpha: 0.88);
 
     return Semantics(
-      label: 'Today’s sales, $value, $count',
+      label: loading ? 'Loading sales' : '$label, $value, $count',
       child: SizedBox(
         width: double.infinity,
         child: ConstrainedBox(
@@ -666,33 +986,48 @@ class _HomeSalesHeroCard extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.xl - AppSpacing.xs,
-                vertical: compact ? AppSpacing.lg : AppSpacing.lg + AppSpacing.xs,
+                vertical: compact
+                    ? AppSpacing.lg
+                    : AppSpacing.lg + AppSpacing.xs,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'TODAY’S SALES',
+                    label,
                     style: AppTypography.label.copyWith(
                       color: onPrimaryMuted,
                       letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      maxLines: 1,
-                      style: AppTypography.display.copyWith(
-                        color: onPrimary,
-                        fontSize: compact ? 36 : 44,
-                        fontWeight: FontWeight.w700,
+                  if (loading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                    )
+                  else
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        style: AppTypography.display.copyWith(
+                          color: onPrimary,
+                          fontSize: compact ? 36 : 44,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(height: AppSpacing.md),
                   DecoratedBox(
                     decoration: BoxDecoration(
@@ -722,4 +1057,6 @@ class _HomeSalesHeroCard extends StatelessWidget {
   }
 }
 
-final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) => ref.watch(businessSettingsRepositoryProvider).watchSettings());
+final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>(
+  (ref) => ref.watch(businessSettingsRepositoryProvider).watchSettings(),
+);

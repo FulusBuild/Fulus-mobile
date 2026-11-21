@@ -195,7 +195,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
       title: 'Log out?',
       message: employee
           ? 'Sign in again with your Fulus email and password.'
-          : 'Your business data stays on this device. You can sign in again when you are ready.',
+        : 'Your business data stays on this device. You’ll return to the welcome screen and can continue here when you’re ready.',
       confirmLabel: 'Log out',
     );
     if (!confirmed || !context.mounted) return;
@@ -209,6 +209,10 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
     if (!context.mounted) return;
     if (employee) {
       context.goNamed('login');
+    } else {
+      // Preserve local records and return to the welcome decision without
+      // presenting the device as a fresh installation.
+      context.goNamed('getStarted');
     }
   }
 
