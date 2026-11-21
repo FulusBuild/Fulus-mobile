@@ -120,7 +120,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                 const OnboardingIntroPanel(
                   icon: Icons.inventory_2_outlined,
                   eyebrow: 'Your catalog',
-                  title: 'Add your first product',
+                  title: 'Set up your catalog',
                   description:
                       'Add an item now to make it ready for sale, or skip this and build your catalog later.',
                 ),

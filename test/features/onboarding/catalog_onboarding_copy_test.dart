@@ -36,20 +36,34 @@ void main() {
       ),
     );
 
-    expect(find.text('Ready to record a sale?'), findsOneWidget);
+    expect(find.text('See Fulus in action'), findsOneWidget);
     expect(find.text('Open Sell'), findsOneWidget);
     expect(find.text("You've created your first product."), findsNothing);
     expect(find.text('Make your first sale'), findsNothing);
   });
 
-  testWidgets('completion copy does not claim optional setup actions happened', (tester) async {
+  testWidgets('completion copy does not claim optional setup actions happened', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
-        child: MaterialApp(theme: AppTheme.light, home: const CompletionScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const CompletionScreen(),
+        ),
       ),
     );
 
-    expect(find.text('Your business is set up. Add products and record sales whenever you’re ready.'), findsOneWidget);
-    expect(find.textContaining('your first product is in inventory'), findsNothing);
+    expect(find.text('Your business is ready'), findsOneWidget);
+    expect(
+      find.text(
+        'Your setup is complete. Head to Home or choose what you’d like to do next.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('your first product is in inventory'),
+      findsNothing,
+    );
   });
 }

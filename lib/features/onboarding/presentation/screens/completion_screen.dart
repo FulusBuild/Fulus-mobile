@@ -32,7 +32,7 @@ class CompletionScreen extends ConsumerWidget {
             const OnboardingStepHeader(
               step: 7,
               total: 7,
-              title: 'Your business is ready',
+              title: 'Setup complete',
             ),
             const OnboardingIntroPanel(
               icon: Icons.celebration_outlined,

@@ -48,6 +48,7 @@ This index prevents point-in-time audits from being mistaken for current verific
 - Added UX-018 source polish: a shared, responsive onboarding introduction panel and accessible step progress across account, owner, staff, and walkthrough stages. Fresh-APK checks at narrow width and larger text remain pending.
 - Added UX-019 source polish for clearer Money actions, phone-first Sell product tiles and stock status, centered Stock shortcuts, and a descriptive More heading. Device recheck remains pending.
 - Added UX-020 source polish for Reports navigation/filter hierarchy, responsive metrics, insights, and finance groupings. Targeted analysis passes; report interaction/export tests and updated-device review remain open.
+- Fixed PR #241 CI's three stale onboarding-copy assertions; catalog language remains neutral for restored businesses. Focused onboarding copy tests pass 3/3; full CI rerun is pending.
 - Added: product verification master plan and this status index.
 - Next sweep: revalidate the historical full readiness/instant UI/benchmark documents against the current commit, then update, supersede, or retain each with explicit evidence and links.
 

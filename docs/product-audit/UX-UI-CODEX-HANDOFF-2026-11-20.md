@@ -10,6 +10,7 @@ This handoff is for another Codex session continuing the physical-device UX/UI w
 - PR #238, “Fix physical device UX audit findings,” and PR #240, “Polish Fulus onboarding and core UX,” are merged. PR #240's final head CI #5111 and migration-chain CI #885 passed; APK jobs were skipped.
 - PR #241, “Fix employee business join loading race,” carries UX-017 on this branch. Its first commit is `6e760164`; the focused auth/connection tests passed, and physical join/login verification remains open.
 - The same follow-up includes UX-018 onboarding polish and UX-019 Money/More/Sell/Stock polish. UX-020 Reports polish is now committed on this branch; inspect the latest commit and CI. Preserve the local Android files and do not commit generated Dart files.
+- PR #241 CI reported three stale onboarding-copy assertions. The catalog copy was corrected to stay neutral for restored businesses, repeated completion heading was removed, and the focused copy suite now passes 3/3 locally. The fix is ready to commit/push; CI rerun is pending.
 - Preserve the preexisting untracked `android/app/src/main/java/` and `android/local.properties`. Local build-runner `.g.dart` outputs are generated artifacts and should not be committed.
 
 ## User goal and workflow
@@ -49,6 +50,6 @@ The merged source includes report layout improvements; neutral completion copy a
 
 ## Next actions
 
-1. Monitor PR #241 CI after UX-020 updates; verify focused report tests, CSV/PDF export, category and period changes, and all report drill-down routes.
+1. Commit/push the onboarding CI fix and monitor the new PR #241 run. Verify focused report tests, CSV/PDF export, category and period changes, and all report drill-down routes.
 2. Ask the user to install a fresh APK and reconnect the TECNO KI5k to ADB for the onboarding, employee join/login, four-card Home, stock-history, cash-close, Reports, large-text, and sync-status recheck.
 3. Use a disposable QA business for conflict-resolution and staff-invite success-path testing. Keep production business data read-only.
