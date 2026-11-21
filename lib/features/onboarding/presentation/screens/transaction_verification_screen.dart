@@ -11,8 +11,10 @@ import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../domain/entities/sale.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
+import '../../../money/presentation/providers/money_providers.dart'
+    show moneyCurrencySymbolProvider;
 import 'completion_screen.dart';
+import '../widgets/onboarding_intro_panel.dart';
 
 T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T) test) {
   for (final item in items) {
@@ -58,12 +60,17 @@ class TransactionVerificationScreen extends ConsumerStatefulWidget {
       _TransactionVerificationScreenState();
 }
 
-class _TransactionVerificationScreenState extends ConsumerState<TransactionVerificationScreen> {
-  late Future<Sale?> _saleFuture = ref.read(saleRepositoryProvider).getSaleByLocalId(widget.saleId);
+class _TransactionVerificationScreenState
+    extends ConsumerState<TransactionVerificationScreen> {
+  late Future<Sale?> _saleFuture = ref
+      .read(saleRepositoryProvider)
+      .getSaleByLocalId(widget.saleId);
 
   void _retry() {
     setState(() {
-      _saleFuture = ref.read(saleRepositoryProvider).getSaleByLocalId(widget.saleId);
+      _saleFuture = ref
+          .read(saleRepositoryProvider)
+          .getSaleByLocalId(widget.saleId);
     });
   }
 
@@ -71,7 +78,8 @@ class _TransactionVerificationScreenState extends ConsumerState<TransactionVerif
     final onboardingState = ref.read(onboardingStateProvider);
     await onboardingState.advanceWalkthroughTo(OnboardingStep.completion);
     if (!mounted) return;
-    ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.completion;
+    ref.read(walkthroughStepProvider.notifier).state =
+        OnboardingStep.completion;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const CompletionScreen()),
     );
@@ -80,7 +88,6 @@ class _TransactionVerificationScreenState extends ConsumerState<TransactionVerif
   @override
   Widget build(BuildContext context) {
     return FulusScreen(
-      title: 'What changed',
       body: FutureBuilder<Sale?>(
         future: _saleFuture,
         builder: (context, saleSnapshot) {
@@ -88,7 +95,10 @@ class _TransactionVerificationScreenState extends ConsumerState<TransactionVerif
             return const _TransactionVerificationLoadingSkeleton();
           }
           if (saleSnapshot.hasError) {
-            return _VerificationErrorView(onRetry: _retry, onContinue: _continue);
+            return _VerificationErrorView(
+              onRetry: _retry,
+              onContinue: _continue,
+            );
           }
           final sale = saleSnapshot.data;
           if (sale == null) {
@@ -104,7 +114,10 @@ class _TransactionVerificationScreenState extends ConsumerState<TransactionVerif
 }
 
 class _VerificationErrorView extends StatelessWidget {
-  const _VerificationErrorView({required this.onRetry, required this.onContinue});
+  const _VerificationErrorView({
+    required this.onRetry,
+    required this.onContinue,
+  });
 
   final VoidCallback onRetry;
   final VoidCallback onContinue;
@@ -115,12 +128,18 @@ class _VerificationErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-              const OnboardingStepHeader(step: 6, total: 7, title: 'Verify your first transaction'),
+          const OnboardingStepHeader(
+            step: 6,
+            total: 7,
+            title: 'Verify your first transaction',
+          ),
           Text(
             "We couldn't load what changed from your sale. It's already saved — this is just "
             "this screen having trouble reading it back.",
             textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            style: AppTypography.body.copyWith(
+              color: AppColors.textSecondaryOf(context),
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           FulusButton(label: 'Try again', onPressed: onRetry),
@@ -147,11 +166,18 @@ class _MissingSaleView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const OnboardingStepHeader(
+            step: 6,
+            total: 7,
+            title: 'Verify your first transaction',
+          ),
           Text(
-            "We couldn't find that sale to show you what changed, but it's already recorded — "
-            'you can find it in Money and Sales any time.',
+            "We couldn't find that sale to show you what changed, but it's already recorded. "
+            'You can find it in Money and Sales any time.',
             textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            style: AppTypography.body.copyWith(
+              color: AppColors.textSecondaryOf(context),
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           FulusButton(label: 'Continue', onPressed: onContinue),
@@ -170,31 +196,50 @@ class _VerificationBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
-    final soldItem = _firstWhereOrNull(sale.items, (item) => item.productLocalId != null);
+    final soldItem = _firstWhereOrNull(
+      sale.items,
+      (item) => item.productLocalId != null,
+    );
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'One sale, four places it shows up.',
-            style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
+          const OnboardingStepHeader(
+            step: 6,
+            total: 7,
+            title: 'Verify your first transaction',
+          ),
+          OnboardingIntroPanel(
+            icon: Icons.auto_awesome_outlined,
+            eyebrow: 'Sale recorded',
+            title: 'One sale, four places it shows up',
+            description:
+                'See how Fulus updates your stock, sales history, money, and reports.',
           ),
           const SizedBox(height: AppSpacing.lg),
           if (soldItem != null)
-            _InventorySection(productLocalId: soldItem.productLocalId!, sold: soldItem.quantity)
+            _InventorySection(
+              productLocalId: soldItem.productLocalId!,
+              sold: soldItem.quantity,
+            )
           else
             _VerificationCard(
               title: 'Inventory',
-              body: "This was a quick sale, not tied to a specific product in your catalog — "
+              body:
+                  "This was a quick sale, not tied to a specific product in your catalog — "
                   'so there\'s no stock count to show changing.',
             ),
           const SizedBox(height: AppSpacing.md),
           _VerificationCard(
             title: 'Sales',
-            body: '${soldItem?.description ?? 'Your sale'} · '
+            body:
+                '${soldItem?.description ?? 'Your sale'} · '
                 '${formatMoney(sale.total, symbol: currencySymbol)}',
-            action: ('View sale history', () => _goAndClose(context, 'moneyHistory')),
+            action: (
+              'View sale history',
+              () => _goAndClose(context, 'moneyHistory'),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           _VerificationCard(
@@ -202,7 +247,10 @@ class _VerificationBody extends ConsumerWidget {
             body: sale.paymentMethod != null
                 ? 'Paid by ${sale.paymentMethod} — recorded in your Money history.'
                 : 'Recorded in your Money history.',
-            action: ('View in Money', () => _goAndClose(context, 'moneyHistory')),
+            action: (
+              'View in Money',
+              () => _goAndClose(context, 'moneyHistory'),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           _VerificationCard(
@@ -237,11 +285,17 @@ class _InventorySection extends ConsumerWidget {
           return _unavailableCard(sold);
         }
         return StreamBuilder<List<ProductWithStock>>(
-          stream: ref.read(productRepositoryProvider).watchProducts(locationId: locationId).withFulusLoadingTimeout(),
+          stream: ref
+              .read(productRepositoryProvider)
+              .watchProducts(locationId: locationId)
+              .withFulusLoadingTimeout(),
           builder: (context, snapshot) {
             if (snapshot.hasError) return _unavailableCard(sold);
             if (!snapshot.hasData) {
-              return const _VerificationCard(title: 'Inventory', body: 'Loading…');
+              return const _VerificationCard(
+                title: 'Inventory',
+                body: 'Loading…',
+              );
             }
             final match = _firstWhereOrNull(
               snapshot.data!,
@@ -250,14 +304,16 @@ class _InventorySection extends ConsumerWidget {
             if (match == null) {
               return _VerificationCard(
                 title: 'Inventory',
-                body: 'Sold: $sold — the product itself has since been removed from your catalog.',
+                body:
+                    'Sold: $sold — the product itself has since been removed from your catalog.',
               );
             }
             final after = match.currentStock;
             final before = after + sold;
             return _VerificationCard(
               title: 'Inventory',
-              body: '${match.product.name} — before: $before, sold: $sold, after: $after.',
+              body:
+                  '${match.product.name} — before: $before, sold: $sold, after: $after.',
               action: (
                 'View in Stock',
                 () => _goAndClose(
@@ -276,14 +332,19 @@ class _InventorySection extends ConsumerWidget {
   Widget _unavailableCard(int sold) {
     return _VerificationCard(
       title: 'Inventory',
-      body: "Sold: $sold — couldn't load your current stock count right now, but it's "
+      body:
+          "Sold: $sold — couldn't load your current stock count right now, but it's "
           'accurate in Stock.',
     );
   }
 }
 
 class _VerificationCard extends StatelessWidget {
-  const _VerificationCard({required this.title, required this.body, this.action});
+  const _VerificationCard({
+    required this.title,
+    required this.body,
+    this.action,
+  });
 
   final String title;
   final String body;
@@ -297,10 +358,17 @@ class _VerificationCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: AppTypography.label.copyWith(color: AppColors.textSecondaryOf(context)),
+            style: AppTypography.label.copyWith(
+              color: AppColors.textSecondaryOf(context),
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(body, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
+          Text(
+            body,
+            style: AppTypography.body.copyWith(
+              color: AppColors.textPrimaryOf(context),
+            ),
+          ),
           if (action != null) ...[
             const SizedBox(height: AppSpacing.sm),
             FulusButton(
@@ -314,7 +382,6 @@ class _VerificationCard extends StatelessWidget {
     );
   }
 }
-
 
 class _TransactionVerificationLoadingSkeleton extends StatelessWidget {
   const _TransactionVerificationLoadingSkeleton();

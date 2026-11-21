@@ -8,6 +8,7 @@ import '../../../../core/theme/fulus_art.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../stock/presentation/screens/add_edit_product_screen.dart';
 import '../widgets/onboarding_error_banner.dart';
+import '../widgets/onboarding_intro_panel.dart';
 import '../widgets/onboarding_step_header.dart';
 
 /// Walkthrough Phase 4. Opens the real [AddEditProductScreen] rather
@@ -43,7 +44,8 @@ class AddFirstProductScreen extends ConsumerStatefulWidget {
   const AddFirstProductScreen({super.key});
 
   @override
-  ConsumerState<AddFirstProductScreen> createState() => _AddFirstProductScreenState();
+  ConsumerState<AddFirstProductScreen> createState() =>
+      _AddFirstProductScreenState();
 }
 
 class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
@@ -59,7 +61,9 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
 
   Future<void> _openProductForm() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => const AddEditProductScreen(pushedImperatively: true)),
+      MaterialPageRoute(
+        builder: (_) => const AddEditProductScreen(pushedImperatively: true),
+      ),
     );
     if (!mounted) return;
     setState(() {
@@ -68,8 +72,10 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
     });
     try {
       final locationId = await ref.read(activeLocationIdProvider.future);
-      final products =
-          await ref.read(productRepositoryProvider).watchProducts(locationId: locationId).first;
+      final products = await ref
+          .read(productRepositoryProvider)
+          .watchProducts(locationId: locationId)
+          .first;
       if (!mounted) return;
       if (products.isNotEmpty) {
         await _advanceTo(OnboardingStep.navigationIntro);
@@ -80,7 +86,8 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = "Couldn't confirm whether your product saved. Check your Stock "
+        _errorMessage =
+            "Couldn't confirm whether your product saved. Check your Stock "
             'list before adding another, just in case.';
       });
     } finally {
@@ -105,16 +112,17 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-              const OnboardingStepHeader(step: 3, total: 7, title: 'Add a product'),
-                Text(
-                  'Set up your catalog',
-                  style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
+                const OnboardingStepHeader(
+                  step: 3,
+                  total: 7,
+                  title: 'Add a product',
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Add products now, or continue and manage your catalog from Stock '
-                  'whenever you are ready.',
-                  style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                const OnboardingIntroPanel(
+                  icon: Icons.inventory_2_outlined,
+                  eyebrow: 'Your catalog',
+                  title: 'Set up your catalog',
+                  description:
+                      'Add an item now to make it ready for sale, or skip this and build your catalog later.',
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 if (_errorMessage != null) ...[

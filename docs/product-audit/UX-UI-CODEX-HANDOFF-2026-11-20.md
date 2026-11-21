@@ -6,10 +6,11 @@ This handoff is for another Codex session continuing the physical-device UX/UI w
 
 - Repository: `FulusBuild/Fulus-mobile`.
 - Current local checkout: `C:\Users\Sanni\Documents\Codex\fulus-part-mn-audit`.
-- Current branch: `codex/recording-ux-followup`, based on `main` at merge commit `ce77e3c062c3c18376d42502863223b99188b533` (PR #238).
-- PR #238, “Fix physical device UX audit findings,” is merged. Its CI passed analysis, Flutter tests, live sync contract, and multi-device convergence; APK jobs were skipped.
-- PR #240, “Clarify onboarding for restored businesses,” is open at the original local base head `d3a12dfe`. Its recorded Fulus Mobile CI run 5108 and Vercel status succeeded for that commit. The new 2026-11-21 working-tree changes are not included in those remote checks.
-- UX follow-up commit `9ed0e3e3` is pushed to `codex/recording-ux-followup`; PR #240 is open against `main`. New-head CI was still pending at the latest check. Review `git status` before further work.
+- Current branch: `codex/employee-join-loading-fix`, based on `main` at merge commit `4935085423d5fd62c150fa01a98cc2cb80dff7b8` (PR #240).
+- PR #238, “Fix physical device UX audit findings,” and PR #240, “Polish Fulus onboarding and core UX,” are merged. PR #240's final head CI #5111 and migration-chain CI #885 passed; APK jobs were skipped.
+- PR #241, “Fix employee business join loading race,” carries UX-017 on this branch. Its first commit is `6e760164`; the focused auth/connection tests passed, and physical join/login verification remains open.
+- The same follow-up includes UX-018 onboarding polish and UX-019 Money/More/Sell/Stock polish. UX-020 Reports polish is now committed on this branch; inspect the latest commit and CI. Preserve the local Android files and do not commit generated Dart files.
+- PR #241 CI reported three stale onboarding-copy assertions. The catalog copy was corrected to stay neutral for restored businesses, repeated completion heading was removed, and the focused copy suite now passes 3/3 locally. The fix is ready to commit/push; CI rerun is pending.
 - Preserve the preexisting untracked `android/app/src/main/java/` and `android/local.properties`. Local build-runner `.g.dart` outputs are generated artifacts and should not be committed.
 
 ## User goal and workflow
@@ -34,18 +35,21 @@ The user wants a thorough UX/UI review of Fulus, including onboarding and real f
 
 ## Current follow-up changes
 
-The working tree now includes report layout improvements; neutral completion copy and a true walkthrough skip; least-privilege Cashier defaults for new invitations; retry-safe local employee identity and clearer invite failure feedback; a cash-without-drawer warning and drawer-session-accurate close labels; conflict-dominant sync status; and stock movement canonical identity reconciliation by server movement ID and outbox operation ID. A Supabase migration carries the stock operation ID in change-feed entries. The 2026-11-21 follow-up adds owner logout to a data-preserving welcome screen, period-correct Home sales labels, a polished sales hero, low-stock/customer-credit notices (technical sync state stays in More → Sync), responsive role-filtered Home shortcuts, and a permission-aware Stock navigation tab. Existing employee grants are unchanged. Inspect `git status` and the full diff before staging.
+The merged source includes report layout improvements; neutral completion copy and a true walkthrough skip; least-privilege Cashier defaults for new invitations; retry-safe local employee identity and clearer invite failure feedback; a cash-without-drawer warning and drawer-session-accurate close labels; conflict-dominant sync status; stock movement canonical identity reconciliation by server movement ID and outbox operation ID; owner logout to a data-preserving welcome screen; period-correct Home sales labels and a polished hero; low-stock/customer-credit Home notices (technical sync state stays in More → Sync); responsive role-filtered Home shortcuts; and a permission-aware Stock navigation tab. Existing employee grants are unchanged. PR #241 carries UX-017 employee invite lifecycle fencing and bounded auth waits; UX-018 consistent onboarding visuals; UX-019 Money/More/Sell/Stock polish; UX-020 Reports hierarchy, grouping, and responsive metric polish. Device verification remains open.
 
 ## Verification already run on this follow-up
 
 - Generated local code with Flutter 3.44.9's bundled Dart to support focused checks. Generated outputs and `pubspec.lock` changes are temporary and must not be committed.
 - The 2026-11-21 focused Flutter run passed auth-route guard, Home sales labels, dashboard engine/notices/repository, onboarding copy, permission defaults, stock movement repository/sync, Reports loading, payment split, and sync status/notifier: **72 tests passed**. A latest auth/Home check passed **8 tests** (7 overlap the prior run). These runs used locally generated `.g.dart` files; those outputs have been removed and `pubspec.lock` restored.
 - Final targeted `flutter analyze` on the app shell, router, auth entry, Home, settings logout, and focused tests reported no issues. `git diff --check` passed.
+- The employee join/login fix's focused auth and connection-state tests passed: **6 tests**. Targeted analysis for those source files passed. Onboarding visual-polish sources also pass targeted analysis; no tests or APK build were run for that visual pass.
+- Targeted `flutter analyze` passed for Money, More/router, Sell, and Stock changes. No tests or APK build were run for this UI pass.
+- Reports source was reformatted and targeted analysis passed after UX-020 changes. Do not treat this as test or device evidence; run focused Reports tests and review export/drill-down behavior before closing the finding.
 - ADB returned no attached devices on 2026-11-21. No fresh APK/device UX verification is claimed.
 - Do not run APK builds. The user supplies that step.
 
 ## Next actions
 
-1. Check PR #240's new-head CI and keep the PR open; do not merge unless the user asks.
-2. Ask the user to install a fresh APK and reconnect the TECNO KI5k to ADB for the onboarding, four-card Home, stock-history, cash-close, Reports, large-text, and sync-status recheck.
+1. Commit/push the onboarding CI fix and monitor the new PR #241 run. Verify focused report tests, CSV/PDF export, category and period changes, and all report drill-down routes.
+2. Ask the user to install a fresh APK and reconnect the TECNO KI5k to ADB for the onboarding, employee join/login, four-card Home, stock-history, cash-close, Reports, large-text, and sync-status recheck.
 3. Use a disposable QA business for conflict-resolution and staff-invite success-path testing. Keep production business data read-only.

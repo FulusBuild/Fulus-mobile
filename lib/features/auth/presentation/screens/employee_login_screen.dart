@@ -7,6 +7,7 @@ import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../onboarding/presentation/widgets/onboarding_intro_panel.dart';
 
 /// Employee account authentication after the invitation has already been
 /// claimed. The invitation is never part of this flow.
@@ -16,7 +17,8 @@ class EmployeeLoginScreen extends ConsumerStatefulWidget {
   final String? initialEmail;
 
   @override
-  ConsumerState<EmployeeLoginScreen> createState() => _EmployeeLoginScreenState();
+  ConsumerState<EmployeeLoginScreen> createState() =>
+      _EmployeeLoginScreenState();
 }
 
 class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
@@ -30,7 +32,10 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     }
     return failure.message;
   }
-  late final _emailController = TextEditingController(text: widget.initialEmail ?? '');
+
+  late final _emailController = TextEditingController(
+    text: widget.initialEmail ?? '',
+  );
   final _passwordController = TextEditingController();
   bool _busy = false;
   String _status = '';
@@ -65,7 +70,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     // session lifecycle.
     connection.beginCloudOnboarding();
     try {
-      await ref.read(authApiProvider).connectServer(
+      await ref
+          .read(authApiProvider)
+          .connectServer(
             email: email,
             password: password,
             supabaseUrl: SupabaseConfig.url,
@@ -75,7 +82,8 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       connection.markSessionAuthenticated();
       await connection.refresh();
 
-      final active = connection.membershipContext?.memberships
+      final active =
+          connection.membershipContext?.memberships
               .where((membership) => membership.status == 'active')
               .toList(growable: false) ??
           const [];
@@ -86,24 +94,24 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       }
 
       await connection.selectBusiness(active.single.businessId);
-      final claim =
-          await ref.read(fulusStaffAccessApiProvider).getMyAccess(
-                businessId: active.single.businessId,
-              );
+      final claim = await ref
+          .read(fulusStaffAccessApiProvider)
+          .getMyAccess(businessId: active.single.businessId);
       if (claim.roleName == 'owner' || claim.roleName == 'admin') {
         throw const BusinessRuleFailure(
           'This is an owner or admin account. Use the regular Fulus sign-in.',
         );
       }
 
-      setState(() => _status = 'Restoring your business…');
-      final employee =
-          await ref.read(employeeCloudSessionCoordinatorProvider).establish(
-                claim: claim,
-                onProgress: (status) {
-                  if (mounted) setState(() => _status = status);
-                },
-              );
+      if (mounted) setState(() => _status = 'Restoring your business…');
+      final employee = await ref
+          .read(employeeCloudSessionCoordinatorProvider)
+          .establish(
+            claim: claim,
+            onProgress: (status) {
+              if (mounted) setState(() => _status = status);
+            },
+          );
 
       ref.read(sessionProvider.notifier).state = employee;
       if (!mounted) return;
@@ -164,29 +172,14 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.login_rounded,
-                    size: 64,
-                    color: AppColors.primaryOf(context),
+                  const OnboardingIntroPanel(
+                    icon: Icons.login_rounded,
+                    eyebrow: 'Your team account',
+                    title: 'Welcome back',
+                    description:
+                        'Sign in with the email and password you use for Fulus.',
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    'Welcome back',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.display.copyWith(
-                      color: AppColors.primaryOf(context),
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Sign in with your Fulus email and password.',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondaryOf(context),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
                   FulusTextField(
                     label: 'Email',
                     controller: _emailController,

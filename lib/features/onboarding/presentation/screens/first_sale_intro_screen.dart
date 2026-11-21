@@ -7,6 +7,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/theme/fulus_art.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../widgets/onboarding_intro_panel.dart';
 
 /// Walkthrough Phases 6–9 (prep, cart, payment, success) share one
 /// resume point — [OnboardingStep.firstSale]. This screen is only the brief
@@ -26,38 +27,25 @@ class FirstSaleIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-              const OnboardingStepHeader(step: 5, total: 7, title: 'Make a sale'),
-                Center(
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryOf(context).withValues(alpha: .10),
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                    ),
-                    child: FulusArtIcon(FulusArt.sell, size: 60, semanticLabel: 'Sell'),
-                  ),
+                const OnboardingStepHeader(
+                  step: 5,
+                  total: 7,
+                  title: 'Make a sale',
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Ready to record a sale?',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Open Sell to review your catalog and add items to a cart. If you still '
-                  'need products, you can add them from Stock.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                const OnboardingIntroPanel(
+                  icon: Icons.point_of_sale_rounded,
+                  eyebrow: 'Your first sale',
+                  title: 'See Fulus in action',
+                  description:
+                      'Open Sell to choose products and complete a sale. You can add products from Stock whenever you need them.',
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 FulusActionTile(
                   icon: FulusIcons.sell,
                   art: FulusArt.sell,
                   label: 'Open Sell',
-                  subtitle: 'Review your products and start when you are ready.',
+                  subtitle:
+                      'Review your products and start when you are ready.',
                   onTap: () {
                     ref.read(firstSaleIntroSeenProvider.notifier).state = true;
                     context.goNamed('sell');

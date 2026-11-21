@@ -8,6 +8,7 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../data/remote/fulus_staff_access_api.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../onboarding/presentation/widgets/onboarding_intro_panel.dart';
 
 /// First-device employee onboarding.
 ///
@@ -54,8 +55,9 @@ class _EmployeeJoinBusinessScreenState
     });
 
     try {
-      final preview =
-          await ref.read(fulusStaffAccessApiProvider).inspectInvite(token);
+      final preview = await ref
+          .read(fulusStaffAccessApiProvider)
+          .inspectInvite(token);
       if (!mounted) return;
       setState(() {
         _preview = preview;
@@ -74,7 +76,8 @@ class _EmployeeJoinBusinessScreenState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = 'We couldn’t finish joining your business. Please try again.';
+          _error =
+              'We couldn’t finish joining your business. Please try again.';
           _status = '';
         });
       }
@@ -98,12 +101,16 @@ class _EmployeeJoinBusinessScreenState
       _status = 'Creating your Fulus login…';
     });
 
+    final connection = ref.read(fulusConnectionStateProvider);
+    // Own the whole auth-to-restore handoff before the first request can
+    // persist a new cloud session. Otherwise startup sync triggers can race
+    // the invite claim and begin restoring against a partially joined user.
+    connection.beginCloudOnboarding();
     try {
       try {
-        await ref.read(fulusStaffAccessApiProvider).prepareInvitedAccount(
-              token: token,
-              password: password,
-            );
+        await ref
+            .read(fulusStaffAccessApiProvider)
+            .prepareInvitedAccount(token: token, password: password);
       } on BusinessRuleFailure catch (failure) {
         if (failure.code != 'ACCOUNT_ALREADY_LINKED' &&
             failure.code != 'INVITE_CLAIMED') {
@@ -111,29 +118,36 @@ class _EmployeeJoinBusinessScreenState
         }
       }
 
-      setState(() => _status = 'Signing you in…');
-      await ref.read(authApiProvider).connectServer(
+      if (mounted) setState(() => _status = 'Signing you in…');
+      await ref
+          .read(authApiProvider)
+          .connectServer(
             email: preview.email,
             password: password,
             supabaseUrl: SupabaseConfig.url,
             publishableKey: SupabaseConfig.publishableKey,
           );
 
-      setState(() => _status = 'Joining ' + preview.businessName + '…');
-      final claim = await ref.read(fulusStaffAccessApiProvider).claimInvite(
+      if (mounted) {
+        setState(() => _status = 'Joining ' + preview.businessName + '…');
+      }
+      final claim = await ref
+          .read(fulusStaffAccessApiProvider)
+          .claimInvite(
             token,
             fullName: preview.fullName.isEmpty ? null : preview.fullName,
           );
 
       ref.read(fulusConnectionStateProvider).markSessionAuthenticated();
 
-      final employee =
-          await ref.read(employeeCloudSessionCoordinatorProvider).establish(
-                claim: claim,
-                onProgress: (status) {
-                  if (mounted) setState(() => _status = status);
-                },
-              );
+      final employee = await ref
+          .read(employeeCloudSessionCoordinatorProvider)
+          .establish(
+            claim: claim,
+            onProgress: (status) {
+              if (mounted) setState(() => _status = status);
+            },
+          );
 
       ref.read(sessionProvider.notifier).state = employee;
       if (!mounted) return;
@@ -152,10 +166,15 @@ class _EmployeeJoinBusinessScreenState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = 'We couldn’t finish joining your business. Please try again.';
+          _error =
+              'We couldn’t finish joining your business. Please try again.';
           _status = '';
         });
       }
+    } finally {
+      // EmployeeCloudSessionCoordinator holds a nested fence during restore;
+      // release this screen's outer fence only after the full join handoff.
+      connection.endCloudOnboarding();
     }
   }
 
@@ -199,31 +218,21 @@ class _EmployeeJoinBusinessScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.badge_rounded,
-                    size: 64,
-                    color: AppColors.primaryOf(context),
+                  OnboardingIntroPanel(
+                    icon: preview == null
+                        ? Icons.badge_outlined
+                        : Icons.mark_email_read_outlined,
+                    eyebrow: preview == null
+                        ? 'Join your team'
+                        : 'Invitation ready',
+                    title: preview == null
+                        ? 'Join your business'
+                        : 'You’re invited',
+                    description: preview == null
+                        ? 'Enter the invitation code your business owner sent you to get started.'
+                        : 'Your business access is ready. Set a password to finish joining.',
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    preview == null ? 'Join your business' : 'You’re invited',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.display.copyWith(
-                      color: AppColors.textPrimaryOf(context),
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    preview == null
-                        ? 'Paste the invitation code your business owner sent you.'
-                        : 'Everything is already set up. Choose a password and join.',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondaryOf(context),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
                   if (preview == null) ...[
                     FulusTextField(
                       label: 'Invitation code',
@@ -293,10 +302,10 @@ class _EmployeeJoinBusinessScreenState
                       onPressed: _busy
                           ? null
                           : () => setState(() {
-                                _preview = null;
-                                _passwordController.clear();
-                                _error = null;
-                              }),
+                              _preview = null;
+                              _passwordController.clear();
+                              _error = null;
+                            }),
                     ),
                   ],
                   if (_error != null) ...[

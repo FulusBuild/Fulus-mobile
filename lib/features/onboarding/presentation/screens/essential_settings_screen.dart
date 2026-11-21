@@ -9,6 +9,7 @@ import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/onboarding_error_banner.dart';
+import '../widgets/onboarding_intro_panel.dart';
 import '../widgets/onboarding_step_header.dart';
 
 /// Walkthrough Phase 3. Deliberately narrow: of everything a business
@@ -22,10 +23,12 @@ class EssentialSettingsScreen extends ConsumerStatefulWidget {
   const EssentialSettingsScreen({super.key});
 
   @override
-  ConsumerState<EssentialSettingsScreen> createState() => _EssentialSettingsScreenState();
+  ConsumerState<EssentialSettingsScreen> createState() =>
+      _EssentialSettingsScreenState();
 }
 
-class _EssentialSettingsScreenState extends ConsumerState<EssentialSettingsScreen> {
+class _EssentialSettingsScreenState
+    extends ConsumerState<EssentialSettingsScreen> {
   bool _submitting = false;
   String? _bannerMessage;
 
@@ -33,7 +36,8 @@ class _EssentialSettingsScreenState extends ConsumerState<EssentialSettingsScree
     final onboardingState = ref.read(onboardingStateProvider);
     await onboardingState.advanceWalkthroughTo(OnboardingStep.firstProduct);
     if (!mounted) return;
-    ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.firstProduct;
+    ref.read(walkthroughStepProvider.notifier).state =
+        OnboardingStep.firstProduct;
   }
 
   Future<void> _skip() async {
@@ -43,13 +47,19 @@ class _EssentialSettingsScreenState extends ConsumerState<EssentialSettingsScree
     await _advancePastThisStep();
   }
 
-  Future<void> _save(BusinessProfile current, bool vatEnabled, double vatRate) async {
+  Future<void> _save(
+    BusinessProfile current,
+    bool vatEnabled,
+    double vatRate,
+  ) async {
     setState(() {
       _submitting = true;
       _bannerMessage = null;
     });
     try {
-      await ref.read(businessSettingsRepositoryProvider).updateSettings(
+      await ref
+          .read(businessSettingsRepositoryProvider)
+          .updateSettings(
             businessName: current.businessName,
             address: current.address,
             phone: current.phone,
@@ -73,12 +83,16 @@ class _EssentialSettingsScreenState extends ConsumerState<EssentialSettingsScree
   Widget build(BuildContext context) {
     return FulusScreen(
       body: StreamBuilder<BusinessProfile?>(
-        stream: ref.watch(businessSettingsRepositoryProvider).watchSettings().withFulusLoadingTimeout(),
+        stream: ref
+            .watch(businessSettingsRepositoryProvider)
+            .watchSettings()
+            .withFulusLoadingTimeout(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return FulusErrorState(
               message: "Couldn't load your business settings.",
-              reassurance: 'Nothing was changed — try loading the settings again.',
+              reassurance:
+                  'Nothing was changed — try loading the settings again.',
               onRetry: () => setState(() {}),
             );
           }
@@ -111,7 +125,12 @@ class _EssentialSettingsForm extends StatefulWidget {
   final BusinessProfile profile;
   final bool submitting;
   final String? bannerMessage;
-  final Future<void> Function(BusinessProfile current, bool vatEnabled, double vatRate) onSave;
+  final Future<void> Function(
+    BusinessProfile current,
+    bool vatEnabled,
+    double vatRate,
+  )
+  onSave;
   final Future<void> Function() onSkip;
 
   @override
@@ -120,7 +139,9 @@ class _EssentialSettingsForm extends StatefulWidget {
 
 class _EssentialSettingsFormState extends State<_EssentialSettingsForm> {
   late bool _vatEnabled = widget.profile.vatEnabled;
-  late final _rateController = TextEditingController(text: widget.profile.vatRate.toString());
+  late final _rateController = TextEditingController(
+    text: widget.profile.vatRate.toString(),
+  );
   String? _rateError;
 
   @override
@@ -153,12 +174,17 @@ class _EssentialSettingsFormState extends State<_EssentialSettingsForm> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const OnboardingStepHeader(step: 2, total: 7, title: 'Essential business settings'),
-              Text('One more thing', style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context))),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'This determines whether tax appears on your receipts and sales records from your very first sale. You can change it any time in Settings.',
-                style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+              const OnboardingStepHeader(
+                step: 2,
+                total: 7,
+                title: 'Essential business settings',
+              ),
+              const OnboardingIntroPanel(
+                icon: Icons.receipt_long_outlined,
+                eyebrow: 'Before your first sale',
+                title: 'Set up sales tax',
+                description:
+                    'Choose whether tax appears on receipts. You can change this later in Settings.',
               ),
               const SizedBox(height: AppSpacing.xl),
               if (widget.bannerMessage != null) ...[
@@ -179,7 +205,9 @@ class _EssentialSettingsFormState extends State<_EssentialSettingsForm> {
                   controller: _rateController,
                   label: 'Tax rate (%)',
                   errorText: _rateError,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.xl),
@@ -202,10 +230,10 @@ class _EssentialSettingsFormState extends State<_EssentialSettingsForm> {
   }
 }
 
-
 class _EssentialSettingsLoadingSkeleton extends StatelessWidget {
   const _EssentialSettingsLoadingSkeleton();
-  @override Widget build(BuildContext context) => const Padding(
+  @override
+  Widget build(BuildContext context) => const Padding(
     padding: EdgeInsets.all(AppSpacing.lg),
     child: Column(
       children: [
