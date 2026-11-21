@@ -343,15 +343,20 @@ class MockMoneyRepository implements MoneyRepository {
     final cashSales = sinceOpen
         .where((t) => t.type == MoneyTransactionType.saleIncome && t.paymentMethod == 'Cash')
         .fold<Money>(0, (sum, t) => sum + t.amount);
-    final cashOut = sinceOpen
+    final cashExpenses = sinceOpen
         .where((t) =>
-            (t.type == MoneyTransactionType.expense || t.type == MoneyTransactionType.supplierPayment) &&
+            t.type == MoneyTransactionType.expense && t.paymentMethod == 'Cash')
+        .fold<Money>(0, (sum, t) => sum + t.amount);
+    final cashSupplierPayments = sinceOpen
+        .where((t) =>
+            t.type == MoneyTransactionType.supplierPayment &&
             t.paymentMethod == 'Cash')
         .fold<Money>(0, (sum, t) => sum + t.amount);
     return MoneyExpectedCashPreview(
       openingFloat: session.openingFloat,
       cashSales: cashSales,
-      cashExpenses: cashOut,
+      cashExpenses: cashExpenses,
+      cashSupplierPayments: cashSupplierPayments,
     );
   }
 

@@ -341,8 +341,12 @@ class CrossDeviceEmployeeRestore {
         case 'business.read':
           result.add(Permission.viewDashboardStats);
         case 'cash.manage':
-        case 'cash.read':
+          result.add(Permission.manageCash);
+          result.add(Permission.viewMoney);
         case 'finance.manage':
+          result.add(Permission.manageFinance);
+          result.add(Permission.viewMoney);
+        case 'cash.read':
         case 'finance.read':
         case 'sales.read':
         case 'customers.read':

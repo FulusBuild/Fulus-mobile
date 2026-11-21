@@ -90,7 +90,7 @@ class FulusCanonicalTypedReconciler {
       const batchable = {
         'customer', 'employee', 'category', 'supplier', 'expense_category', 'expense',
         'income_record', 'cash_drawer_shift', 'location',
-        'customer_ledger', 'stock_movement',
+        'customer_ledger', 'supplier_ledger', 'stock_movement',
       };
 
       if (!batchable.contains(entityType) || group.length == 1) {

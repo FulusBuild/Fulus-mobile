@@ -278,6 +278,10 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
       switch (permission) {
         case Permission.viewMoney:
           codes.addAll({'cash.read', 'finance.read', 'sales.read', 'customers.read'});
+        case Permission.manageFinance:
+          codes.addAll({'finance.read', 'finance.manage'});
+        case Permission.manageCash:
+          codes.addAll({'cash.read', 'cash.manage'});
         case Permission.viewDashboardStats:
           codes.add('business.read');
         case Permission.approveWithoutSupervisor:

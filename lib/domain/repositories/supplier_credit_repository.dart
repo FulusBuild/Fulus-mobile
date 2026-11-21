@@ -4,7 +4,8 @@ import '../entities/supplier_ledger_entry.dart';
 /// Volume 8, Decision 26's "mirrors the customer credit book" made
 /// literal — same shape as `CustomerCreditRepository`, opposite
 /// direction. See tables.dart's `SupplierLedgerEntries` doc comment for
-/// why this is entirely local-only, more so than the customer version.
+/// why ledger writes require an explicit location and are synchronized as
+/// canonical business financial operations.
 abstract class SupplierCreditRepository {
   /// Called when Stock In (Stage 5) records a cost that wasn't paid on
   /// the spot, for a product with a supplier set. **Not called
@@ -22,6 +23,7 @@ abstract class SupplierCreditRepository {
     required String supplierLocalId,
     required Money amount,
     String? stockMovementLocalId,
+    required String locationLocalId,
   });
 
   /// Volume 8: "Recording a payment reduces the balance the same way a
@@ -35,21 +37,34 @@ abstract class SupplierCreditRepository {
     required Money amount,
     String? paymentMethod,
     String? note,
+    required String locationLocalId,
+    String? cashDrawerShiftLocalId,
   });
 
   Stream<List<SupplierLedgerEntry>> watchLedger(String supplierLocalId);
 
-  /// Every [SupplierLedgerEntryType.paymentMade] entry across every
-  /// supplier, with `createdAt` inside [start, end] (inclusive of both
-  /// ends' full calendar days) — Volume 8's Cash Flow feed needs "every
-  /// supplier payment this period," which [watchLedger] alone can't
-  /// answer without an N-supplier fan-out. Deliberately business-wide,
-  /// no locationId parameter — same reasoning as
-  /// CustomerCreditRepository.getRepaymentsForPeriod: SupplierLedgerEntries
-  /// has no locationId column (tables.dart), and Suppliers aren't
-  /// location-scoped either.
+  /// Every [SupplierLedgerEntryType.paymentMade] entry with `createdAt`
+  /// inside [start, end] (inclusive of both ends' full calendar days).
+  /// When [locationLocalId] is provided, only entries attributed to that
+  /// location are returned. Null preserves the business-wide legacy query.
   Future<List<SupplierLedgerEntry>> getPaymentsForPeriod({
     required DateTime start,
     required DateTime end,
+    String? locationLocalId,
+  });
+
+  Future<void> reconcileServerEntry({
+    required String serverId,
+    required String operationId,
+    required String supplierServerId,
+    required String locationServerId,
+    String? stockMovementServerId,
+    String? cashDrawerShiftServerId,
+    required SupplierLedgerEntryType entryType,
+    required Money amount,
+    required Money balanceAfter,
+    String? paymentMethod,
+    String? note,
+    required DateTime createdAt,
   });
 }

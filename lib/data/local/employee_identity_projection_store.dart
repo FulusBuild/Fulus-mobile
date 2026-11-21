@@ -286,8 +286,12 @@ class LocalEmployeeIdentityStore {
         case 'business.read':
           result.add('viewDashboardStats');
         case 'cash.manage':
-        case 'cash.read':
+          result.add('manageCash');
+          result.add('viewMoney');
         case 'finance.manage':
+          result.add('manageFinance');
+          result.add('viewMoney');
+        case 'cash.read':
         case 'finance.read':
         case 'sales.read':
         case 'customers.read':

@@ -33,6 +33,7 @@ class FulusSupplierCanonicalReconciler {
       phone: dto.phone,
       email: dto.email,
       address: dto.address,
+      outstandingBalance: dto.outstandingBalance,
       updatedAt: _parseDate(json['updated_at'], 'updated_at'),
       deletedAt: _parseNullableDate(json['deleted_at'], 'deleted_at'),
     );

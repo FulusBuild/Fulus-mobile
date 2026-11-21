@@ -19,12 +19,15 @@ class MoneyExpectedCashPreview {
     required this.openingFloat,
     required this.cashSales,
     required this.cashExpenses,
+    this.cashSupplierPayments = 0,
   });
 
   final Money openingFloat;
   final Money cashSales;
   final Money cashExpenses;
-  Money get expectedCash => openingFloat + cashSales - cashExpenses;
+  final Money cashSupplierPayments;
+  Money get expectedCash =>
+      openingFloat + cashSales - cashExpenses - cashSupplierPayments;
 }
 
 /// The Daily Closing Summary screen's data — "counted, expected,

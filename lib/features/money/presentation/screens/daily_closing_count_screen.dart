@@ -144,6 +144,7 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
                     _AmountRow(label: 'Opening float', value: preview.openingFloat, symbol: currencySymbol),
                     _AmountRow(label: 'Cash sales', value: preview.cashSales, symbol: currencySymbol, showPlus: true),
                     _AmountRow(label: 'Cash expenses', value: -preview.cashExpenses, symbol: currencySymbol),
+                    _AmountRow(label: 'Cash supplier payments', value: -preview.cashSupplierPayments, symbol: currencySymbol),
                     const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.sm), child: Divider(height: 1)),
                     _AmountRow(label: 'Expected total', value: preview.expectedCash, symbol: currencySymbol, emphasize: true),
                   ],

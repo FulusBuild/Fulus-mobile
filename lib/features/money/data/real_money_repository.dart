@@ -166,9 +166,11 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         : _supplierCreditRepository.getPaymentsForPeriod(
             start: start,
             end: end,
+            locationLocalId: locationId,
           );
-    final categoriesFuture =
-        _expenseCategoryRepository.watchExpenseCategories().first;
+    final categoriesFuture = _expenseCategoryRepository
+        .watchExpenseCategories()
+        .first;
     final customersFuture = _customerRepository.watchCustomers().first;
 
     final (
@@ -189,12 +191,8 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       customersFuture,
     ).wait;
 
-    final categoryNamesById = {
-      for (final c in categories) c.localId: c.name,
-    };
-    final customerNamesById = {
-      for (final c in customers) c.localId: c.name,
-    };
+    final categoryNamesById = {for (final c in categories) c.localId: c.name};
+    final customerNamesById = {for (final c in customers) c.localId: c.name};
 
     final transactions = <MoneyTransaction>[
       for (final sale in sales) _fromSale(sale, customerNamesById),
@@ -208,9 +206,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final repaymentTransactions = await Future.wait(
       repayments.map(_fromRepayment),
     );
-    final paymentTransactions = await Future.wait(
-      payments.map(_fromPayment),
-    );
+    final paymentTransactions = await Future.wait(payments.map(_fromPayment));
 
     transactions
       ..addAll(repaymentTransactions)
@@ -228,11 +224,15 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     // would Money-count the unpaid portion the moment a credit
     // customer's later repayment also appears as its own
     // customerRepayment transaction.
-    final descriptiveItems = sale.items.where((i) => i.description.isNotEmpty).toList();
+    final descriptiveItems = sale.items
+        .where((i) => i.description.isNotEmpty)
+        .toList();
     return MoneyTransaction(
       id: 'sale-${sale.localId}',
       type: MoneyTransactionType.saleIncome,
-      title: sale.invoiceNumber != null ? 'Sale — ${sale.invoiceNumber}' : 'Sale',
+      title: sale.invoiceNumber != null
+          ? 'Sale — ${sale.invoiceNumber}'
+          : 'Sale',
       subtitle: '${sale.items.length} item${sale.items.length == 1 ? '' : 's'}',
       amount: sale.amountPaid,
       dateTime: sale.saleDate,
@@ -243,7 +243,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       // is built. Null for a walk-in sale with no customer attached, the
       // same as every other field here that's simply absent rather than
       // fabricated.
-      counterpartyName: sale.customerId != null ? customerNamesById[sale.customerId] : null,
+      counterpartyName: sale.customerId != null
+          ? customerNamesById[sale.customerId]
+          : null,
       reference: sale.invoiceNumber,
       note: sale.notes,
       // Only populated from Quick Sale lines (the only SaleItem rows
@@ -255,7 +257,10 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       // own "don't fabricate what isn't really known" standard.
       lineItems: descriptiveItems.isEmpty
           ? null
-          : [for (final item in descriptiveItems) '${item.quantity} × ${item.description}'],
+          : [
+              for (final item in descriptiveItems)
+                '${item.quantity} × ${item.description}',
+            ],
       // Feature (transaction audit center): free to include even on the
       // fast list path — sale.total is already loaded, no extra query
       // needed, unlike lineItems/paymentBreakdown's detail-only cost.
@@ -294,8 +299,13 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       }
       final productLocalId = item.productLocalId;
       if (productLocalId == null) continue;
-      final product = await _productRepository.getProductById(productLocalId, locationId: sale.locationId);
-      resolvedLineItems.add('${item.quantity} × ${product?.product.name ?? 'Unknown item'}');
+      final product = await _productRepository.getProductById(
+        productLocalId,
+        locationId: sale.locationId,
+      );
+      resolvedLineItems.add(
+        '${item.quantity} × ${product?.product.name ?? 'Unknown item'}',
+      );
     }
 
     List<({String method, Money amount})>? paymentBreakdown;
@@ -303,7 +313,11 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       final legs = await _saleRepository.getPaymentsForSale(sale.localId);
       if (legs.isNotEmpty) {
         paymentBreakdown = [
-          for (final leg in legs) (method: _displayPaymentMethod(leg.method) ?? leg.method, amount: leg.amount),
+          for (final leg in legs)
+            (
+              method: _displayPaymentMethod(leg.method) ?? leg.method,
+              amount: leg.amount,
+            ),
         ];
       }
     }
@@ -320,7 +334,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     String? customerName = base.counterpartyName;
     String? customerPhone;
     if (sale.customerId != null) {
-      final customer = await _customerRepository.getCustomerById(sale.customerId!);
+      final customer = await _customerRepository.getCustomerById(
+        sale.customerId!,
+      );
       customerName = customer?.name;
       customerPhone = customer?.phone;
     }
@@ -362,7 +378,10 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     );
   }
 
-  MoneyTransaction _fromExpense(Expense expense, Map<String, String> categoryNamesById) {
+  MoneyTransaction _fromExpense(
+    Expense expense,
+    Map<String, String> categoryNamesById,
+  ) {
     final categoryName = expense.categoryId != null
         ? categoryNamesById[expense.categoryId] ?? 'Other'
         : 'Other';
@@ -392,7 +411,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   }
 
   Future<MoneyTransaction> _fromRepayment(CustomerLedgerEntry entry) async {
-    final customer = await _customerRepository.getCustomerById(entry.customerLocalId);
+    final customer = await _customerRepository.getCustomerById(
+      entry.customerLocalId,
+    );
     final name = customer?.name ?? 'Customer';
     return MoneyTransaction(
       id: 'repayment-${entry.localId}',
@@ -408,7 +429,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   }
 
   Future<MoneyTransaction> _fromPayment(SupplierLedgerEntry entry) async {
-    final supplier = await _supplierRepository.getSupplierById(entry.supplierLocalId);
+    final supplier = await _supplierRepository.getSupplierById(
+      entry.supplierLocalId,
+    );
     final name = supplier?.name ?? 'Supplier';
     return MoneyTransaction(
       id: 'payment-${entry.localId}',
@@ -443,7 +466,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         // rather than showing a raw string.
         return storageKey
             .split('_')
-            .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+            .map(
+              (w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}',
+            )
             .join(' ');
     }
   }
@@ -472,7 +497,10 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       case 'Bank/Card':
         return 'card';
       default:
-        return displayLabel.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+        return displayLabel.trim().toLowerCase().replaceAll(
+          RegExp(r'\s+'),
+          '_',
+        );
     }
   }
 
@@ -481,7 +509,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   /// pre-existing `ExpenseCategory` rows, so a real `Expense.categoryId`
   /// needs a matching row to point at before it can be written.
   Future<String> _resolveExpenseCategoryId(String categoryName) async {
-    final categories = await _expenseCategoryRepository.watchExpenseCategories().first;
+    final categories = await _expenseCategoryRepository
+        .watchExpenseCategories()
+        .first;
     for (final c in categories) {
       if (c.name.toLowerCase() == categoryName.toLowerCase()) return c.localId;
     }
@@ -496,12 +526,14 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     void addBucket(String label, MoneyTransactionType type) {
       final matches = inPeriod.where((t) => t.type == type).toList();
       if (matches.isEmpty) return;
-      rows.add(CategoryTotal(
+      rows.add(
+        CategoryTotal(
         label: label,
         amount: matches.fold<Money>(0, (sum, t) => sum + t.amount),
         count: matches.length,
         type: type,
-      ));
+        ),
+      );
     }
 
     addBucket('Sales income', MoneyTransactionType.saleIncome);
@@ -513,7 +545,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
 
   List<CategoryTotal> _breakdownExpense(List<MoneyTransaction> inPeriod) {
     final byCategory = <String, List<MoneyTransaction>>{};
-    for (final t in inPeriod.where((t) => t.type == MoneyTransactionType.expense)) {
+    for (final t in inPeriod.where(
+      (t) => t.type == MoneyTransactionType.expense,
+    )) {
       byCategory.putIfAbsent(t.category ?? 'Other', () => []).add(t);
     }
     final rows = [
@@ -525,15 +559,18 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
           type: MoneyTransactionType.expense,
         ),
     ];
-    final supplierPayments =
-        inPeriod.where((t) => t.type == MoneyTransactionType.supplierPayment).toList();
+    final supplierPayments = inPeriod
+        .where((t) => t.type == MoneyTransactionType.supplierPayment)
+        .toList();
     if (supplierPayments.isNotEmpty) {
-      rows.add(CategoryTotal(
+      rows.add(
+        CategoryTotal(
         label: 'Supplier payments',
         amount: supplierPayments.fold<Money>(0, (sum, t) => sum + t.amount),
         count: supplierPayments.length,
         type: MoneyTransactionType.supplierPayment,
-      ));
+        ),
+      );
     }
     rows.sort((a, b) => b.amount.compareTo(a.amount));
     return rows;
@@ -574,6 +611,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final paymentsFuture = _supplierCreditRepository.getPaymentsForPeriod(
       start: _epoch,
       end: end,
+      locationLocalId: locationId,
     );
 
     final (sales, expenses, incomeRecords, repayments, payments) = await (
@@ -585,14 +623,22 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     ).wait;
 
     final salesIn = sales.fold<Money>(0, (sum, sale) => sum + sale.amountPaid);
-    final incomeIn =
-        incomeRecords.fold<Money>(0, (sum, income) => sum + income.amount);
-    final repaymentsIn =
-        repayments.fold<Money>(0, (sum, repayment) => sum + repayment.amount);
-    final expensesOut =
-        expenses.fold<Money>(0, (sum, expense) => sum + expense.amount);
-    final paymentsOut =
-        payments.fold<Money>(0, (sum, payment) => sum + payment.amount);
+    final incomeIn = incomeRecords.fold<Money>(
+      0,
+      (sum, income) => sum + income.amount,
+    );
+    final repaymentsIn = repayments.fold<Money>(
+      0,
+      (sum, repayment) => sum + repayment.amount,
+    );
+    final expensesOut = expenses.fold<Money>(
+      0,
+      (sum, expense) => sum + expense.amount,
+    );
+    final paymentsOut = payments.fold<Money>(
+      0,
+      (sum, payment) => sum + payment.amount,
+    );
 
     return salesIn + incomeIn + repaymentsIn - expensesOut - paymentsOut;
   }
@@ -624,16 +670,20 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       previousPeriod.end,
       cashierUserId: cashierUserId,
     );
-    final (inPeriod, previousTransactions) =
-        await (inPeriodFuture, previousTransactionsFuture).wait;
+    final (inPeriod, previousTransactions) = await (
+      inPeriodFuture,
+      previousTransactionsFuture,
+    ).wait;
 
     Money sumWhere(bool Function(MoneyTransaction) test) =>
         inPeriod.where(test).fold<Money>(0, (sum, t) => sum + t.amount);
 
     final moneyIn = sumWhere((t) => t.isInflow);
     final moneyOut = sumWhere((t) => !t.isInflow);
-    final previousNet =
-        previousTransactions.fold<Money>(0, (sum, t) => sum + t.signedAmount);
+    final previousNet = previousTransactions.fold<Money>(
+      0,
+      (sum, t) => sum + t.signedAmount,
+    );
 
     final summary = MoneySummary(
       period: period,
@@ -655,7 +705,11 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     required bool canViewAllSales,
   }) async {
     final cashierUserId = canViewAllSales ? null : currentAuthUserId;
-    final inPeriod = await _transactionsForRange(period.start, period.end, cashierUserId: cashierUserId);
+    final inPeriod = await _transactionsForRange(
+      period.start,
+      period.end,
+      cashierUserId: cashierUserId,
+    );
 
     Money sumWhere(bool Function(MoneyTransaction) test) =>
         inPeriod.where(test).fold<Money>(0, (sum, t) => sum + t.amount);
@@ -669,8 +723,10 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       previousPeriod.end,
       cashierUserId: cashierUserId,
     );
-    final previousNet =
-        previousTransactions.fold<Money>(0, (sum, t) => sum + t.signedAmount);
+    final previousNet = previousTransactions.fold<Money>(
+      0,
+      (sum, t) => sum + t.signedAmount,
+    );
 
     return MoneySummary(
       period: period,
@@ -693,16 +749,22 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     String? searchQuery,
   }) async {
     final cashierUserId = canViewAllSales ? null : currentAuthUserId;
-    final inPeriod = await _transactionsForRange(period.start, period.end, cashierUserId: cashierUserId);
+    final inPeriod = await _transactionsForRange(
+      period.start,
+      period.end,
+      cashierUserId: cashierUserId,
+    );
     final query = searchQuery?.trim().toLowerCase();
     return inPeriod.where((t) {
       if (typeFilter != null && t.type != typeFilter) return false;
       if (category != null && t.category != category) return false;
       if (query != null && query.isNotEmpty) {
-        final haystack = [t.title, t.subtitle, t.counterpartyName, t.reference]
-            .where((s) => s != null)
-            .map((s) => s!.toLowerCase())
-            .join(' ');
+        final haystack = [
+          t.title,
+          t.subtitle,
+          t.counterpartyName,
+          t.reference,
+        ].where((s) => s != null).map((s) => s!.toLowerCase()).join(' ');
         if (!haystack.contains(query)) return false;
       }
       return true;
@@ -727,7 +789,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     // to resolve — counterpartyName isn't consumed by the Purchase
     // History row UI this feeds, only title/subtitle/amount/saleTotal
     // are.
-    final transactions = [for (final sale in sales) _fromSale(sale, const <String, String>{})];
+    final transactions = [
+      for (final sale in sales) _fromSale(sale, const <String, String>{}),
+    ];
     // getSalesForCustomer already orders by saleDate desc; re-sorting
     // here is redundant in the common case but costs nothing and keeps
     // this method correct even if that ordering guarantee ever changes,
@@ -740,20 +804,26 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   @override
   Future<MoneyTransaction?> getTransactionById(String id) async {
     if (id.startsWith('sale-')) {
-      final sale = await _saleRepository.getSaleByLocalId(id.substring('sale-'.length));
+      final sale = await _saleRepository.getSaleByLocalId(
+        id.substring('sale-'.length),
+      );
       return sale == null ? null : _fromSaleDetailed(sale);
     }
     if (id.startsWith('expense-')) {
-      final expense =
-          await _expenseRepository.getExpenseById(id.substring('expense-'.length));
+      final expense = await _expenseRepository.getExpenseById(
+        id.substring('expense-'.length),
+      );
       if (expense == null) return null;
-      final categories = await _expenseCategoryRepository.watchExpenseCategories().first;
+      final categories = await _expenseCategoryRepository
+          .watchExpenseCategories()
+          .first;
       final categoryNamesById = {for (final c in categories) c.localId: c.name};
       return _fromExpense(expense, categoryNamesById);
     }
     if (id.startsWith('income-')) {
-      final income =
-          await _incomeRecordRepository.getIncomeRecordById(id.substring('income-'.length));
+      final income = await _incomeRecordRepository.getIncomeRecordById(
+        id.substring('income-'.length),
+      );
       return income == null ? null : _fromIncomeRecord(income);
     }
     if (id.startsWith('repayment-')) {
@@ -763,8 +833,10 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       // lookup, only ever reached from a user tapping into one specific
       // transaction, not a hot path.
       final localId = id.substring('repayment-'.length);
-      final repayments =
-          await _customerCreditRepository.getRepaymentsForPeriod(start: _epoch, end: DateTime.now());
+      final repayments = await _customerCreditRepository.getRepaymentsForPeriod(
+        start: _epoch,
+        end: DateTime.now(),
+      );
       for (final entry in repayments) {
         if (entry.localId == localId) return _fromRepayment(entry);
       }
@@ -772,8 +844,10 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     }
     if (id.startsWith('payment-')) {
       final localId = id.substring('payment-'.length);
-      final payments =
-          await _supplierCreditRepository.getPaymentsForPeriod(start: _epoch, end: DateTime.now());
+      final payments = await _supplierCreditRepository.getPaymentsForPeriod(
+        start: _epoch,
+        end: DateTime.now(),
+      );
       for (final entry in payments) {
         if (entry.localId == localId) return _fromPayment(entry);
       }
@@ -817,7 +891,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     // more specific text when they gave one, falling back to the
     // category name (matching MockMoneyRepository.recordExpense's own
     // "use category for the title" simplification) when they didn't.
-    final description = (note != null && note.trim().isNotEmpty) ? note.trim() : category;
+    final description = (note != null && note.trim().isNotEmpty)
+        ? note.trim()
+        : category;
     final expense = await _expenseRepository.recordExpense(
       ExpenseDraft(
         locationId: locationId,
@@ -829,7 +905,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         receiptPhotoPath: receiptPhotoPath,
       ),
     );
-    final categories = await _expenseCategoryRepository.watchExpenseCategories().first;
+    final categories = await _expenseCategoryRepository
+        .watchExpenseCategories()
+        .first;
     final categoryNamesById = {for (final c in categories) c.localId: c.name};
     return _fromExpense(expense, categoryNamesById);
   }
@@ -847,12 +925,17 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       );
     }
     final localId = transactionId.substring('expense-'.length);
-    await _expenseRepository.updateReceiptPhoto(localId: localId, photoPath: photoPath);
+    await _expenseRepository.updateReceiptPhoto(
+      localId: localId,
+      photoPath: photoPath,
+    );
     final expense = await _expenseRepository.getExpenseById(localId);
     if (expense == null) {
       throw StateError('Expense $localId no longer exists.');
     }
-    final categories = await _expenseCategoryRepository.watchExpenseCategories().first;
+    final categories = await _expenseCategoryRepository
+        .watchExpenseCategories()
+        .first;
     final categoryNamesById = {for (final c in categories) c.localId: c.name};
     return _fromExpense(expense, categoryNamesById);
   }
@@ -862,9 +945,14 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   @override
   Future<MoneyDrawerSession?> getActiveDrawerSession() async {
     final locationId = await _locationId;
-    final shift = await _cashDrawerShiftRepository.getActiveShift(locationId: locationId);
+    final shift = await _cashDrawerShiftRepository.getActiveShift(
+      locationId: locationId,
+    );
     if (shift == null) return null;
-    return MoneyDrawerSession(openingFloat: shift.openingCash, openedAt: shift.openedAt);
+    return MoneyDrawerSession(
+      openingFloat: shift.openingCash,
+      openedAt: shift.openedAt,
+    );
   }
 
   @override
@@ -873,21 +961,29 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final shift = await _cashDrawerShiftRepository.openShift(
       CashDrawerShiftDraft(openingCash: openingFloat, locationId: locationId),
     );
-    return MoneyDrawerSession(openingFloat: shift.openingCash, openedAt: shift.openedAt);
+    return MoneyDrawerSession(
+      openingFloat: shift.openingCash,
+      openedAt: shift.openedAt,
+    );
   }
 
   @override
   Future<MoneyExpectedCashPreview> computeExpectedCash() async {
     final locationId = await _locationId;
-    final shift = await _cashDrawerShiftRepository.getActiveShift(locationId: locationId);
+    final shift = await _cashDrawerShiftRepository.getActiveShift(
+      locationId: locationId,
+    );
     if (shift == null) {
       throw StateError('No drawer is currently open.');
     }
-    final preview = await _cashDrawerShiftRepository.computeExpectedCash(shift.localId);
+    final preview = await _cashDrawerShiftRepository.computeExpectedCash(
+      shift.localId,
+    );
     return MoneyExpectedCashPreview(
       openingFloat: preview.openingCash,
       cashSales: preview.cashSales,
       cashExpenses: preview.cashExpenses,
+      cashSupplierPayments: preview.cashSupplierPayments,
     );
   }
 
@@ -897,7 +993,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     String? note,
   }) async {
     final locationId = await _locationId;
-    final shift = await _cashDrawerShiftRepository.getActiveShift(locationId: locationId);
+    final shift = await _cashDrawerShiftRepository.getActiveShift(
+      locationId: locationId,
+    );
     if (shift == null) {
       throw StateError('No drawer is currently open.');
     }
@@ -906,7 +1004,9 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     // CashDrawerShiftRepositoryImpl already owns (Volume 8's "opening
     // float + cash sales - cash expenses" formula, verified directly
     // against the backend's own pos_service._compute_shift_totals).
-    final preview = await _cashDrawerShiftRepository.computeExpectedCash(shift.localId);
+    final preview = await _cashDrawerShiftRepository.computeExpectedCash(
+      shift.localId,
+    );
 
     // salesByMethod/expensesTotal: MoneyRepository's own richer,
     // per-method summary shape, which CashDrawerShiftRepository has no
@@ -916,16 +1016,27 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     // construct, the same way MockMoneyRepository derived its own
     // salesByMethod/expensesTotal from its in-memory transaction list
     // rather than a separate query.
-    final sinceOpen = await _transactionsForRange(shift.openedAt, DateTime.now());
+    final sinceOpen = await _transactionsForRange(
+      shift.openedAt,
+      DateTime.now(),
+    );
     final salesByMethod = <String, Money>{};
-    for (final t in sinceOpen.where((t) => t.type == MoneyTransactionType.saleIncome)) {
+    for (final t in sinceOpen.where(
+      (t) => t.type == MoneyTransactionType.saleIncome,
+    )) {
       final method = t.paymentMethod ?? 'Other';
-      salesByMethod.update(method, (v) => v + t.amount, ifAbsent: () => t.amount);
+      salesByMethod.update(
+        method,
+        (v) => v + t.amount,
+        ifAbsent: () => t.amount,
+      );
     }
     final expensesTotal = sinceOpen
-        .where((t) =>
+        .where(
+          (t) =>
             t.type == MoneyTransactionType.expense ||
-            t.type == MoneyTransactionType.supplierPayment)
+              t.type == MoneyTransactionType.supplierPayment,
+        )
         .fold<Money>(0, (sum, t) => sum + t.amount);
     final totalSales = salesByMethod.values.fold<Money>(0, (a, b) => a + b);
 

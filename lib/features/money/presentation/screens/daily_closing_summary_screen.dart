@@ -31,8 +31,8 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
               for (final entry in summary.salesByMethod.entries)
                 ['Sales — ${entry.key}', formatMoney(entry.value, symbol: currencySymbol)],
               ['Total sales', formatMoney(summary.totalSales, symbol: currencySymbol)],
-              ['Expenses', formatMoney(summary.expensesTotal, symbol: currencySymbol)],
-              ['Net for this drawer session', formatMoney(summary.netForDay, symbol: currencySymbol, showSign: true)],
+              ['Expenses and supplier payments', formatMoney(summary.expensesTotal, symbol: currencySymbol)],
+              ['Sales less recorded outflows', formatMoney(summary.netForDay, symbol: currencySymbol, showSign: true)],
               ['Expected cash', formatMoney(summary.expectedCash, symbol: currencySymbol)],
               ['Counted cash', formatMoney(summary.countedCash, symbol: currencySymbol)],
               ['Difference', formatMoney(summary.difference, symbol: currencySymbol, showSign: true)],
@@ -73,7 +73,7 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text('Net for this drawer session', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                Text('Sales less recorded outflows', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
               ],
             ),
           ),
@@ -103,7 +103,7 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                _Row(label: 'Expenses', value: -summary.expensesTotal, symbol: currencySymbol),
+                _Row(label: 'Recorded outflows', value: -summary.expensesTotal, symbol: currencySymbol),
                 const FulusListDivider(indented: false),
                 _Row(label: 'Expected cash', value: summary.expectedCash, symbol: currencySymbol),
                 const FulusListDivider(indented: false),

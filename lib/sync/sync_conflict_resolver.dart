@@ -249,6 +249,11 @@ class SyncConflictResolver {
                   ..where((t) => t.localId.equals(localId)))
                 .getSingleOrNull())
             ?.serverId;
+      case 'supplier_ledger':
+        return (await (_db.select(_db.supplierLedgerEntries)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
       case 'location':
         return (await (_db.select(_db.locations)
                   ..where((t) => t.localId.equals(localId)))

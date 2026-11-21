@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/supplier.dart';
+import '../../core/money/money.dart';
 import '../../domain/repositories/supplier_repository.dart';
 import '../../sync/sync_queue.dart';
 import '../local/database/database.dart';
@@ -77,6 +78,7 @@ class SupplierRepositoryImpl implements SupplierRepository {
     String? phone,
     String? email,
     String? address,
+    Money? outstandingBalance,
     required DateTime updatedAt,
     DateTime? deletedAt,
   }) async {
@@ -84,6 +86,21 @@ class SupplierRepositoryImpl implements SupplierRepository {
           ..where((s) => s.serverId.equals(serverId)))
         .getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
+    var hasPendingLedger = false;
+    if (existing != null) {
+      final queued = await (_db.select(_db.syncQueueItems)
+            ..where((row) => row.entityType.equals('supplier_ledger')))
+          .get();
+      for (final item in queued) {
+        final entry = await (_db.select(_db.supplierLedgerEntries)
+              ..where((row) => row.localId.equals(item.entityLocalId)))
+            .getSingleOrNull();
+        if (entry?.supplierLocalId == existing.localId) {
+          hasPendingLedger = true;
+          break;
+        }
+      }
+    }
 
     await _db.transaction(() async {
       if (existing == null) {
@@ -95,6 +112,7 @@ class SupplierRepositoryImpl implements SupplierRepository {
                 phone: Value(phone),
                 email: Value(email),
                 address: Value(address),
+                outstandingBalance: Value(outstandingBalance ?? 0),
                 createdAt: updatedAt,
                 updatedAt: updatedAt,
                 deletedAt: Value(deletedAt),
@@ -109,6 +127,9 @@ class SupplierRepositoryImpl implements SupplierRepository {
             phone: Value(phone),
             email: Value(email),
             address: Value(address),
+            outstandingBalance: hasPendingLedger || outstandingBalance == null
+                ? const Value.absent()
+                : Value(outstandingBalance),
             deletedAt: Value(deletedAt),
             syncStatus: const Value(SyncStatus.settled),
             updatedAt: Value(updatedAt),

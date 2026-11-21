@@ -97,6 +97,7 @@ class SupplierResponseDto {
     this.phone,
     this.email,
     this.address,
+    this.outstandingBalance,
   });
 
   final String id;
@@ -104,6 +105,8 @@ class SupplierResponseDto {
   final String? phone;
   final String? email;
   final String? address;
+  @MoneyJsonConverter()
+  final Money? outstandingBalance;
 
   factory SupplierResponseDto.fromJson(Map<String, dynamic> json) =>
       _$SupplierResponseDtoFromJson(json);

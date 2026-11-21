@@ -16,7 +16,7 @@ The trace is:
 
 Supplier credit follows:
 
-`Stock In / Pay Supplier → local supplier balance + SupplierLedgerEntries transaction → (no supplier-ledger outbox/API) → device-local UI/report`
+`Stock In / Pay Supplier → local supplier balance + SupplierLedgerEntries transaction → stable supplier_ledger outbox operation → Fulus API idempotency wrapper → Postgres payable ledger + supplier balance projection + sync_changes → canonical reconciliation → restore snapshot / UI / report`
 
 Evidence is source and automated only. No real business inventory, supplier balance, or production records were changed. No physical-device walkthrough or authenticated QA backend mutation was performed.
 
@@ -38,13 +38,13 @@ The local repository applies a stock delta or adjustment immediately and commits
 ### E-002 — Supplier payable balances and history are device-local
 
 **Severity:** Medium
-**Status:** Open implementation; product decision recorded: supplier payables are business-wide accounting state and should use a canonical cloud ledger.
+**Status:** Canonical implementation added on branch `codex/part-i-money-cash-close`; hosted migration-chain SQL test, CI, and QA/device convergence remain pending. Legacy entries with unknown location attribution are deliberately not auto-synced.
 
-Supplier master records sync through the catalog path, but supplier outstanding balances and `SupplierLedgerEntries` do not. The server `suppliers` schema has no payable balance column or supplier-ledger table; restore snapshots explicitly list `supplier_ledger_entries` as omitted. The local restore importer therefore cannot recover payable history from the cloud and imports a supplier's balance as zero when the server row has no balance field. Device loss/replacement or using the supplier ledger from another device can leave the business without its recorded payable history.
+The original implementation stored supplier outstanding balances and `SupplierLedgerEntries` only on the device. This pass adds a canonical server ledger, a server-owned `suppliers.outstanding_balance` projection, location-scoped attribution, idempotent operation handling, outbox sync and reconciliation, sync-change feed inclusion, owner and employee snapshot inclusion, and local restore translation for money units and enum names. A supplier write now requires a valid active location. Cash payments can reference only an open drawer at the same location.
 
-The decision for a multi-device business app is to treat supplier payables as business-wide accounting state. Implementing that safely requires an authoritative server ledger, idempotent mutation/sync, canonical reconciliation, and snapshot/restore coverage. This change set does not pretend that the local-only implementation is fixed; the supplier profile now explicitly discloses that balances/history are device-local and absent from cloud restore until the server contract is implemented.
+The decision for a multi-device business app is to treat supplier payables as business-wide accounting state. Legacy entries with a location inferred from an existing stock movement or drawer are safely attributed by local migration and queued for sync. Entries whose location cannot be established are preserved locally and not queued; assigning them requires an owner to review their real-world location rather than guessing. Whether those entries exist in the target business is not known from this checkout.
 
-**Evidence:** `SupplierCreditRepositoryImpl` writes only local balance/ledger rows; supplier sync payload/reconciler handle supplier profile fields only; current restore SQL omits supplier ledger entries. Historical Part 10 also records the local-only boundary in its ledger cross-check; this report records the inventory workflow impact.
+**Implementation evidence:** `SupplierCreditRepositoryImpl` persists new entries with required location and enqueues stable operations; `SupplierLedgerSyncHandler` waits for canonical supplier, location, movement, and drawer references; SQL validates finance permission, location access, device identity, cash-shift ownership, positive amount, and idempotency. Restore imports canonical balances and ledger rows using strict decimal money and enum mapping. Focused Flutter tests cover attribution, restore conversion, and v28→v29 migration. `supabase/tests/supplier_ledger.sql` exercises server mutation/replay, balances, drawer attribution, change feed, and restore. This SQL has not yet run; CI must pass before this finding can be marked verified.
 
 ### E-003 — Restore did not clear device-local supplier ledger before deleting suppliers
 

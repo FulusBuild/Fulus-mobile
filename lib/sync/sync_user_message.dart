@@ -57,6 +57,7 @@ String syncEntityLabel(String entityType) => switch (entityType) {
       'location' => 'location',
       'customer' => 'customer',
       'customer_ledger' => 'customer payment',
+      'supplier_ledger' => 'supplier payment',
       'sale' => 'sale',
       'return' => 'return',
       'stock_movement' => 'stock change',

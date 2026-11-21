@@ -13,4 +13,10 @@ void main() {
       contains(Permission.manageStock),
     );
   });
+
+  test('manager preset includes cash operations but keeps finance writes explicit', () {
+    final permissions = Permission.defaultsForRole(AuthRole.manager);
+    expect(permissions, contains(Permission.manageCash));
+    expect(permissions, isNot(contains(Permission.manageFinance)));
+  });
 }

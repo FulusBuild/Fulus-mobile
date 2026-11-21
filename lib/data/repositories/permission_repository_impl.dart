@@ -41,6 +41,15 @@ class PermissionRepositoryImpl implements PermissionRepository {
     required Set<Permission> permissions,
     required String grantedBy,
   }) async {
+    final effectivePermissions = Set<Permission>.of(permissions);
+    if (effectivePermissions.contains(Permission.manageFinance) ||
+        effectivePermissions.contains(Permission.manageCash)) {
+      // Manage capabilities include the corresponding read surfaces. Keep
+      // this implication explicit in local state as the cloud permission
+      // projection does, so the tab stays reachable after a grant is saved.
+      effectivePermissions.add(Permission.viewMoney);
+    }
+
     final actor = await (_db.select(_db.users)
           ..where((u) => u.localId.equals(grantedBy)))
         .getSingleOrNull();
@@ -73,8 +82,8 @@ class PermissionRepositoryImpl implements PermissionRepository {
       // A manager may only change grants they themselves hold. Permissions
       // they do not hold may remain on the target, but cannot be added or
       // removed by this actor.
-      final changed = existing.difference(permissions).union(
-        permissions.difference(existing),
+      final changed = existing.difference(effectivePermissions).union(
+        effectivePermissions.difference(existing),
       );
       if (!actorPermissions.containsAll(changed)) {
         throw const AuthFailure.forbidden();
@@ -87,7 +96,7 @@ class PermissionRepositoryImpl implements PermissionRepository {
       // comment. Deleting and re-inserting inside one transaction keeps
       // a reader from ever observing a half-updated set.
       await (_db.delete(_db.userPermissions)..where((p) => p.userId.equals(userId))).go();
-      for (final permission in permissions) {
+      for (final permission in effectivePermissions) {
         await _db.into(_db.userPermissions).insert(
               UserPermissionsCompanion.insert(
                 userId: userId,

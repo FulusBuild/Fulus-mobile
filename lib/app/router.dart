@@ -25,6 +25,7 @@ import '../features/money/presentation/screens/archived_customers_screen.dart';
 import '../features/money/presentation/screens/customer_profile_screen.dart';
 import '../features/money/presentation/screens/customers_list_screen.dart';
 import '../features/money/presentation/screens/daily_closing_count_screen.dart';
+import '../features/money/presentation/screens/cash_drawer_history_screen.dart';
 import '../features/money/presentation/screens/daily_closing_summary_screen.dart';
 import '../features/money/presentation/screens/money_history_screen.dart';
 import '../features/money/presentation/screens/money_screen.dart';
@@ -175,7 +176,14 @@ final appRouter = GoRouter(
     }
     if (user.role == AuthRole.owner) return null;
     final requiredPermissions = location.startsWith('/money')
-        ? {Permission.viewMoney}
+        ? location.startsWith('/money/add-income') ||
+                location.startsWith('/money/add-expense') ||
+                (location.startsWith('/money/suppliers/') &&
+                    location.endsWith('/pay'))
+            ? {Permission.manageFinance}
+            : location.startsWith('/money/daily-closing')
+                ? {Permission.manageCash}
+                : {Permission.viewMoney}
         : location.startsWith('/stock')
             ? _permissionsForStockRoute(location)
             : location.startsWith('/more')
@@ -447,6 +455,14 @@ final appRouter = GoRouter(
                   path: 'daily-closing',
                   name: 'moneyDailyClosingCount',
                   pageBuilder: (context, state) => _fulusNoTransitionPage(state, const DailyClosingCountScreen()),
+                ),
+                GoRoute(
+                  path: 'daily-closing/history',
+                  name: 'moneyCashDrawerHistory',
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(
+                    state,
+                    const CashDrawerHistoryScreen(),
+                  ),
                 ),
                 GoRoute(
                   path: 'daily-closing/summary',

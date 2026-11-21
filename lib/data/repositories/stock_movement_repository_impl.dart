@@ -3,7 +3,8 @@ import 'package:drift/drift.dart';
 import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
-import '../../core/business_engine/stock_movement_validation.dart' as validation;
+import '../../core/business_engine/stock_movement_validation.dart'
+    as validation;
 import '../../domain/entities/stock_movement.dart';
 import '../../domain/entities/supplier_ledger_entry.dart';
 import '../../domain/repositories/stock_movement_repository.dart';
@@ -29,43 +30,66 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
     bool onAccount = false,
   }) async {
     await _db.transaction(() async {
-      final product = await (_db.select(_db.products)
+      final product =
+          await (_db.select(_db.products)
             ..where((row) => row.localId.equals(movement.productLocalId)))
           .getSingleOrNull();
       if (product == null) {
-        throw StateError('No product record exists for ' + movement.productLocalId + '.');
+        throw StateError(
+          'No product record exists for ' + movement.productLocalId + '.',
+        );
       }
       if (!product.tracksStock) {
-        throw StateError('Product ' + movement.productLocalId + ' does not track stock.');
+        throw StateError(
+          'Product ' + movement.productLocalId + ' does not track stock.',
+        );
       }
-      final session = await (_db.select(_db.sessions)
-            ..where((row) => row.id.equals('current')))
-          .getSingleOrNull();
+      final session = await (_db.select(
+        _db.sessions,
+      )..where((row) => row.id.equals('current'))).getSingleOrNull();
       if (session == null ||
           session.activeLocationId == null ||
           session.activeLocationId != movement.locationId) {
-        throw StateError('A valid active location is required for stock movements.');
+        throw StateError(
+          'A valid active location is required for stock movements.',
+        );
       }
       if (product.locationId == null) {
-        throw StateError('Stock movements require a product with resolved location ownership.');
+        throw StateError(
+          'Stock movements require a product with resolved location ownership.',
+        );
       }
       if (product.locationId != movement.locationId) {
-        throw StateError('Stock movement location does not match product ownership.');
+        throw StateError(
+          'Stock movement location does not match product ownership.',
+        );
       }
 
-      final current = await (_db.select(_db.productStockLevels)
-            ..where((row) => row.productLocalId.equals(movement.productLocalId))
-            ..where((row) => row.locationLocalId.equals(movement.locationId)))
+      final current =
+          await (_db.select(_db.productStockLevels)
+                ..where(
+                  (row) => row.productLocalId.equals(movement.productLocalId),
+                )
+                ..where(
+                  (row) => row.locationLocalId.equals(movement.locationId),
+                ))
           .getSingleOrNull();
       final currentStock = current?.currentStock ?? 0;
       final nextStock = switch (movement.movementType) {
         StockMovementType.stockIn => currentStock + movement.quantity!,
         StockMovementType.stockOut => currentStock - movement.quantity!,
         StockMovementType.adjustment => movement.newQuantity!,
-        _ => throw StateError('Unsupported local stock movement type: ${movement.movementType}'),
+        _ => throw StateError(
+          'Unsupported local stock movement type: ${movement.movementType}',
+        ),
       };
-      if (nextStock < 0) throw StateError('Insufficient stock for product ${movement.productLocalId}.');
-      await _db.into(_db.productStockLevels).insertOnConflictUpdate(
+      if (nextStock < 0)
+        throw StateError(
+          'Insufficient stock for product ${movement.productLocalId}.',
+        );
+      await _db
+          .into(_db.productStockLevels)
+          .insertOnConflictUpdate(
         ProductStockLevelsCompanion.insert(
           productLocalId: movement.productLocalId,
           locationLocalId: movement.locationId,
@@ -87,19 +111,26 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
 
         final currentProduct = product;
         final supplierChanged =
-            supplierLocalId != null && supplierLocalId != currentProduct.supplierId;
+            supplierLocalId != null &&
+            supplierLocalId != currentProduct.supplierId;
         if (costPrice != null || supplierChanged) {
-          await (_db.update(_db.products)
-                ..where((row) => row.localId.equals(currentProduct.localId)))
-              .write(
+          await (_db.update(
+            _db.products,
+          )..where((row) => row.localId.equals(currentProduct.localId))).write(
             ProductsCompanion(
-              supplierId: supplierChanged ? Value(supplierLocalId) : const Value.absent(),
-              costPrice: costPrice == null ? const Value.absent() : Value(costPrice),
+              supplierId: supplierChanged
+                  ? Value(supplierLocalId)
+                  : const Value.absent(),
+              costPrice: costPrice == null
+                  ? const Value.absent()
+                  : Value(costPrice),
               syncStatus: const Value(SyncStatus.pending),
               updatedAt: Value(DateTime.now()),
             ),
           );
-          await _syncQueue.enqueue(SyncTask.updateProduct(currentProduct.localId));
+          await _syncQueue.enqueue(
+            SyncTask.updateProduct(currentProduct.localId),
+          );
         }
 
         if (onAccount) {
@@ -119,9 +150,11 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
             );
           }
 
-          final supplier = await (_db.select(_db.suppliers)
-                ..where((row) =>
-                    row.localId.equals(supplierId) & row.deletedAt.isNull()))
+          final supplier =
+              await (_db.select(_db.suppliers)..where(
+                    (row) =>
+                        row.localId.equals(supplierId) & row.deletedAt.isNull(),
+                  ))
               .getSingleOrNull();
           if (supplier == null) {
             throw ArgumentError.value(
@@ -133,23 +166,33 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
 
           final now = DateTime.now();
           final amount = costPrice * movement.quantity!;
-          await (_db.update(_db.suppliers)
-                ..where((row) => row.localId.equals(supplierId)))
-              .write(
+          await (_db.update(
+            _db.suppliers,
+          )..where((row) => row.localId.equals(supplierId))).write(
             SuppliersCompanion(
               outstandingBalance: Value(supplier.outstandingBalance + amount),
               updatedAt: Value(now),
             ),
           );
-          await _db.into(_db.supplierLedgerEntries).insert(
+          final ledgerEntryLocalId = Ulid().toString();
+          await _db
+              .into(_db.supplierLedgerEntries)
+              .insert(
             SupplierLedgerEntriesCompanion.insert(
-              localId: Ulid().toString(),
+              localId: ledgerEntryLocalId,
+              serverId: const Value(null),
               supplierLocalId: supplierId,
+              locationLocalId: Value(movement.locationId),
               entryType: SupplierLedgerEntryType.stockPurchaseOnCredit.name,
               amount: amount,
               stockMovementLocalId: Value(movement.localId),
               createdAt: now,
+              updatedAt: now,
+              syncStatus: SyncStatus.pending,
             ),
+          );
+          await _syncQueue.enqueue(
+            SyncTask.recordSupplierLedgerEntry(ledgerEntryLocalId),
           );
         }
       }
@@ -199,30 +242,47 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
 
   @override
   Future<StockMovement?> getStockMovementById(String localId) async {
-    final row = await (_db.select(_db.stockMovements)..where((m) => m.localId.equals(localId))).getSingleOrNull();
+    final row = await (_db.select(
+      _db.stockMovements,
+    )..where((m) => m.localId.equals(localId))).getSingleOrNull();
     return row?.toDomain();
   }
 
   @override
-  Future<void> markSettled({required String localId, String? operationId, String? serverId}) async {
+  Future<void> markSettled({
+    required String localId,
+    String? operationId,
+    String? serverId,
+  }) async {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
-        final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
+        final current = await (_db.select(
+          _db.syncQueueItems,
+        )..where((q) => q.id.equals(operationId))).getSingleOrNull();
         if (current == null) {
           // Missing operation identity means this completion is stale.
           hasNewerMutation = true;
         } else {
           hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
-            entityType: 'stock_movement', entityLocalId: localId, operationId: operationId, enqueuedAt: current.enqueuedAt,
+            entityType: 'stock_movement',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
           );
         }
       }
-      await (_db.update(_db.stockMovements)..where((m) => m.localId.equals(localId))).write(
+      await (_db.update(
+        _db.stockMovements,
+      )..where((m) => m.localId.equals(localId))).write(
         StockMovementsCompanion(
           serverId: serverId == null ? const Value.absent() : Value(serverId),
-          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
-          updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
+          syncStatus: Value(
+            hasNewerMutation ? SyncStatus.pending : SyncStatus.settled,
+          ),
+          updatedAt: hasNewerMutation
+              ? const Value.absent()
+              : Value(DateTime.now()),
         ),
       );
     });
@@ -244,36 +304,51 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
     DateTime? deletedAt,
   }) async {
     await _db.transaction(() async {
-      final product = await (_db.select(_db.products)
-            ..where((p) => p.serverId.equals(productServerId)))
-          .getSingleOrNull();
-      final location = await (_db.select(_db.locations)
-            ..where((l) => l.serverId.equals(locationServerId)))
-          .getSingleOrNull();
-      if (product == null) throw StateError('Canonical stock movement $serverId references unknown product $productServerId.');
-      if (location == null) throw StateError('Canonical stock movement $serverId references unknown location $locationServerId.');
+      final product = await (_db.select(
+        _db.products,
+      )..where((p) => p.serverId.equals(productServerId))).getSingleOrNull();
+      final location = await (_db.select(
+        _db.locations,
+      )..where((l) => l.serverId.equals(locationServerId))).getSingleOrNull();
+      if (product == null)
+        throw StateError(
+          'Canonical stock movement $serverId references unknown product $productServerId.',
+        );
+      if (location == null)
+        throw StateError(
+          'Canonical stock movement $serverId references unknown location $locationServerId.',
+        );
 
       String? toLocationLocalId;
       if (toLocationServerId != null) {
-        final toLocation = await (_db.select(_db.locations)
+        final toLocation =
+            await (_db.select(_db.locations)
               ..where((l) => l.serverId.equals(toLocationServerId)))
             .getSingleOrNull();
-        if (toLocation == null) throw StateError('Canonical stock movement $serverId references unknown destination location $toLocationServerId.');
+        if (toLocation == null)
+          throw StateError(
+            'Canonical stock movement $serverId references unknown destination location $toLocationServerId.',
+          );
         toLocationLocalId = toLocation.localId;
       }
 
-      var existing = await (_db.select(_db.stockMovements)
-            ..where((m) => m.serverId.equals(serverId)))
-          .getSingleOrNull();
+      var existing = await (_db.select(
+        _db.stockMovements,
+      )..where((m) => m.serverId.equals(serverId))).getSingleOrNull();
       // The command/change-feed carries the same idempotency operation id
       // used by the outbox. Use it to attach the canonical identity to the
       // optimistic local row if the change-feed beats the command response.
       if (existing == null && operationId != null) {
-        final queued = await (_db.select(_db.syncQueueItems)
-              ..where((q) => q.id.equals(operationId) & q.entityType.equals('stock_movement')))
+        final queued =
+            await (_db.select(_db.syncQueueItems)..where(
+                  (q) =>
+                      q.id.equals(operationId) &
+                      q.entityType.equals('stock_movement'),
+                ))
             .getSingleOrNull();
         if (queued != null) {
-          existing = await (_db.select(_db.stockMovements)
+          existing =
+              await (_db.select(_db.stockMovements)
                 ..where((m) => m.localId.equals(queued.entityLocalId)))
               .getSingleOrNull();
         }
@@ -294,7 +369,9 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
         syncStatus: const Value(SyncStatus.settled),
       );
       if (existing == null) {
-        await _db.into(_db.stockMovements).insert(
+        await _db
+            .into(_db.stockMovements)
+            .insert(
           StockMovementsCompanion.insert(
             localId: localId,
             serverId: Value(serverId),
@@ -312,17 +389,23 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
           ),
         );
       } else {
-        await (_db.update(_db.stockMovements)..where((m) => m.localId.equals(localId))).write(values);
+        await (_db.update(
+          _db.stockMovements,
+        )..where((m) => m.localId.equals(localId))).write(values);
       }
     });
   }
 
   @override
   Future<void> reconcileDeleted(String serverId) async {
-    final row = await (_db.select(_db.stockMovements)..where((m) => m.serverId.equals(serverId))).getSingleOrNull();
+    final row = await (_db.select(
+      _db.stockMovements,
+    )..where((m) => m.serverId.equals(serverId))).getSingleOrNull();
     if (row == null) return;
     final now = DateTime.now();
-    await (_db.update(_db.stockMovements)..where((m) => m.localId.equals(row.localId))).write(
+    await (_db.update(
+      _db.stockMovements,
+    )..where((m) => m.localId.equals(row.localId))).write(
       StockMovementsCompanion(
         deletedAt: Value(now),
         updatedAt: Value(now),

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/cloud_restore_importer.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/domain/entities/permission.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 
 void main() {
@@ -49,6 +50,8 @@ void main() {
       'permissions': [
         {'id': 'perm-reports', 'code': 'reports.read'},
         {'id': 'perm-employees', 'code': 'employees.manage'},
+        {'id': 'perm-finance', 'code': 'finance.manage'},
+        {'id': 'perm-cash', 'code': 'cash.manage'},
       ],
       'role_permissions': [
         {'role_id': 'role-manager', 'permission_id': 'perm-reports'},
@@ -56,6 +59,8 @@ void main() {
       ],
       'business_member_permissions': [
         {'business_id': 'business-1', 'user_id': 'staff-1', 'permission_id': 'perm-reports'},
+        {'business_id': 'business-1', 'user_id': 'staff-1', 'permission_id': 'perm-finance'},
+        {'business_id': 'business-1', 'user_id': 'staff-1', 'permission_id': 'perm-cash'},
       ],
       'location_memberships': [],
       'locations': [],
@@ -86,7 +91,7 @@ void main() {
 
     expect(result.importedCounts['restored_staff_users'], 1);
     expect(result.importedCounts['restored_employees'], 1);
-    expect(result.importedCounts['restored_user_permissions'], 1);
+    expect(result.importedCounts['restored_user_permissions'], 4);
 
     final users = await db.select(db.users).get();
     final employees = await db.select(db.employees).get();
@@ -99,6 +104,8 @@ void main() {
     expect(users.single.role, AuthRole.manager);
     expect(users.single.isActive, isTrue);
     expect(permissions.map((row) => row.permission.name), contains('viewReports'));
+    expect(permissions.map((row) => row.permission), contains(Permission.manageFinance));
+    expect(permissions.map((row) => row.permission), contains(Permission.manageCash));
     expect(permissions.map((row) => row.permission.name), isNot(contains('manageEmployees')));
   });
 

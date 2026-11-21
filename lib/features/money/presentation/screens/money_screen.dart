@@ -85,6 +85,10 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     if (_builtForPeriod != period) _load(period);
 
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canManageFinance = user?.role == AuthRole.owner || permissions.contains(Permission.manageFinance);
+    final canManageCash = user?.role == AuthRole.owner || permissions.contains(Permission.manageCash);
 
     return FulusScreen(
       title: 'Money',
@@ -162,6 +166,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             return _MoneyQuickActions(
                               summary: snapshot.data!,
                               currencySymbol: currencySymbol,
+                              canManageFinance: canManageFinance,
                             );
                           },
                         ),
@@ -247,16 +252,24 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                                 onTap: () =>
                                     context.pushNamed('moneySuppliers'),
                               ),
-                              const FulusListDivider(),
-                              FulusListRow(
-                                leading: const Icon(FulusIcons.money),
-                                title: const Text('Daily cash close'),
-                                subtitle: const Text(
-                                  'Count the drawer and review the difference',
+                              if (canManageCash) ...[
+                                const FulusListDivider(),
+                                FulusListRow(
+                                  leading: const Icon(Icons.history_rounded),
+                                  title: const Text('Cash drawer history'),
+                                  subtitle: const Text('Review previous counts and differences'),
+                                  onTap: () => context.pushNamed('moneyCashDrawerHistory'),
                                 ),
-                                onTap: () =>
-                                    context.pushNamed('moneyDailyClosingCount'),
-                              ),
+                                const FulusListDivider(),
+                                FulusListRow(
+                                  leading: const Icon(FulusIcons.money),
+                                  title: const Text('Daily cash close'),
+                                  subtitle: const Text(
+                                    'Count the drawer and review the difference',
+                                  ),
+                                  onTap: () => context.pushNamed('moneyDailyClosingCount'),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -354,10 +367,12 @@ class _MoneyQuickActions extends StatelessWidget {
   const _MoneyQuickActions({
     required this.summary,
     required this.currencySymbol,
+    required this.canManageFinance,
   });
 
   final MoneySummary summary;
   final String currencySymbol;
+  final bool canManageFinance;
 
   @override
   Widget build(BuildContext context) {
@@ -368,8 +383,8 @@ class _MoneyQuickActions extends StatelessWidget {
         art: FulusArt.moneyIn,
         label: 'Money In',
         value: formatMoney(summary.moneyIn, symbol: currencySymbol),
-        actionLabel: 'Record income',
-        onTap: () => context.pushNamed('moneyAddIncome'),
+        actionLabel: canManageFinance ? 'Record income' : 'View total',
+        onTap: canManageFinance ? () => context.pushNamed('moneyAddIncome') : null,
       ),
       _MoneyAction(
         color: AppColors.warning,
@@ -377,8 +392,8 @@ class _MoneyQuickActions extends StatelessWidget {
         art: FulusArt.moneyOut,
         label: 'Money Out',
         value: formatMoney(summary.moneyOut, symbol: currencySymbol),
-        actionLabel: 'Record expense',
-        onTap: () => context.pushNamed('moneyAddExpense'),
+        actionLabel: canManageFinance ? 'Record expense' : 'View total',
+        onTap: canManageFinance ? () => context.pushNamed('moneyAddExpense') : null,
       ),
     ];
 
@@ -452,11 +467,12 @@ class _MoneyActionCell extends StatelessWidget {
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 16,
-                  color: AppColors.textSecondaryOf(context),
-                ),
+                if (action.onTap != null)
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: AppColors.textSecondaryOf(context),
+                  ),
               ],
             ),
           ],
@@ -483,7 +499,7 @@ class _MoneyAction {
   final String label;
   final String value;
   final String actionLabel;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 }
 
 class _MoneyError extends StatelessWidget {

@@ -14,6 +14,10 @@ String permissionLabel(Permission permission) {
   switch (permission) {
     case Permission.viewMoney:
       return 'View Money';
+    case Permission.manageFinance:
+      return 'Manage income and expenses';
+    case Permission.manageCash:
+      return 'Manage cash drawer';
     case Permission.viewDashboardStats:
       return 'View dashboard stats';
     case Permission.approveWithoutSupervisor:
@@ -37,6 +41,10 @@ String permissionDescription(Permission permission) {
   switch (permission) {
     case Permission.viewMoney:
       return "See the Money tab and this business's transaction history.";
+    case Permission.manageFinance:
+      return 'Record income, expenses, and supplier payments.';
+    case Permission.manageCash:
+      return 'Open and close cash drawer sessions and record cash counts.';
     case Permission.viewDashboardStats:
       return "See Home's notices, quick actions, and activity feed — not just their own shift.";
     case Permission.approveWithoutSupervisor:
