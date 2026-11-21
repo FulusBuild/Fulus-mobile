@@ -885,6 +885,7 @@ class _MoreScreen extends ConsumerWidget {
 
     return FulusScreen(
       title: 'More',
+      subtitle: 'Your business tools and settings',
       applyPadding: false,
       body: LayoutBuilder(
         builder: (context, constraints) => tileGrid(

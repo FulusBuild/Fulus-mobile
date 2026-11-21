@@ -368,6 +368,7 @@ class _MoneyQuickActions extends StatelessWidget {
         art: FulusArt.moneyIn,
         label: 'Money In',
         value: formatMoney(summary.moneyIn, symbol: currencySymbol),
+        actionLabel: 'Record income',
         onTap: () => context.pushNamed('moneyAddIncome'),
       ),
       _MoneyAction(
@@ -376,6 +377,7 @@ class _MoneyQuickActions extends StatelessWidget {
         art: FulusArt.moneyOut,
         label: 'Money Out',
         value: formatMoney(summary.moneyOut, symbol: currencySymbol),
+        actionLabel: 'Record expense',
         onTap: () => context.pushNamed('moneyAddExpense'),
       ),
     ];
@@ -398,7 +400,7 @@ class _MoneyActionCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FulusPressable(
-      semanticsLabel: action.label + ', ' + action.value,
+      semanticsLabel: '${action.label}, ${action.value}, ${action.actionLabel}',
       onPressed: action.onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 112),
@@ -436,6 +438,27 @@ class _MoneyActionCell extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    action.actionLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: AppColors.textSecondaryOf(context),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -450,6 +473,7 @@ class _MoneyAction {
     required this.art,
     required this.label,
     required this.value,
+    required this.actionLabel,
     required this.onTap,
   });
 
@@ -458,6 +482,7 @@ class _MoneyAction {
   final FulusArt art;
   final String label;
   final String value;
+  final String actionLabel;
   final VoidCallback onTap;
 }
 

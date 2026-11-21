@@ -249,6 +249,7 @@ class _StockBody extends ConsumerWidget {
                             (constraints.maxWidth - gap * (columns - 1)) /
                             columns;
                         return Wrap(
+                          alignment: WrapAlignment.center,
                           spacing: gap,
                           runSpacing: gap,
                           children: [

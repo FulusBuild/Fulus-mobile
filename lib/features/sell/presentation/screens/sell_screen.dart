@@ -499,21 +499,32 @@ class _ProductList extends StatelessWidget {
     }
 
     final inset = fulusHorizontalInset(context);
-    return GridView.builder(
-      padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xl),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: MediaQuery.sizeOf(context).width < 390 ? 2 : 3,
-        crossAxisSpacing: AppSpacing.sm,
-        mainAxisSpacing: AppSpacing.sm,
-        childAspectRatio: 0.82,
-      ),
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        final product = products[index];
-        return _ProductRow(
-          entry: product,
-          currency: currency,
-          enabled: cartReady,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.25;
+        final columns = constraints.maxWidth >= 560 && !largeText ? 3 : 2;
+        return GridView.builder(
+          padding: EdgeInsets.fromLTRB(
+            inset,
+            AppSpacing.sm,
+            inset,
+            AppSpacing.xl,
+          ),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: AppSpacing.sm,
+            mainAxisSpacing: AppSpacing.sm,
+            childAspectRatio: 0.86,
+          ),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return _ProductRow(
+              entry: product,
+              currency: currency,
+              enabled: cartReady,
+            );
+          },
         );
       },
     );
@@ -579,7 +590,9 @@ class _ProductRow extends StatelessWidget {
 
     return FulusPressable(
       onPressed: !enabled || out ? null : () => _add(context),
-      semanticsLabel: product.name,
+      semanticsLabel:
+          '${product.name}, ${formatMoney(product.sellingPrice, symbol: currency)}'
+          '${out ? ', out of stock' : ''}',
       child: Opacity(
         opacity: out ? 0.5 : 1,
         child: Stack(
@@ -664,9 +677,21 @@ class _ProductRow extends StatelessWidget {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: AppColors.errorOf(context),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
-                  child: SizedBox(width: 8, height: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
+                    ),
+                    child: Text(
+                      'Out of stock',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.onColor(AppColors.error),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
               ),
           ],
