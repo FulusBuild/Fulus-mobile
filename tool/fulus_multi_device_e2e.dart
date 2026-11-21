@@ -426,8 +426,7 @@ Future<String> _runFinancialConvergenceScenario(
   // balance depends on which transaction commits first. Only the final
   // authoritative snapshot is order-independent.
   final repaymentData = _actionData(results[1]);
-  final firstRepaymentBalance =
-      (repaymentData?['new_balance'] as num?)?.toDouble();
+  final firstRepaymentBalance = _wireMoneyNumber(repaymentData?['new_balance']);
   if (firstRepaymentBalance == null) {
     throw StateError(
       'P16 concurrent repayment returned no authoritative balance: ${results[1].data}',
@@ -479,8 +478,7 @@ Future<String> _runFinancialConvergenceScenario(
   });
   _expect2xx(repaymentReplay, 'P16 customer.repayment idempotent replay');
   final replayData = _actionData(repaymentReplay);
-  if ((replayData?['new_balance'] as num?)?.toDouble() !=
-      firstRepaymentBalance) {
+  if (_wireMoneyNumber(replayData?['new_balance']) != firstRepaymentBalance) {
     throw StateError(
       'P16 repayment replay changed the authoritative result: ${repaymentReplay.data}',
     );
@@ -504,7 +502,7 @@ Future<String> _runFinancialConvergenceScenario(
   });
   _expect2xx(returnResponse, 'P16 credit return');
   final returnData = _actionData(returnResponse);
-  if ((returnData?['credit_reversal'] as num?)?.toDouble() != 150) {
+  if (_wireMoneyNumber(returnData?['credit_reversal']) != 150) {
     throw StateError('P16 credit return did not reverse exactly 150: ' + returnResponse.data.toString());
   }
 
@@ -788,3 +786,12 @@ String _required(String name) {
   return value;
 }
 
+/// Parse monetary values returned by the API. The strict money-wire contract
+/// serializes NUMERIC fields as two-decimal strings; accept numbers as well so
+/// this E2E remains compatible with non-normalized legacy responses.
+double? _wireMoneyNumber(Object? value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
