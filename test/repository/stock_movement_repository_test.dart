@@ -144,8 +144,11 @@ void main() {
           .getSingle();
       expect(supplier.outstandingBalance, 301000);
       final queue = await db.select(db.syncQueueItems).get();
-      expect(queue, hasLength(2));
-      expect(queue.map((q) => q.entityType), containsAll(<String>['product', 'stock_movement']));
+      expect(queue, hasLength(3));
+      expect(
+        queue.map((q) => q.entityType),
+        containsAll(<String>['product', 'stock_movement', 'supplier_ledger']),
+      );
     });
 
     test('rolls back stock, movement, product metadata, outbox, and supplier credit when credit validation fails', () async {
