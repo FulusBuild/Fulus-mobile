@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const url = Deno.env.get("SUPABASE_URL")!;
 const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const MONEY_WIRE_KEYS = new Set([
-  "amount", "credit_limit", "outstanding_balance", "opening_cash",
+  "amount", "new_balance", "balance_after", "credit_limit", "outstanding_balance", "opening_cash",
   "closing_cash", "cash_difference", "subtotal", "whole_cart_discount",
   "discount", "tax", "total", "amount_paid", "cash_tendered",
   "cash_change", "unit_price", "cost_price_at_sale", "line_total",
@@ -138,6 +138,7 @@ Deno.serve(async req => {
       "product",
       "customer",
       "customer_ledger",
+      "supplier_ledger",
     ]);
     const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>, customerLocationByCustomerId: Map<string, string>) => {
       if (entityType === "location") {
@@ -764,6 +765,7 @@ Deno.serve(async req => {
     }));
   }
   else if (action === "customer_repayment") ({ data, error } = await serviceDb.rpc("fulus_api_record_customer_repayment", { target_user_id: uid, target_business_id: bid, target_customer_id: b.customer_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_note: typeof b.note === "string" ? b.note : null, target_device_id: d.id }));
+  else if (action === "supplier_ledger_create") ({ data, error } = await serviceDb.rpc("fulus_api_record_supplier_ledger_entry", { target_user_id: uid, target_business_id: bid, target_supplier_id: b.supplier_id, target_location_id: b.location_id, target_entry_type: b.entry_type, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_note: typeof b.note === "string" ? b.note : null, target_stock_movement_id: typeof b.stock_movement_id === "string" ? b.stock_movement_id : null, target_cash_drawer_shift_id: typeof b.cash_drawer_shift_id === "string" ? b.cash_drawer_shift_id : null, target_created_at: typeof b.created_at === "string" ? b.created_at : null, target_device_id: d.id }));
   else if (action === "expense_create") ({ data, error } = await serviceDb.rpc("fulus_api_record_expense", { target_user_id: uid, target_business_id: bid, target_location_id: b.location_id, target_amount: Number(b.amount), target_category: typeof b.category === "string" ? b.category : "general", target_description: typeof b.description === "string" ? b.description : null, target_operation_id: oid, target_device_id: d.id, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null }));
   else if (action === "return_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_return_atomic_v2", { target_user_id: uid, target_business_id: bid, target_sale_id: b.sale_id, target_client_reference: oid, target_reason: typeof b.reason === "string" ? b.reason : "Customer return", target_refund_amount: Number(b.refund_amount ?? 0), target_refund_method: typeof b.refund_method === "string" ? b.refund_method : "cash", target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
   else if (action === "inventory_adjust") ({ data, error } = await serviceDb.rpc("fulus_api_apply_inventory_adjustment", { target_user_id: uid, target_business_id: bid, target_product_id: b.product_id, target_location_id: b.location_id, target_quantity_delta: Number(b.quantity_delta), target_reason: b.reason, target_operation_id: oid, target_device_id: d.id }));

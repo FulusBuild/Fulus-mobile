@@ -213,9 +213,9 @@ class AppDatabase extends _$AppDatabase {
   /// business cursor. The cursor and blocked change therefore survive process
   /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 29;
 
-  static const int schemaVersionForRestoreValidation = 26;
+  static const int schemaVersionForRestoreValidation = 29;
 
   @override
   MigrationStrategy get migration {
@@ -549,121 +549,218 @@ class AppDatabase extends _$AppDatabase {
                 'CAST(ROUND(${column.name} * 100) AS INTEGER)',
               );
 
-          await m.alterTable(TableMigration(
+          await m.alterTable(
+            TableMigration(
             products,
             newColumns: [products.locationId],
             columnTransformer: {
               products.costPrice: moneyColumnTransform(products.costPrice),
-              products.sellingPrice: moneyColumnTransform(products.sellingPrice),
+                products.sellingPrice: moneyColumnTransform(
+                  products.sellingPrice,
+                ),
             },
-          ));
-          await m.alterTable(TableMigration(
+            ),
+          );
+          await m.alterTable(
+            TableMigration(
             customers,
             newColumns: [customers.locationId],
             columnTransformer: {
-              customers.outstandingBalance:
-                  moneyColumnTransform(customers.outstandingBalance),
+                customers.outstandingBalance: moneyColumnTransform(
+                  customers.outstandingBalance,
+                ),
               if (from >= 3)
-                customers.creditLimit:
-                    moneyColumnTransform(customers.creditLimit),
+                  customers.creditLimit: moneyColumnTransform(
+                    customers.creditLimit,
+                  ),
             },
-          ));
-          await m.alterTable(TableMigration(sales, columnTransformer: {
+            ),
+          );
+          await m.alterTable(
+            TableMigration(
+              sales,
+              columnTransformer: {
             sales.subtotal: moneyColumnTransform(sales.subtotal),
             if (from >= 3)
-              sales.wholeCartDiscount:
-                  moneyColumnTransform(sales.wholeCartDiscount),
+                  sales.wholeCartDiscount: moneyColumnTransform(
+                    sales.wholeCartDiscount,
+                  ),
             sales.discount: moneyColumnTransform(sales.discount),
             sales.tax: moneyColumnTransform(sales.tax),
             sales.total: moneyColumnTransform(sales.total),
             sales.amountPaid: moneyColumnTransform(sales.amountPaid),
-          }));
-          await m.alterTable(TableMigration(saleItems, columnTransformer: {
+              },
+            ),
+          );
+          await m.alterTable(
+            TableMigration(
+              saleItems,
+              columnTransformer: {
             saleItems.unitPrice: moneyColumnTransform(saleItems.unitPrice),
-            saleItems.costPriceAtSale:
-                moneyColumnTransform(saleItems.costPriceAtSale),
+                saleItems.costPriceAtSale: moneyColumnTransform(
+                  saleItems.costPriceAtSale,
+                ),
             if (from >= 3)
-              saleItems.lineDiscount:
-                  moneyColumnTransform(saleItems.lineDiscount),
-          }));
+                  saleItems.lineDiscount: moneyColumnTransform(
+                    saleItems.lineDiscount,
+                  ),
+              },
+            ),
+          );
           // These tables were introduced in v3. A direct v1/v2 upgrade
           // creates them from today's definitions (already integer minor
           // units), rather than their historical pre-v17 REAL definitions.
           // Only convert them when they existed before this upgrade began.
           if (from >= 3) {
-            await m.alterTable(TableMigration(salePayments, columnTransformer: {
-              salePayments.amount: moneyColumnTransform(salePayments.amount),
-            }));
-            await m.alterTable(TableMigration(customerLedgerEntries,
+            await m.alterTable(
+              TableMigration(
+                salePayments,
                 columnTransformer: {
-              customerLedgerEntries.amount:
-                  moneyColumnTransform(customerLedgerEntries.amount),
-            }));
-            await m.alterTable(TableMigration(returnRequests, columnTransformer: {
-              returnRequests.refundAmount:
-                  moneyColumnTransform(returnRequests.refundAmount),
-            }));
-            await m.alterTable(TableMigration(draftCarts, columnTransformer: {
-              draftCarts.wholeCartDiscount:
-                  moneyColumnTransform(draftCarts.wholeCartDiscount),
+                  salePayments.amount: moneyColumnTransform(
+                    salePayments.amount,
+                  ),
+                },
+              ),
+            );
+            await m.alterTable(
+              TableMigration(
+                customerLedgerEntries,
+                columnTransformer: {
+                  customerLedgerEntries.amount: moneyColumnTransform(
+                    customerLedgerEntries.amount,
+                  ),
+                },
+              ),
+            );
+            await m.alterTable(
+              TableMigration(
+                returnRequests,
+                columnTransformer: {
+                  returnRequests.refundAmount: moneyColumnTransform(
+                    returnRequests.refundAmount,
+                  ),
+                },
+              ),
+            );
+            await m.alterTable(
+              TableMigration(
+                draftCarts,
+                columnTransformer: {
+                  draftCarts.wholeCartDiscount: moneyColumnTransform(
+                    draftCarts.wholeCartDiscount,
+                  ),
               draftCarts.tax: moneyColumnTransform(draftCarts.tax),
-            }));
-            await m.alterTable(TableMigration(draftCartItems,
+                },
+              ),
+            );
+            await m.alterTable(
+              TableMigration(
+                draftCartItems,
                 columnTransformer: {
-              draftCartItems.unitPrice:
-                  moneyColumnTransform(draftCartItems.unitPrice),
-              draftCartItems.costPriceAtSale:
-                  moneyColumnTransform(draftCartItems.costPriceAtSale),
-              draftCartItems.lineDiscount:
-                  moneyColumnTransform(draftCartItems.lineDiscount),
-            }));
-            await m.alterTable(TableMigration(draftCartPayments,
+                  draftCartItems.unitPrice: moneyColumnTransform(
+                    draftCartItems.unitPrice,
+                  ),
+                  draftCartItems.costPriceAtSale: moneyColumnTransform(
+                    draftCartItems.costPriceAtSale,
+                  ),
+                  draftCartItems.lineDiscount: moneyColumnTransform(
+                    draftCartItems.lineDiscount,
+                  ),
+                },
+              ),
+            );
+            await m.alterTable(
+              TableMigration(
+                draftCartPayments,
                 columnTransformer: {
-              draftCartPayments.amount:
-                  moneyColumnTransform(draftCartPayments.amount),
-            }));
+                  draftCartPayments.amount: moneyColumnTransform(
+                    draftCartPayments.amount,
+                  ),
+                },
+              ),
+            );
           }
-          await m.alterTable(TableMigration(expenses, columnTransformer: {
+          await m.alterTable(
+            TableMigration(
+              expenses,
+              columnTransformer: {
             expenses.amount: moneyColumnTransform(expenses.amount),
-          }));
-          await m.alterTable(TableMigration(incomeRecords, columnTransformer: {
-            incomeRecords.amount: moneyColumnTransform(incomeRecords.amount),
-          }));
+              },
+            ),
+          );
+          await m.alterTable(
+            TableMigration(
+              incomeRecords,
+              columnTransformer: {
+                incomeRecords.amount: moneyColumnTransform(
+                  incomeRecords.amount,
+                ),
+              },
+            ),
+          );
           // These tables were introduced in v3 and are created with today's
           // integer minor-unit definitions during a direct v1/v2 upgrade.
           if (from >= 3) {
-            await m.alterTable(TableMigration(suppliers, columnTransformer: {
-              suppliers.outstandingBalance:
-                  moneyColumnTransform(suppliers.outstandingBalance),
-            }));
-            await m.alterTable(TableMigration(supplierLedgerEntries,
+            await m.alterTable(
+              TableMigration(
+                suppliers,
                 columnTransformer: {
-              supplierLedgerEntries.amount:
-                  moneyColumnTransform(supplierLedgerEntries.amount),
-            }));
-            await m.alterTable(TableMigration(taxRemittances,
+                  suppliers.outstandingBalance: moneyColumnTransform(
+                    suppliers.outstandingBalance,
+                  ),
+                },
+              ),
+            );
+            await m.alterTable(
+              TableMigration(
+                supplierLedgerEntries,
                 columnTransformer: {
-              taxRemittances.amountRemitted:
-                  moneyColumnTransform(taxRemittances.amountRemitted),
-            }));
-            await m.alterTable(TableMigration(cashDrawerShifts,
+                  supplierLedgerEntries.amount: moneyColumnTransform(
+                    supplierLedgerEntries.amount,
+                  ),
+                },
+              ),
+            );
+            await m.alterTable(
+              TableMigration(
+                taxRemittances,
                 columnTransformer: {
-              cashDrawerShifts.openingCash:
-                  moneyColumnTransform(cashDrawerShifts.openingCash),
-              cashDrawerShifts.closingCash:
-                  moneyColumnTransform(cashDrawerShifts.closingCash),
-              cashDrawerShifts.cashDifference:
-                  moneyColumnTransform(cashDrawerShifts.cashDifference),
-            }));
+                  taxRemittances.amountRemitted: moneyColumnTransform(
+                    taxRemittances.amountRemitted,
+                  ),
+                },
+              ),
+            );
+            await m.alterTable(
+              TableMigration(
+                cashDrawerShifts,
+                columnTransformer: {
+                  cashDrawerShifts.openingCash: moneyColumnTransform(
+                    cashDrawerShifts.openingCash,
+                  ),
+                  cashDrawerShifts.closingCash: moneyColumnTransform(
+                    cashDrawerShifts.closingCash,
+                  ),
+                  cashDrawerShifts.cashDifference: moneyColumnTransform(
+                    cashDrawerShifts.cashDifference,
+                  ),
+                },
+              ),
+            );
           }
 
           // Employees were introduced in v2. A direct v1 upgrade creates
           // them from the current integer minor-unit schema; only v2-v16
           // databases contain the legacy REAL salary that needs conversion.
           if (from >= 2) {
-            await m.alterTable(TableMigration(employees, columnTransformer: {
+            await m.alterTable(
+              TableMigration(
+                employees,
+                columnTransformer: {
               employees.salary: moneyColumnTransform(employees.salary),
-            }));
+                },
+              ),
+            );
           }
         }
         if (from < 14) {
@@ -734,16 +831,18 @@ class AppDatabase extends _$AppDatabase {
           // only databases whose physical table still lacks the new column or
           // retains NOT NULL on quantity; fresh v25 installs already have the
           // current shape and may already contain valid adjustment rows.
-          final stockMovementColumns =
-              await customSelect('PRAGMA table_info(stock_movements)').get();
+          final stockMovementColumns = await customSelect(
+            'PRAGMA table_info(stock_movements)',
+          ).get();
           final hasNewQuantity = stockMovementColumns.any(
             (row) => row.data['name'] == 'new_quantity',
           );
           final quantityColumns = stockMovementColumns
               .where((row) => row.data['name'] == 'quantity')
               .toList();
-          final quantityColumn =
-              quantityColumns.isEmpty ? null : quantityColumns.first;
+          final quantityColumn = quantityColumns.isEmpty
+              ? null
+              : quantityColumns.first;
           final quantityIsNotNull =
               quantityColumn != null && quantityColumn.data['notnull'] == 1;
           if (stockMovementColumns.isNotEmpty &&
@@ -768,14 +867,18 @@ class AppDatabase extends _$AppDatabase {
           // money conversion. Those TableMigrations already add the current
           // locationId column as NULL for legacy rows, so check the physical
           // schema before adding it here for v17-v24 installs.
-          final productColumns =
-              await customSelect('PRAGMA table_info(products)').get();
+          final productColumns = await customSelect(
+            'PRAGMA table_info(products)',
+          ).get();
           if (!productColumns.any((row) => row.data['name'] == 'location_id')) {
             await m.addColumn(products, products.locationId);
           }
-          final customerColumns =
-              await customSelect('PRAGMA table_info(customers)').get();
-          if (!customerColumns.any((row) => row.data['name'] == 'location_id')) {
+          final customerColumns = await customSelect(
+            'PRAGMA table_info(customers)',
+          ).get();
+          if (!customerColumns.any(
+            (row) => row.data['name'] == 'location_id',
+          )) {
             await m.addColumn(customers, customers.locationId);
           }
 
@@ -797,6 +900,98 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
+        if (from < 27) {
+          // Cash supplier payments can be attributed to the drawer session
+          // that funded them. Nullable preserves existing ledger history and
+          // means payments made outside an open drawer remain unassigned.
+          final ledgerColumns = await customSelect(
+            'PRAGMA table_info(supplier_ledger_entries)',
+          ).get();
+          if (!ledgerColumns.any(
+            (row) => row.data['name'] == 'cash_drawer_shift_local_id',
+          )) {
+            await m.addColumn(
+              supplierLedgerEntries,
+              supplierLedgerEntries.cashDrawerShiftLocalId,
+            );
+          }
+        }
+
+        if (from < 28) {
+          final ledgerColumns = await customSelect(
+            'PRAGMA table_info(supplier_ledger_entries)',
+          ).get();
+          if (!ledgerColumns.any(
+            (row) => row.data['name'] == 'location_local_id',
+          )) {
+            await m.addColumn(
+              supplierLedgerEntries,
+              supplierLedgerEntries.locationLocalId,
+            );
+          }
+          // These legacy relations identify location unambiguously. Leave all
+          // other historical rows null rather than guessing their location.
+          await customStatement('''
+            UPDATE supplier_ledger_entries
+            SET location_local_id = (
+              SELECT location_id FROM cash_drawer_shifts
+              WHERE cash_drawer_shifts.local_id = supplier_ledger_entries.cash_drawer_shift_local_id
+            )
+            WHERE location_local_id IS NULL
+              AND cash_drawer_shift_local_id IS NOT NULL
+          ''');
+          await customStatement('''
+            UPDATE supplier_ledger_entries
+            SET location_local_id = (
+              SELECT location_id FROM stock_movements
+              WHERE stock_movements.local_id = supplier_ledger_entries.stock_movement_local_id
+            )
+            WHERE location_local_id IS NULL
+              AND stock_movement_local_id IS NOT NULL
+          ''');
+        }
+
+        if (from < 29) {
+          final columns = await customSelect(
+            'PRAGMA table_info(supplier_ledger_entries)',
+          ).get();
+          final names = columns.map((row) => row.data['name']).toSet();
+          if (!names.contains('server_id')) {
+            await customStatement(
+              'ALTER TABLE supplier_ledger_entries ADD COLUMN server_id TEXT',
+            );
+          }
+          if (!names.contains('updated_at')) {
+            await customStatement(
+              'ALTER TABLE supplier_ledger_entries ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              'UPDATE supplier_ledger_entries SET updated_at = created_at WHERE updated_at = 0',
+            );
+          }
+          if (!names.contains('sync_status')) {
+            await customStatement(
+              "ALTER TABLE supplier_ledger_entries ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending'",
+            );
+          }
+          if (!names.contains('deleted_at')) {
+            await customStatement(
+              'ALTER TABLE supplier_ledger_entries ADD COLUMN deleted_at INTEGER',
+            );
+          }
+          // The old device-local ledger is durable user data. Queue every
+          // active historical entry so it becomes canonical after supplier,
+          // location, stock movement, and drawer dependencies are synced.
+          await customStatement('''
+            INSERT OR IGNORE INTO sync_queue_items
+              (id, entity_type, entity_local_id, operation, priority, enqueued_at)
+            SELECT 'supplier-ledger:' || local_id, 'supplier_ledger', local_id,
+              'create', 1, created_at
+            FROM supplier_ledger_entries
+            WHERE server_id IS NULL AND deleted_at IS NULL
+              AND location_local_id IS NOT NULL
+          ''');
+        }
       },
       beforeOpen: (details) async {
         // Foreign keys are OFF by default in sqlite3 unless explicitly

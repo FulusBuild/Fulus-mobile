@@ -32,6 +32,7 @@ class CloudRestoreImporter {
     'sale_payments': 'sale_payments',
     'product_stock_levels': 'product_stock_levels',
     'customer_ledger_entries': 'customer_ledger_entries',
+    'supplier_ledger_entries': 'supplier_ledger_entries',
     'inventory_movements': 'stock_movements',
     'expense_categories': 'expense_categories',
     'expenses': 'expenses',
@@ -65,6 +66,7 @@ class CloudRestoreImporter {
     'sale_items': {'unit_price', 'cost_price_at_sale', 'line_discount'},
     'sale_payments': {'amount', 'tendered_amount'},
     'customer_ledger_entries': {'amount'},
+    'supplier_ledger_entries': {'amount'},
     'expenses': {'amount'},
     'income_records': {'amount'},
     'return_requests': {'refund_amount'},
@@ -88,9 +90,8 @@ class CloudRestoreImporter {
     'sale_payments',
     'sale_items',
     'customer_ledger_entries',
-    // Supplier payable history is local-only and has no server snapshot
-    // section. Clear it before suppliers to satisfy its local FK and avoid
-    // carrying entries over to a different restored supplier identity.
+    // Clear supplier payables before suppliers because entries reference
+    // supplier, location, movement, and drawer rows.
     'supplier_ledger_entries',
     'product_stock_levels',
     'stock_movements',
@@ -123,6 +124,7 @@ class CloudRestoreImporter {
     'tax_remittances',
     'cash_drawer_shifts',
     'stock_movements',
+    'supplier_ledger_entries',
     'product_stock_levels',
     'customer_ledger_entries',
     'sale_items',
@@ -264,6 +266,7 @@ class CloudRestoreImporter {
         'sale_payments' => 'sale payments',
         'product_stock_levels' => 'stock levels',
         'customer_ledger_entries' => 'customer ledger',
+        'supplier_ledger_entries' => 'supplier ledger',
         'inventory_movements' => 'stock movements',
         'expense_categories' => 'expense categories',
         'cash_drawer_shifts' => 'cash drawer shifts',
@@ -486,6 +489,8 @@ class CloudRestoreImporter {
         result.add(Permission.manageSettings);
       }
       if (code == 'business.read') result.add(Permission.viewDashboardStats);
+      if (code == 'finance.manage') result.add(Permission.manageFinance);
+      if (code == 'cash.manage') result.add(Permission.manageCash);
       if (code == 'cash.manage' || code == 'cash.read' ||
           code == 'finance.manage' || code == 'finance.read' ||
           code == 'sales.read' || code == 'customers.read' ||
@@ -710,6 +715,17 @@ class CloudRestoreImporter {
           remote.containsKey('created_at')) {
         normalized['recorded_at'] = remote['created_at'];
       }
+    }
+
+    if (table == 'supplier_ledger_entries') {
+      // Server ledger enums use snake_case while local domain enums are
+      // serialized with Dart's camelCase enum names. Restore must translate
+      // this explicitly so a restored row remains readable by the mapper.
+      normalized['entry_type'] = switch (remote['entry_type']) {
+        'stock_purchase_on_credit' => 'stockPurchaseOnCredit',
+        'payment_made' => 'paymentMade',
+        final value => value,
+      };
     }
 
     if (table == 'return_requests') {

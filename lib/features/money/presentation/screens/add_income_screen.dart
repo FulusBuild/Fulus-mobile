@@ -112,6 +112,11 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
                                     'Add a clear source so the entry is easy to audit later.',
                                     style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                                   ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    'Other income is included in Money totals, not the drawer count. Use a sale for cash received through the till.',
+                                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                                  ),
                                 ],
                               ),
                             ),

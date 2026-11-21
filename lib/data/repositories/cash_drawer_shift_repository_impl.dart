@@ -74,6 +74,7 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
     }
     final cashExpenseRows = await (_db.select(_db.expenses)
           ..where((e) =>
+              e.deletedAt.isNull() &
               e.locationId.equals(shiftRow.locationId) &
               e.paymentMethod.equals('cash') &
               e.expenseDate.isBiggerOrEqualValue(since) &
@@ -83,8 +84,25 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
                   e.syncStatus.equals(SyncStatus.attentionNeeded.name))))
         .get();
     final cashExpenses = cashExpenseRows.fold<Money>(0, (sum, e) => sum + e.amount);
-    final expectedCash = shiftRow.openingCash + cashSales - cashExpenses;
-    return ExpectedCashPreview(openingCash: shiftRow.openingCash, cashSales: cashSales, cashExpenses: cashExpenses, expectedCash: expectedCash);
+    final cashSupplierPayments = await (_db.select(_db.supplierLedgerEntries)
+          ..where((e) =>
+              e.entryType.equals('paymentMade') &
+              e.cashDrawerShiftLocalId.equals(shiftLocalId) &
+              e.paymentMethod.lower().equals('cash')))
+        .get();
+    final supplierPaymentsTotal = cashSupplierPayments.fold<Money>(
+      0,
+      (sum, payment) => sum + payment.amount,
+    );
+    final expectedCash =
+        shiftRow.openingCash + cashSales - cashExpenses - supplierPaymentsTotal;
+    return ExpectedCashPreview(
+      openingCash: shiftRow.openingCash,
+      cashSales: cashSales,
+      cashExpenses: cashExpenses,
+      cashSupplierPayments: supplierPaymentsTotal,
+      expectedCash: expectedCash,
+    );
   }
 
   @override
@@ -104,7 +122,7 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
 
   @override
   Stream<List<CashDrawerShift>> watchShiftHistory({required String locationId}) {
-    final query = _db.select(_db.cashDrawerShifts)..where((s) => s.locationId.equals(locationId))..orderBy([(s) => OrderingTerm.desc(s.openedAt)]);
+    final query = _db.select(_db.cashDrawerShifts)..where((s) => s.locationId.equals(locationId) & s.deletedAt.isNull())..orderBy([(s) => OrderingTerm.desc(s.openedAt)]);
     return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
   }
 

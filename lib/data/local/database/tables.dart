@@ -46,12 +46,7 @@ mixin SyncableColumns on Table {
 /// Sync states — Settled / Pending / Syncing / Attention needed.
 /// `settled` is this enum's name for what's sometimes called "synced"
 /// elsewhere — reconciled here to the user-facing vocabulary.
-enum SyncStatus {
-  pending,
-  syncing,
-  settled,
-  attentionNeeded,
-}
+enum SyncStatus { pending, syncing, settled, attentionNeeded }
 
 /// The business's physical locations. A single-location business has
 /// exactly one row here, created silently at onboarding with no
@@ -153,7 +148,8 @@ class Users extends Table {
   // throttles loginPin guesses the same way it always throttled
   // password guesses — a guessable-length local PIN needs this
   // defense at least as much as a password did, arguably more.
-  IntColumn get failedLoginAttempts => integer().withDefault(const Constant(0))();
+  IntColumn get failedLoginAttempts =>
+      integer().withDefault(const Constant(0))();
   DateTimeColumn get lockedUntil => dateTime().nullable()();
   // Nullable: an owner sets this during their own account setup (Volume
   // 9), not necessarily at the moment the account is first created —
@@ -217,7 +213,8 @@ class Sessions extends Table {
 class Products extends Table with SyncableColumns {
   /// Owner location for this catalog entry. Nullable only for legacy rows
   /// whose ownership cannot be inferred safely during migration.
-  TextColumn get locationId => text().nullable().references(Locations, #localId)();
+  TextColumn get locationId =>
+      text().nullable().references(Locations, #localId)();
   TextColumn get name => text().withLength(min: 1, max: 150)();
   TextColumn get sku => text().withLength(min: 1, max: 64)();
   TextColumn get barcode => text().nullable()();
@@ -225,7 +222,8 @@ class Products extends Table with SyncableColumns {
   TextColumn get supplierId => text().nullable()();
   IntColumn get costPrice => integer()();
   IntColumn get sellingPrice => integer()();
-  IntColumn get lowStockThreshold => integer().withDefault(const Constant(10))();
+  IntColumn get lowStockThreshold =>
+      integer().withDefault(const Constant(10))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 
   /// Stock tracking is opt-out per product, not mandatory. Persisted by
@@ -277,13 +275,15 @@ class ProductStockLevels extends Table {
 class Customers extends Table with SyncableColumns {
   /// Owner location for this customer. Legacy rows remain null until an
   /// explicit, evidence-backed reconciliation assigns their ownership.
-  TextColumn get locationId => text().nullable().references(Locations, #localId)();
+  TextColumn get locationId =>
+      text().nullable().references(Locations, #localId)();
   TextColumn get name => text().withLength(min: 1, max: 150)();
   TextColumn get phone => text().nullable()();
   TextColumn get email => text().nullable()();
   TextColumn get address => text().nullable()();
   TextColumn get notes => text().nullable()();
-  IntColumn get outstandingBalance => integer().withDefault(const Constant(0))();
+  IntColumn get outstandingBalance =>
+      integer().withDefault(const Constant(0))();
 
   /// No backend column — verified directly against
   /// backend/app/models/customer.py, same audit pass as Products'
@@ -353,7 +353,8 @@ class Sales extends Table with SyncableColumns {
   /// to the specific shift that rang them up, rather than inferring it
   /// from locationId + a time window alone, which breaks the moment two
   /// shifts at the same location legitimately overlap.
-  TextColumn get cashierUserId => text().nullable().references(Users, #localId)();
+  TextColumn get cashierUserId =>
+      text().nullable().references(Users, #localId)();
   DateTimeColumn get saleDate => dateTime()();
   IntColumn get subtotal => integer()();
 
@@ -370,8 +371,10 @@ class Sales extends Table with SyncableColumns {
   IntColumn get tax => integer().withDefault(const Constant(0))();
   IntColumn get total => integer()();
   IntColumn get amountPaid => integer().withDefault(const Constant(0))();
+
   /// Cash physically tendered across cash payment legs. Null/zero means no cash tender was recorded.
   IntColumn get cashTendered => integer().withDefault(const Constant(0))();
+
   /// Change returned to the customer. Derived at checkout but persisted for receipt/accounting fidelity.
   IntColumn get cashChange => integer().withDefault(const Constant(0))();
   // balanceDue and paymentStatus are NOT stored columns — both are
@@ -425,7 +428,8 @@ class Sales extends Table with SyncableColumns {
 class SaleItems extends Table {
   TextColumn get localId => text()();
   TextColumn get saleLocalId => text().references(Sales, #localId)();
-  TextColumn get productLocalId => text().nullable().references(Products, #localId)();
+  TextColumn get productLocalId =>
+      text().nullable().references(Products, #localId)();
   TextColumn get description => text().withDefault(const Constant(''))();
   IntColumn get quantity => integer()();
   IntColumn get unitPrice => integer()();
@@ -475,7 +479,8 @@ class StockMovements extends Table with SyncableColumns {
   TextColumn get locationId => text().references(Locations, #localId)();
   TextColumn get toLocationId =>
       text().nullable().references(Locations, #localId)();
-  TextColumn get movementType => text()(); // in | out | adjustment | transfer | sale
+  TextColumn get movementType =>
+      text()(); // in | out | adjustment | transfer | sale
   IntColumn get quantity => integer().nullable()();
   IntColumn get newQuantity => integer().nullable()();
   TextColumn get reason => text().nullable()();
@@ -548,7 +553,8 @@ class SyncQueueItems extends Table {
   // + entityLocalId together identify the row; operation distinguishes
   // create/update/delete, since the same entity can legitimately be
   // queued for different operations at different times.
-  TextColumn get entityType => text()(); // 'sale' | 'product' | 'customer' | ...
+  TextColumn get entityType =>
+      text()(); // 'sale' | 'product' | 'customer' | ...
   TextColumn get entityLocalId => text()();
   TextColumn get operation => text()(); // 'create' | 'update' | 'delete'
   // priority: three lanes, explicit rather than re-derived from
@@ -557,6 +563,7 @@ class SyncQueueItems extends Table {
   // operations, 2 = photos/bulk import (lowest).
   IntColumn get priority => integer()();
   DateTimeColumn get enqueuedAt => dateTime()();
+
   /// Last server change-feed cursor observed when this mutation was created.
   /// Null means the mutation predates cloud sync on this device; such first-time
   /// uploads have no remote base revision to compare against.
@@ -568,6 +575,7 @@ class SyncQueueItems extends Table {
   // head-of-line-blocking fix.
   IntColumn get syncAttempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+
   /// Cloud account that created this durable mutation. Kept on the outbox
   /// rather than inferred from the currently signed-in employee so shared
   /// devices can safely sync an older employee's work after a switch.
@@ -609,7 +617,6 @@ class SyncConflictRecords extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-
 /// Cross-runtime Cloud Sync execution lease. The single fixed row prevents a
 /// foreground Flutter runtime and an Android WorkManager runtime from pulling
 /// or draining the same local sync state concurrently. Expiry makes the lease
@@ -647,7 +654,8 @@ class SyncCursors extends Table {
   TextColumn get blockedOperation => text().nullable()();
   DateTimeColumn get blockedFirstSeenAt => dateTime().nullable()();
   DateTimeColumn get blockedLastAttemptedAt => dateTime().nullable()();
-  IntColumn get blockedAttemptCount => integer().withDefault(const Constant(0))();
+  IntColumn get blockedAttemptCount =>
+      integer().withDefault(const Constant(0))();
   TextColumn get blockedErrorCode => text().nullable()();
   TextColumn get blockedErrorMessage => text().nullable()();
 
@@ -841,11 +849,32 @@ class Suppliers extends Table with SyncableColumns {
   TextColumn get email => text().nullable()();
   TextColumn get address => text().nullable()();
 
-  /// What the business currently owes this supplier — see
-  /// `SupplierLedgerEntries`' own doc comment for the "no backend
-  /// column at all" gap this reflects.
+  /// Cached server balance projection; ledger operations remain the source
+  /// of the payable history.
   IntColumn get outstandingBalance =>
       integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// Supplier payable ledger. Each entry is append-only and is synced as an
+/// idempotent financial operation; the supplier's balance is a projection of
+/// this canonical ledger. Location ownership is required for server access and
+/// restore scoping, while the optional drawer link distinguishes cash taken
+/// from one specific till session.
+@DataClassName('SupplierLedgerEntryRow')
+class SupplierLedgerEntries extends Table with SyncableColumns {
+  TextColumn get supplierLocalId => text().references(Suppliers, #localId)();
+  TextColumn get locationLocalId =>
+      text().nullable().references(Locations, #localId)();
+  TextColumn get entryType => text()();
+  IntColumn get amount => integer()();
+  TextColumn get paymentMethod => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get stockMovementLocalId => text().nullable().references(StockMovements, #localId)();
+  TextColumn get cashDrawerShiftLocalId =>
+      text().nullable().references(CashDrawerShifts, #localId)();
 
   @override
   Set<Column> get primaryKey => {localId};
@@ -881,12 +910,12 @@ class Suppliers extends Table with SyncableColumns {
 @DataClassName('CustomerLedgerEntryRow')
 class CustomerLedgerEntries extends Table with SyncableColumns {
   TextColumn get customerLocalId => text().references(Customers, #localId)();
-  TextColumn get entryType => text()(); // creditSale | repayment | refundAdjustment
+  TextColumn get entryType =>
+      text()(); // creditSale | repayment | refundAdjustment
   IntColumn get amount => integer()();
   TextColumn get paymentMethod => text().nullable()();
   TextColumn get note => text().nullable()();
-  TextColumn get saleLocalId =>
-      text().nullable().references(Sales, #localId)();
+  TextColumn get saleLocalId => text().nullable().references(Sales, #localId)();
 
   @override
   Set<Column> get primaryKey => {localId};
@@ -954,7 +983,8 @@ class SalePayments extends Table {
 @DataClassName('ReturnRequestRow')
 class ReturnRequests extends Table with SyncableColumns {
   TextColumn get originalSaleLocalId => text().references(Sales, #localId)();
-  TextColumn get status => text()(); // pending | approved | rejected | completed | local reconciliation_pending
+  TextColumn get status =>
+      text()(); // pending | approved | rejected | completed | local reconciliation_pending
   TextColumn get returnReason => text().withLength(min: 1, max: 500)();
   IntColumn get refundAmount => integer()();
   TextColumn get refundMethod => text().withLength(min: 1, max: 30)();
@@ -985,8 +1015,7 @@ class ReturnRequests extends Table with SyncableColumns {
 @DataClassName('ReturnItemRow')
 class ReturnItems extends Table {
   TextColumn get localId => text()();
-  TextColumn get returnLocalId =>
-      text().references(ReturnRequests, #localId)();
+  TextColumn get returnLocalId => text().references(ReturnRequests, #localId)();
   TextColumn get productLocalId => text().references(Products, #localId)();
   IntColumn get quantity => integer()();
 
@@ -1038,7 +1067,8 @@ class DraftCarts extends Table {
 class DraftCartItems extends Table {
   TextColumn get localId => text()();
   TextColumn get draftCartLocalId => text().references(DraftCarts, #localId)();
-  TextColumn get productLocalId => text().nullable().references(Products, #localId)();
+  TextColumn get productLocalId =>
+      text().nullable().references(Products, #localId)();
   TextColumn get description => text().withDefault(const Constant(''))();
   IntColumn get quantity => integer()();
   IntColumn get unitPrice => integer()();
@@ -1069,37 +1099,6 @@ class DraftCartPayments extends Table {
 @DataClassName('ExpenseCategoryRow')
 class ExpenseCategories extends Table with SyncableColumns {
   TextColumn get name => text().withLength(min: 1, max: 100)();
-
-  @override
-  Set<Column> get primaryKey => {localId};
-}
-
-/// A supplier's payables balance: works like the customer credit book,
-/// mirrored — accumulated whenever Stock In records a cost price that
-/// wasn't paid on the spot. 100% local-only, more so than the customer
-/// credit book was — checked directly against
-/// `backend/app/models/inventory.py`'s `Supplier`: no balance column at
-/// all, unlike `Customer.outstanding_balance` which at least exists
-/// server-side. There is nothing server-side to reconcile this against
-/// today; this table is this device's own record of what the business
-/// owes, full stop.
-///
-/// Same two-entry-type shape `CustomerLedgerEntries` uses
-/// (`stockPurchaseOnCredit` mirrors `creditSale`; `paymentMade` mirrors
-/// `repayment`), same reasoning: one ledger, one running balance,
-/// combined into `Suppliers.outstandingBalance` (a column added
-/// alongside this table — see that column's own doc comment in the
-/// `Suppliers` class above).
-@DataClassName('SupplierLedgerEntryRow')
-class SupplierLedgerEntries extends Table {
-  TextColumn get localId => text()();
-  TextColumn get supplierLocalId => text().references(Suppliers, #localId)();
-  TextColumn get entryType => text()(); // stockPurchaseOnCredit | paymentMade
-  IntColumn get amount => integer()();
-  TextColumn get paymentMethod => text().nullable()();
-  TextColumn get note => text().nullable()();
-  TextColumn get stockMovementLocalId => text().nullable()();
-  DateTimeColumn get createdAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {localId};
@@ -1231,7 +1230,8 @@ class DiagnosticEvents extends Table {
   /// table's own header comment on why this and the two columns below
   /// are text, not related tables.
   TextColumn get evidenceJson => text().withDefault(const Constant('[]'))();
-  TextColumn get technicalContextJson => text().withDefault(const Constant('[]'))();
+  TextColumn get technicalContextJson =>
+      text().withDefault(const Constant('[]'))();
   TextColumn get breadcrumbsJson => text().withDefault(const Constant('[]'))();
 
   /// e.g. "5 — Update inventory" — null for events with no tracked

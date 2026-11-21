@@ -23,6 +23,15 @@ enum Permission {
   /// redirect away, same as the old hard-coded employee block did.
   viewMoney,
 
+  /// Create/update income and expense records and record supplier payments.
+  /// Separate from [viewMoney] so read-only staff can see the ledger without
+  /// writing financial records.
+  manageFinance,
+
+  /// Open and close a cash drawer session and record its counted balance.
+  /// Maps to the server's `cash.manage` capability.
+  manageCash,
+
   /// See Home's business-wide notices/quick-actions/activity feed
   /// section, not just their own today's-shift hero figure (Decision
   /// 13's "an employee's Home is their own shift, full stop" still
@@ -87,6 +96,7 @@ enum Permission {
       case AuthRole.manager:
         return {
           Permission.viewMoney,
+          Permission.manageCash,
           Permission.viewDashboardStats,
           Permission.approveWithoutSupervisor,
           Permission.manageStock,

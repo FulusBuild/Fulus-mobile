@@ -1,4 +1,5 @@
 import '../entities/supplier.dart';
+import '../../core/money/money.dart';
 
 /// Same shape as CategoryRepository/CustomerRepository.
 abstract class SupplierRepository {
@@ -20,6 +21,7 @@ abstract class SupplierRepository {
     String? phone,
     String? email,
     String? address,
+    Money? outstandingBalance,
     required DateTime updatedAt,
     DateTime? deletedAt,
   });

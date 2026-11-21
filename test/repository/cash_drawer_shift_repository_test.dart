@@ -1,8 +1,11 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/cash_drawer_shift_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/supplier_credit_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/supplier_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/cash_drawer_shift.dart';
+import 'package:fulus_mobile/domain/entities/supplier.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -21,17 +24,30 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<AuthUser?> restoreSession() async => throw UnimplementedError();
   @override
-  Future<AuthUser> createFirstOwner({required String fullName}) async => throw UnimplementedError();
+  Future<AuthUser> createFirstOwner({required String fullName}) async =>
+      throw UnimplementedError();
   @override
-  Future<void> setOwnLoginPin({required String pin}) async => throw UnimplementedError();
+  Future<void> setOwnLoginPin({required String pin}) async =>
+      throw UnimplementedError();
   @override
-  Future<List<AuthUser>> listLocalIdentities() async => throw UnimplementedError();
+  Future<List<AuthUser>> listLocalIdentities() async =>
+      throw UnimplementedError();
   @override
-  Future<AuthUser> switchLocalUser({required String userId, String? pin}) async => throw UnimplementedError();
+  Future<AuthUser> switchLocalUser({
+    required String userId,
+    String? pin,
+  }) async => throw UnimplementedError();
   @override
-  Future<AuthUser> createAdditionalOwner({required String fullName, required String pin}) async => throw UnimplementedError();
+  Future<AuthUser> createAdditionalOwner({
+    required String fullName,
+    required String pin,
+  }) async => throw UnimplementedError();
   @override
-  Future<AuthUser> createEmployeeAccount({required String employeeId, required String pin, AuthRole role = AuthRole.employee}) async => throw UnimplementedError();
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String pin,
+    AuthRole role = AuthRole.employee,
+  }) async => throw UnimplementedError();
   @override
   Future<void> logout() async => throw UnimplementedError();
   @override
@@ -39,7 +55,8 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<String?> getActiveLocationId() async => throw UnimplementedError();
   @override
-  Future<void> setActiveLocationId(String locationId) async => throw UnimplementedError();
+  Future<void> setActiveLocationId(String locationId) async =>
+      throw UnimplementedError();
 }
 
 void main() {
@@ -73,12 +90,16 @@ void main() {
   tearDown(() async => db.close());
 
   group('openShift', () {
-    test('database rejects a second open shift for the same location', () async {
+    test(
+      'database rejects a second open shift for the same location',
+      () async {
       await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
       );
       await expectLater(
-        db.into(db.cashDrawerShifts).insert(
+          db
+              .into(db.cashDrawerShifts)
+              .insert(
           CashDrawerShiftsCompanion.insert(
             localId: 'direct-duplicate-open-shift',
             cashierUserId: cashierUserId,
@@ -92,7 +113,8 @@ void main() {
         ),
         throwsA(isA<Exception>()),
       );
-    });
+      },
+    );
 
     test('opens a shift with the given opening cash', () async {
       final shift = await repository.openShift(
@@ -114,33 +136,154 @@ void main() {
       );
     });
 
-    test('rejects opening a second shift while one is already active', () async {
+    test(
+      'rejects opening a second shift while one is already active',
+      () async {
       await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
       );
       await expectLater(
         repository.openShift(
-          const CashDrawerShiftDraft(locationId: locationId, openingCash: 3000),
+            const CashDrawerShiftDraft(
+              locationId: locationId,
+              openingCash: 3000,
+            ),
         ),
         throwsStateError,
       );
-    });
+      },
+    );
 
-    test('regression: two near-simultaneous opens for the same location never both succeed', () async {
-      const draft = CashDrawerShiftDraft(locationId: locationId, openingCash: 5000);
-      final first = repository.openShift(draft).then<Object?>((s) => s).catchError((e) => e);
-      final second = repository.openShift(draft).then<Object?>((s) => s).catchError((e) => e);
+    test(
+      'regression: two near-simultaneous opens for the same location never both succeed',
+      () async {
+        const draft = CashDrawerShiftDraft(
+          locationId: locationId,
+          openingCash: 5000,
+        );
+        final first = repository
+            .openShift(draft)
+            .then<Object?>((s) => s)
+            .catchError((e) => e);
+        final second = repository
+            .openShift(draft)
+            .then<Object?>((s) => s)
+            .catchError((e) => e);
       final results = await Future.wait([first, second]);
       expect(results.whereType<CashDrawerShift>(), hasLength(1));
       expect(results.whereType<StateError>(), hasLength(1));
-      final openRows = await (db.select(db.cashDrawerShifts)
-            ..where((s) => s.locationId.equals(locationId) & s.closedAt.isNull()))
+        final openRows =
+            await (db.select(db.cashDrawerShifts)..where(
+                  (s) => s.locationId.equals(locationId) & s.closedAt.isNull(),
+                ))
           .get();
       expect(openRows, hasLength(1));
-    });
+      },
+    );
   });
 
   group('closeShift', () {
+    test(
+      'cash supplier payments reduce only the drawer session they funded',
+      () async {
+        await seedLocation(db, localId: 'loc-2');
+        final firstShift = await repository.openShift(
+          const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
+        );
+        final secondShift = await repository.openShift(
+          const CashDrawerShiftDraft(locationId: 'loc-2', openingCash: 2000),
+        );
+        final suppliers = SupplierRepositoryImpl(
+          db: db,
+          syncQueue: SyncQueue(db),
+        );
+        final supplier = await suppliers.createSupplier(
+          const SupplierDraft(name: 'Test supplier'),
+        );
+        final ledger = SupplierCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db));
+        await expectLater(
+          ledger.recordPayment(
+            supplierLocalId: supplier.localId,
+            amount: 100,
+            paymentMethod: 'cash',
+            locationLocalId: 'loc-2',
+            cashDrawerShiftLocalId: firstShift.localId,
+          ),
+          throwsArgumentError,
+        );
+        await ledger.recordStockPurchaseOnCredit(
+          supplierLocalId: supplier.localId,
+          amount: 1000,
+          locationLocalId: locationId,
+        );
+        await ledger.recordPayment(
+          supplierLocalId: supplier.localId,
+          amount: 300,
+          paymentMethod: 'Cash',
+          locationLocalId: locationId,
+          cashDrawerShiftLocalId: firstShift.localId,
+        );
+        await ledger.recordPayment(
+          supplierLocalId: supplier.localId,
+          amount: 150,
+          paymentMethod: 'cash',
+          locationLocalId: 'loc-2',
+          cashDrawerShiftLocalId: secondShift.localId,
+        );
+
+        final firstPreview = await repository.computeExpectedCash(
+          firstShift.localId,
+        );
+        final secondPreview = await repository.computeExpectedCash(
+          secondShift.localId,
+        );
+
+        expect(firstPreview.cashSupplierPayments, 300);
+        expect(firstPreview.expectedCash, 4700);
+        expect(secondPreview.cashSupplierPayments, 150);
+        expect(secondPreview.expectedCash, 1850);
+        final locationOnePayments = await ledger.getPaymentsForPeriod(
+          start: DateTime.now().subtract(const Duration(days: 1)),
+          end: DateTime.now(),
+          locationLocalId: locationId,
+        );
+        expect(locationOnePayments.map((payment) => payment.amount), [300]);
+        final locationTwoPayments = await ledger.getPaymentsForPeriod(
+          start: DateTime.now().subtract(const Duration(days: 1)),
+          end: DateTime.now(),
+          locationLocalId: 'loc-2',
+        );
+        expect(locationTwoPayments.map((payment) => payment.amount), [150]);
+      },
+    );
+
+    test('shift history is location-scoped and omits deleted rows', () async {
+      await seedLocation(db, localId: 'loc-2');
+      final visibleShift = await repository.openShift(
+        const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
+      );
+      await repository.closeShift(
+        shiftLocalId: visibleShift.localId,
+        closingCash: 5000,
+      );
+      final otherLocationShift = await repository.openShift(
+        const CashDrawerShiftDraft(locationId: 'loc-2', openingCash: 2000),
+      );
+      final deletedShift = await repository.openShift(
+        const CashDrawerShiftDraft(locationId: locationId, openingCash: 1000),
+      );
+      await (db.update(db.cashDrawerShifts)
+            ..where((s) => s.localId.equals(deletedShift.localId)))
+          .write(CashDrawerShiftsCompanion(deletedAt: Value(DateTime.now())));
+
+      final history = await repository
+          .watchShiftHistory(locationId: locationId)
+          .first;
+
+      expect(otherLocationShift.locationId, 'loc-2');
+      expect(history.map((shift) => shift.localId), [visibleShift.localId]);
+    });
+
     test('computes the cash difference against expected cash', () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
@@ -167,12 +310,16 @@ void main() {
       expect(active?.isOpen, isTrue);
     });
 
-    test('includes cash expenses parked for attention in expected cash', () async {
+    test(
+      'includes cash expenses parked for attention in expected cash',
+      () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
       );
 
-      await db.into(db.expenses).insert(
+        await db
+            .into(db.expenses)
+            .insert(
         ExpensesCompanion.insert(
           localId: 'expense-attention',
           locationId: locationId,
@@ -191,20 +338,54 @@ void main() {
 
       expect(preview.cashExpenses, 250);
       expect(preview.expectedCash, 4750);
+      },
+    );
+
+    test('excludes soft-deleted cash expenses from expected cash', () async {
+      final shift = await repository.openShift(
+        const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
+      );
+      final deletedAt = shift.openedAt.add(const Duration(minutes: 15));
+      await db
+          .into(db.expenses)
+          .insert(
+            ExpensesCompanion.insert(
+              localId: 'expense-deleted',
+              locationId: locationId,
+              description: 'Deleted cash expense',
+              amount: 700,
+              expenseDate: deletedAt,
+              paymentMethod: const Value('cash'),
+              createdAt: deletedAt,
+              updatedAt: deletedAt,
+              syncStatus: SyncStatus.settled,
+              deletedAt: Value(deletedAt),
+            ),
+          );
+
+      final preview = await repository.computeExpectedCash(shift.localId);
+
+      expect(preview.cashExpenses, 0);
+      expect(preview.expectedCash, 5000);
     });
 
     test('rejects closing a shift that is already closed', () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
       );
-      await repository.closeShift(shiftLocalId: shift.localId, closingCash: 5000);
+      await repository.closeShift(
+        shiftLocalId: shift.localId,
+        closingCash: 5000,
+      );
       await expectLater(
         repository.closeShift(shiftLocalId: shift.localId, closingCash: 5000),
         throwsStateError,
       );
     });
 
-    test('persists the closing note and queues the close for offline sync', () async {
+    test(
+      'persists the closing note and queues the close for offline sync',
+      () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
       );
@@ -219,7 +400,8 @@ void main() {
       expect(persisted?.closingSummaryLocked, isTrue);
       expect(persisted?.cashDifference, -25);
 
-      final queue = await (db.select(db.syncQueueItems)
+        final queue =
+            await (db.select(db.syncQueueItems)
             ..where((q) => q.entityType.equals('cash_drawer_shift'))
             ..orderBy([(q) => OrderingTerm.asc(q.enqueuedAt)]))
           .get();
@@ -228,9 +410,12 @@ void main() {
       expect(queue.last.operation, 'close');
       expect(queue.first.priority, SyncPriority.salesAndPayments);
       expect(queue.last.priority, SyncPriority.salesAndPayments);
-    });
+      },
+    );
 
-    test('regression: two near-simultaneous closes for the same shift never both succeed', () async {
+    test(
+      'regression: two near-simultaneous closes for the same shift never both succeed',
+      () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
       );
@@ -245,43 +430,62 @@ void main() {
       final results = await Future.wait([first, second]);
       expect(results.whereType<CashDrawerShift>(), hasLength(1));
       expect(results.whereType<StateError>(), hasLength(1));
-    });
-    test('does not park an old rejection when a newer close is queued', () async {
+      },
+    );
+    test(
+      'does not park an old rejection when a newer close is queued',
+      () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
       );
-      final queue = await (db.select(db.syncQueueItems)
+        final queue =
+            await (db.select(db.syncQueueItems)
             ..where((q) => q.entityType.equals('cash_drawer_shift'))
             ..where((q) => q.entityLocalId.equals(shift.localId)))
           .get();
       final old = queue.single;
 
-      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-        id: 'new-close', entityType: 'cash_drawer_shift', entityLocalId: shift.localId,
-        operation: 'close', priority: old.priority,
+        await db
+            .into(db.syncQueueItems)
+            .insert(
+              SyncQueueItemsCompanion.insert(
+                id: 'new-close',
+                entityType: 'cash_drawer_shift',
+                entityLocalId: shift.localId,
+                operation: 'close',
+                priority: old.priority,
         enqueuedAt: old.enqueuedAt.add(const Duration(seconds: 1)),
-      ));
+              ),
+            );
 
-      await repository.markAttentionNeeded(shift.localId, operationId: old.id);
+        await repository.markAttentionNeeded(
+          shift.localId,
+          operationId: old.id,
+        );
 
-      final row = await (db.select(db.cashDrawerShifts)
-            ..where((s) => s.localId.equals(shift.localId)))
-          .getSingle();
+        final row = await (db.select(
+          db.cashDrawerShifts,
+        )..where((s) => s.localId.equals(shift.localId))).getSingle();
       expect(row.syncStatus, SyncStatus.pending);
-    });
+      },
+    );
 
-
-    test('does not settle an old create response when a newer close is queued', () async {
+    test(
+      'does not settle an old create response when a newer close is queued',
+      () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
       );
-      final queue = await (db.select(db.syncQueueItems)
+        final queue =
+            await (db.select(db.syncQueueItems)
             ..where((q) => q.entityType.equals('cash_drawer_shift'))
             ..where((q) => q.entityLocalId.equals(shift.localId)))
           .get();
       final old = queue.single;
 
-      await db.into(db.syncQueueItems).insert(
+        await db
+            .into(db.syncQueueItems)
+            .insert(
         SyncQueueItemsCompanion.insert(
           id: 'new-close-for-settlement',
           entityType: 'cash_drawer_shift',
@@ -298,12 +502,12 @@ void main() {
         operationId: old.id,
       );
 
-      final row = await (db.select(db.cashDrawerShifts)
-            ..where((s) => s.localId.equals(shift.localId)))
-          .getSingle();
+        final row = await (db.select(
+          db.cashDrawerShifts,
+        )..where((s) => s.localId.equals(shift.localId))).getSingle();
       expect(row.serverId, 'server-shift-1');
       expect(row.syncStatus, SyncStatus.pending);
-    });
-
+      },
+    );
   });
 }

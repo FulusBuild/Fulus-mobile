@@ -360,6 +360,8 @@ void main() {
               entryType: 'paymentMade',
               amount: moneyFromMajor(400),
               createdAt: DateTime(2026, 1, 20),
+              updatedAt: DateTime(2026, 1, 20),
+              syncStatus: SyncStatus.settled,
             ),
           );
 

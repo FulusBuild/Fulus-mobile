@@ -23,6 +23,7 @@ class LedgerPaymentScreen extends StatefulWidget {
     required this.currencySymbol,
     required this.onSubmit,
     required this.successMessage,
+    this.paymentHelpText,
   });
 
   final String title;
@@ -31,6 +32,7 @@ class LedgerPaymentScreen extends StatefulWidget {
   final Money outstandingBalance;
   final String currencySymbol;
   final String successMessage;
+  final String? paymentHelpText;
 
   final Future<({Money newBalance, Money excessAmount})> Function({
     required Money amount,
@@ -268,6 +270,15 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
                                   ),
                               ],
                             ),
+                            if (widget.paymentHelpText != null) ...[
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                widget.paymentHelpText!,
+                                style: AppTypography.caption.copyWith(
+                                  color: AppColors.textSecondaryOf(context),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: AppSpacing.lg),
                             FulusTextField(
                               label: 'Note (optional)',

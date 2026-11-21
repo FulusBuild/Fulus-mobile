@@ -6,12 +6,14 @@ class ExpectedCashPreview {
     required this.openingCash,
     required this.cashSales,
     required this.cashExpenses,
+    this.cashSupplierPayments = 0,
     required this.expectedCash,
   });
 
   final Money openingCash;
   final Money cashSales;
   final Money cashExpenses;
+  final Money cashSupplierPayments;
   final Money expectedCash;
 }
 

@@ -213,6 +213,7 @@ void main() {
     when(() => supplierCreditRepository.getPaymentsForPeriod(
           start: any(named: 'start'),
           end: any(named: 'end'),
+          locationLocalId: any(named: 'locationLocalId'),
         )).thenAnswer((_) async => [testPayment]);
     when(() => expenseCategoryRepository.watchExpenseCategories())
         .thenAnswer((_) => Stream.value([testCategory]));

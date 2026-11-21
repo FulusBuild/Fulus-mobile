@@ -119,6 +119,12 @@ begin
     raise exception 'strict money wire normalizer returned an unexpected shape';
   end if;
 
+  if public._fulus_money_wire_jsonb(
+    '{"supplier_ledger_entries":[{"amount":7,"balance_after":3}],"new_balance":3}'::jsonb
+  ) <> '{"supplier_ledger_entries":[{"amount":"7.00","balance_after":"3.00"}],"new_balance":"3.00"}'::jsonb then
+    raise exception 'supplier payable balance fields are not normalized to decimal strings';
+  end if;
+
   if position(
     'public._fulus_money_wire_jsonb(v_snapshot)'
     in pg_get_functiondef(

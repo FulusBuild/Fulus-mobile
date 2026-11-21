@@ -21,6 +21,7 @@ class SyncTask {
     required this.entityLocalId,
     required this.operation,
     required this.priority,
+    this.operationId,
   });
 
   factory SyncTask.createSale(String localId) => SyncTask(
@@ -95,6 +96,11 @@ class SyncTask {
         entityType: 'customer_ledger', entityLocalId: localId, operation: 'repayment',
         priority: SyncPriority.salesAndPayments,
       );
+  factory SyncTask.recordSupplierLedgerEntry(String localId) => SyncTask(
+        entityType: 'supplier_ledger', entityLocalId: localId, operation: 'create',
+        priority: SyncPriority.salesAndPayments,
+        operationId: 'supplier-ledger:$localId',
+      );
   factory SyncTask.recordStockMovement(String localId) => SyncTask(
         entityType: 'stock_movement', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
@@ -119,6 +125,9 @@ class SyncTask {
   final String entityLocalId;
   final String operation;
   final int priority;
+  /// Stable operation identity for append-only events that must replay
+  /// idempotently after process death or an ambiguous network response.
+  final String? operationId;
 }
 
 class SyncQueue {
@@ -176,7 +185,7 @@ class SyncQueue {
             ..where((q) => q.entityType.isIn(dependencyTypes)))
           .write(const SyncQueueItemsCompanion(priority: Value(0)));
 
-      const financialTypes = ['sale', 'return', 'cash_drawer_shift', 'customer_ledger'];
+      const financialTypes = ['sale', 'return', 'cash_drawer_shift', 'customer_ledger', 'supplier_ledger'];
       await (_db.update(_db.syncQueueItems)
             ..where((q) => q.entityType.isIn(financialTypes)))
           .write(const SyncQueueItemsCompanion(priority: Value(1)));
@@ -468,6 +477,13 @@ class SyncQueue {
             ?.serverId
             ?.isNotEmpty ==
             true;
+      case 'supplier_ledger':
+        return (await (_db.select(_db.supplierLedgerEntries)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
       default:
         return false;
     }
@@ -553,7 +569,7 @@ class SyncQueue {
 
       await _db.into(_db.syncQueueItems).insert(
         SyncQueueItemsCompanion.insert(
-          id: Ulid().toString(),
+          id: task.operationId ?? Ulid().toString(),
           entityType: task.entityType,
           entityLocalId: task.entityLocalId,
           operation: task.operation,
@@ -608,6 +624,12 @@ class SyncQueue {
         break;
       case 'customer_ledger':
         localId = (await (_db.select(_db.customerLedgerEntries)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'supplier_ledger':
+        localId = (await (_db.select(_db.supplierLedgerEntries)
                   ..where((r) => r.serverId.equals(serverId)))
               .getSingleOrNull())
             ?.localId;

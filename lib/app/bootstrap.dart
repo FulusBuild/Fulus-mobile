@@ -44,6 +44,7 @@ import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/product_image_api.dart';
 import '../shared/widgets/cached_remote_image.dart';
 import '../data/remote/fulus_supplier_canonical_reconciler.dart';
+import '../data/remote/fulus_supplier_ledger_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_coordinator.dart';
 import '../sync/handlers/employee_sync_handler.dart';
 import '../data/remote/endpoints/auth_api.dart';
@@ -113,6 +114,7 @@ import '../sync/handlers/return_sync_handler.dart';
 import '../sync/handlers/sale_sync_handler.dart';
 import '../sync/handlers/stock_movement_sync_handler.dart';
 import '../sync/handlers/supplier_sync_handler.dart';
+import '../sync/handlers/supplier_ledger_sync_handler.dart';
 import '../sync/sync_config.dart';
 import '../sync/legacy_queue_actor_repair.dart';
 import '../sync/sync_engine.dart';
@@ -258,7 +260,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final returnRepository = ReturnRepositoryImpl(db: database, syncQueue: syncQueue, customerCreditRepository: customerCreditRepository);
   final returnCanonicalRepository = ReturnCanonicalRepositoryImpl(db: database);
   final expenseCategoryRepository = ExpenseCategoryRepositoryImpl(db: database, syncQueue: syncQueue);
-  final supplierCreditRepository = SupplierCreditRepositoryImpl(db: database);
+  final supplierCreditRepository = SupplierCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final taxRemittanceRepository = TaxRemittanceRepositoryImpl(db: database);
   final financeStatsRepository = FinanceStatsRepositoryImpl(db: database, customerCreditRepository: customerCreditRepository);
   final cashDrawerShiftRepository = CashDrawerShiftRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository);
@@ -280,6 +282,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final employeeSyncHandler = EmployeeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, employeeRepository: employeeRepository, locationRepository: locationRepository);
   final customerSyncHandler = CustomerSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, customerRepository: customerRepository, locationRepository: locationRepository);
   final customerLedgerSyncHandler = CustomerLedgerSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, secureStorage: secureStorage, customerRepository: customerRepository, executionLease: syncExecutionLease);
+  final supplierLedgerSyncHandler = SupplierLedgerSyncHandler(db: database, repository: supplierCreditRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, secureStorage: secureStorage);
   final categorySyncHandler = CategorySyncHandler(categoryRepository: categoryRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final supplierSyncHandler = SupplierSyncHandler(supplierRepository: supplierRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final locationSyncHandler = LocationSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, locationRepository: locationRepository);
@@ -299,6 +302,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       'customer': FulusCustomerCanonicalReconciler(repository: customerRepository).apply,
       'employee': FulusEmployeeCanonicalReconciler(repository: employeeRepository, locationRepository: locationRepository).apply,
       'customer_ledger': FulusCustomerLedgerCanonicalReconciler(repository: customerCreditRepository).apply,
+      'supplier_ledger': FulusSupplierLedgerCanonicalReconciler(repository: supplierCreditRepository).apply,
       'category': FulusCategoryCanonicalReconciler(repository: categoryRepository).apply,
       'supplier': FulusSupplierCanonicalReconciler(repository: supplierRepository).apply,
       'location': FulusLocationCanonicalReconciler(locationRepository).apply,
@@ -424,6 +428,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       'customer': customerSyncHandler,
       'employee': employeeSyncHandler,
       'customer_ledger': customerLedgerSyncHandler,
+      'supplier_ledger': supplierLedgerSyncHandler,
       'category': categorySyncHandler,
       'supplier': supplierSyncHandler,
       'location': locationSyncHandler,

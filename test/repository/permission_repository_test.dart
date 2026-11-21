@@ -52,6 +52,23 @@ void main() {
     );
   });
 
+  test('finance and cash management grants include money read access', () async {
+    await _insertUser(db, id: 'owner', name: 'Owner', role: AuthRole.owner);
+    await _insertUser(db, id: 'employee', name: 'Employee', role: AuthRole.employee);
+
+    await repository.setPermissions(
+      userId: 'employee',
+      permissions: {Permission.manageFinance, Permission.manageCash},
+      grantedBy: 'owner',
+    );
+
+    expect(await repository.getPermissions('employee'), {
+      Permission.viewMoney,
+      Permission.manageFinance,
+      Permission.manageCash,
+    });
+  });
+
   test('manager cannot add a permission they do not hold', () async {
     await _insertUser(db, id: 'owner', name: 'Owner', role: AuthRole.owner);
     await _insertUser(db, id: 'manager', name: 'Manager', role: AuthRole.manager);

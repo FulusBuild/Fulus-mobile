@@ -26,7 +26,13 @@ void main() {
       fullName: 'Ada Lovelace',
       email: 'ada@example.test',
       locationId: null,
-      permissionCodes: const ['sales.read', 'catalog.manage', 'reports.read'],
+      permissionCodes: const [
+        'sales.read',
+        'catalog.manage',
+        'reports.read',
+        'finance.manage',
+        'cash.manage',
+      ],
       employeeId: 'employee-1',
       employee: const {
         'full_name': 'Ada Lovelace',
@@ -59,6 +65,8 @@ void main() {
       Permission.viewMoney,
       Permission.manageStock,
       Permission.viewReports,
+      Permission.manageFinance,
+      Permission.manageCash,
     });
 
     final session = (await db.select(db.sessions).get()).single;

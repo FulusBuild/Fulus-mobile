@@ -24,6 +24,12 @@ enum FulusSyncOperationType {
     action: 'customer_repayment',
     shape: FulusSyncOperationWireShape.flattenedAction,
   ),
+  supplierLedgerCreate(
+    'supplier_ledger.create',
+    action: 'supplier_ledger_create',
+    shape: FulusSyncOperationWireShape.flattenedAction,
+    responseEntityIdKey: 'ledger_id',
+  ),
   expenseCreate(
     'expense.create',
     action: 'expense_create',

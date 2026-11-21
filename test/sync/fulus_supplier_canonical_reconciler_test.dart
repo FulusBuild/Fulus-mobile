@@ -18,6 +18,7 @@ void main() {
           phone: any(named: 'phone'),
           email: any(named: 'email'),
           address: any(named: 'address'),
+          outstandingBalance: any(named: 'outstandingBalance'),
           updatedAt: any(named: 'updatedAt'),
           deletedAt: any(named: 'deletedAt'),
         )).thenAnswer((_) async {});
@@ -37,6 +38,7 @@ void main() {
           'phone': '+2348000000000',
           'email': 'supplier@example.com',
           'address': 'Ibadan',
+          'outstanding_balance': '0.00',
           'updated_at': '2026-09-15T10:00:00Z',
           'deleted_at': null,
         },
@@ -51,6 +53,7 @@ void main() {
           phone: '+2348000000000',
           email: 'supplier@example.com',
           address: 'Ibadan',
+          outstandingBalance: 0,
           updatedAt: DateTime.parse('2026-09-15T10:00:00Z'),
           deletedAt: null,
         )).called(1);
@@ -79,6 +82,7 @@ void main() {
         'row': {
           'id': 'supplier-3',
           'name': 'Bad',
+          'outstanding_balance': '0.00',
           'updated_at': 'invalid',
         },
       },
@@ -91,6 +95,7 @@ void main() {
           phone: any(named: 'phone'),
           email: any(named: 'email'),
           address: any(named: 'address'),
+          outstandingBalance: any(named: 'outstandingBalance'),
           updatedAt: any(named: 'updatedAt'),
           deletedAt: any(named: 'deletedAt'),
         ));

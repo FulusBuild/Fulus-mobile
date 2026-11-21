@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const url = Deno.env.get("SUPABASE_URL")!;
 const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const MONEY_WIRE_KEYS = new Set([
-  "amount", "credit_limit", "outstanding_balance", "opening_cash",
+  "amount", "new_balance", "balance_after", "credit_limit", "outstanding_balance", "opening_cash",
   "closing_cash", "cash_difference", "subtotal", "whole_cart_discount",
   "discount", "tax", "total", "amount_paid", "cash_tendered",
   "cash_change", "unit_price", "cost_price_at_sale", "line_total",
@@ -52,6 +52,7 @@ const SIMPLE_ENTITIES: Record<string, string> = {
   cash_drawer_shift: "cash_drawer_shifts",
   location: "locations",
   customer_ledger: "customer_ledger_entries",
+  supplier_ledger: "supplier_ledger_entries",
   stock_movement: "inventory_movements",
   employee: "employees",
 };
@@ -169,6 +170,7 @@ Deno.serve(async (req) => {
     "expense",
     "income_record",
     "cash_drawer_shift",
+    "supplier_ledger",
     "location",
     "stock_movement",
   ]);

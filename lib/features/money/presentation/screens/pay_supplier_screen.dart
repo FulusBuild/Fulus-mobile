@@ -24,14 +24,31 @@ class PaySupplierScreen extends ConsumerWidget {
       outstandingBalance: supplier.outstandingBalance,
       currencySymbol: currencySymbol,
       successMessage: 'Payment recorded.',
+      paymentHelpText:
+          'Cash payments are assigned to the open drawer session at the active location.',
       onSubmit: ({required amount, required paymentMethod, note}) async {
-        final result = await ref.read(supplierCreditRepositoryProvider).recordPayment(
+        final locationId = await ref.read(activeLocationIdProvider.future);
+        String? cashDrawerShiftLocalId;
+        if (paymentMethod.trim().toLowerCase() == 'cash') {
+          final shift = await ref
+              .read(cashDrawerShiftRepositoryProvider)
+              .getActiveShift(locationId: locationId);
+          cashDrawerShiftLocalId = shift?.localId;
+        }
+        final result = await ref
+            .read(supplierCreditRepositoryProvider)
+            .recordPayment(
               supplierLocalId: supplier.localId,
               amount: amount,
               paymentMethod: paymentMethod,
               note: note,
+              locationLocalId: locationId,
+              cashDrawerShiftLocalId: cashDrawerShiftLocalId,
             );
-        return (newBalance: result.newBalance, excessAmount: result.excessAmount);
+        return (
+          newBalance: result.newBalance,
+          excessAmount: result.excessAmount,
+            );
       },
     );
   }

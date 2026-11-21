@@ -6,6 +6,8 @@ import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/supplier.dart';
 import '../../../../domain/entities/supplier_ledger_entry.dart';
+import '../../../../domain/entities/auth_user.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
@@ -85,6 +87,9 @@ class _SupplierProfileBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canManageFinance = user?.role == AuthRole.owner || permissions.contains(Permission.manageFinance);
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 760;
@@ -186,19 +191,20 @@ class _SupplierProfileBody extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          FulusActionTile(
-                            icon: Icons.payments_outlined,
-                            label: 'Pay supplier',
-                            subtitle: 'Record a payment against this balance.',
-                            onTap: () async {
-                              final result = await context.pushNamed<bool>(
-                                'moneyPaySupplier',
-                                pathParameters: {'id': supplier.localId},
-                                extra: supplier,
-                              );
-                              if (result == true) onChanged();
-                            },
-                          ),
+                          if (canManageFinance)
+                            FulusActionTile(
+                              icon: Icons.payments_outlined,
+                              label: 'Pay supplier',
+                              subtitle: 'Record a payment against this balance.',
+                              onTap: () async {
+                                final result = await context.pushNamed<bool>(
+                                  'moneyPaySupplier',
+                                  pathParameters: {'id': supplier.localId},
+                                  extra: supplier,
+                                );
+                                if (result == true) onChanged();
+                              },
+                            ),
                         ],
                       ),
                     ),
