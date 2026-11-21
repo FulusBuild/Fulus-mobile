@@ -69,11 +69,11 @@ void main() {
   });
 
   group('selectSecondaryNotices', () {
-    test('caps at two even when three or more are meaningful', () {
+    test('caps the notice list at two', () {
       final selection = engine.selectSecondaryNotices([
         const SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 5),
+        const SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 4),
         const SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Credit', value: 12000),
-        const SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: 3),
       ]);
       expect(selection.shown.length, 2);
       expect(selection.overflowCount, 1);
@@ -82,8 +82,8 @@ void main() {
     test('a caller cannot raise the product cap above two', () {
       final selection = engine.selectSecondaryNotices([
         const SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 5),
+        const SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 4),
         const SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Credit', value: 12000),
-        const SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: 3),
       ], max: 3);
       expect(selection.shown.length, 2);
       expect(selection.overflowCount, 1);
@@ -98,9 +98,9 @@ void main() {
       expect(selection.overflowCount, 2);
     });
 
-    test('orders by priority: low stock, then pending credit, then unsynced', () {
+    test('orders low stock ahead of pending customer credit', () {
       final selection = engine.selectSecondaryNotices([
-        const SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: 3),
+        const SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Credit', value: 3000),
         const SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 5),
       ]);
       expect(selection.shown.first.type, SecondaryNoticeType.lowStock);

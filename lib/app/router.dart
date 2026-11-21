@@ -249,7 +249,6 @@ final appRouter = GoRouter(
                       canViewMoney: permissions.contains(Permission.viewMoney),
                       canViewReports: permissions.contains(Permission.viewReports),
                       canManageStock: permissions.contains(Permission.manageStock),
-                      canManageSettings: permissions.contains(Permission.manageSettings),
                     );
                   },
                 ),

@@ -54,7 +54,6 @@ class HomeScreen extends ConsumerStatefulWidget {
     required this.canViewMoney,
     required this.canViewReports,
     required this.canManageStock,
-    required this.canManageSettings,
   });
 
   final String currentAuthUserId;
@@ -63,7 +62,6 @@ class HomeScreen extends ConsumerStatefulWidget {
   final bool canViewMoney;
   final bool canViewReports;
   final bool canManageStock;
-  final bool canManageSettings;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -203,8 +201,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               widget.isOwner || widget.canViewReports,
                           canManageStock:
                               widget.isOwner || widget.canManageStock,
-                          canManageSettings:
-                              widget.isOwner || widget.canManageSettings,
                           onRetry: _refresh,
                           noticesFuture: _noticesFuture,
                         ),
@@ -471,7 +467,6 @@ class _HomeDashboardHydration extends StatefulWidget {
     required this.onRetry,
     required this.noticesFuture,
     required this.canManageStock,
-    required this.canManageSettings,
   });
 
   final Future<HomeHeroState> heroFuture;
@@ -482,7 +477,6 @@ class _HomeDashboardHydration extends StatefulWidget {
   final VoidCallback onRetry;
   final Future<SecondaryNoticeSelection> noticesFuture;
   final bool canManageStock;
-  final bool canManageSettings;
 
   @override
   State<_HomeDashboardHydration> createState() =>
@@ -556,7 +550,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
       canViewMoney: widget.canViewMoney,
       canViewReports: widget.canViewReports,
       canManageStock: widget.canManageStock,
-      canManageSettings: widget.canManageSettings,
       onRetry: widget.onRetry,
     );
   }
@@ -574,7 +567,6 @@ class _HomeMockupDashboard extends StatelessWidget {
     required this.canViewMoney,
     required this.canViewReports,
     required this.canManageStock,
-    required this.canManageSettings,
     required this.onRetry,
   });
 
@@ -588,7 +580,6 @@ class _HomeMockupDashboard extends StatelessWidget {
   final bool canViewMoney;
   final bool canViewReports;
   final bool canManageStock;
-  final bool canManageSettings;
   final VoidCallback onRetry;
 
   Money? get _salesTotal => switch (hero) {
@@ -655,7 +646,6 @@ class _HomeMockupDashboard extends StatelessWidget {
             error: noticesError,
             canViewMoney: canViewMoney,
             canManageStock: canManageStock,
-            canManageSettings: canManageSettings,
             onRetry: onRetry,
           ),
         ],
@@ -681,7 +671,6 @@ class _HomeAttentionCard extends StatelessWidget {
     required this.error,
     required this.canViewMoney,
     required this.canManageStock,
-    required this.canManageSettings,
     required this.onRetry,
   });
 
@@ -690,7 +679,6 @@ class _HomeAttentionCard extends StatelessWidget {
   final bool error;
   final bool canViewMoney;
   final bool canManageStock;
-  final bool canManageSettings;
   final VoidCallback onRetry;
 
   @override
@@ -768,13 +756,6 @@ class _HomeAttentionCard extends StatelessWidget {
         '${notice.value.toInt()} customer balance${notice.value == 1 ? '' : 's'} to review.',
         canViewMoney,
         'moneyCustomers',
-      ),
-      SecondaryNoticeType.unsyncedItems => (
-        FulusIcons.sync,
-        'Waiting to sync',
-        '${notice.value.toInt()} change${notice.value == 1 ? '' : 's'} waiting for a connection.',
-        canManageSettings,
-        'moreSyncDetail',
       ),
     };
     return FulusListRow(
@@ -976,79 +957,157 @@ class _HomeSalesHeroCard extends StatelessWidget {
       child: SizedBox(
         width: double.infinity,
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: compact ? 120 : 136),
-          child: Material(
-            color: AppColors.primary,
-            shape: RoundedRectangleBorder(
+          constraints: BoxConstraints(minHeight: compact ? 128 : 144),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1D4ED8), Color(0xFF1E40AF)],
+              ),
               borderRadius: BorderRadius.circular(AppRadius.xl),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl - AppSpacing.xs,
-                vertical: compact
-                    ? AppSpacing.lg
-                    : AppSpacing.lg + AppSpacing.xs,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    label,
-                    style: AppTypography.label.copyWith(
-                      color: onPrimaryMuted,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  if (loading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                      child: SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                    )
-                  else
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        value,
-                        maxLines: 1,
-                        style: AppTypography.display.copyWith(
-                          color: onPrimary,
-                          fontSize: compact ? 36 : 44,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: AppSpacing.md),
-                  DecoratedBox(
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -42,
+                  top: -64,
+                  child: Container(
+                    width: 172,
+                    height: 172,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(999),
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.055),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: 2,
-                      ),
-                      child: Text(
-                        count,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.label.copyWith(color: onPrimary),
+                  ),
+                ),
+                Positioned(
+                  right: 28,
+                  bottom: -82,
+                  child: Container(
+                    width: 150,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        width: 22,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl - AppSpacing.xs,
+                    vertical: compact
+                        ? AppSpacing.lg
+                        : AppSpacing.lg + AppSpacing.xs,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: AppTypography.label.copyWith(
+                                color: onPrimaryMuted,
+                                letterSpacing: 0.9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.13),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.receipt_long_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      if (loading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      else
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            value,
+                            maxLines: 1,
+                            style: AppTypography.display.copyWith(
+                              color: onPrimary,
+                              fontSize: compact ? 36 : 44,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: AppSpacing.md),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.xs,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.point_of_sale_rounded,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Flexible(
+                                child: Text(
+                                  count,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.label.copyWith(
+                                    color: onPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),

@@ -78,7 +78,7 @@ final class EmployeeShiftHero extends HomeHeroState {
   final int shiftSalesCount;
 }
 
-enum SecondaryNoticeType { lowStock, pendingCredit, unsyncedItems }
+enum SecondaryNoticeType { lowStock, pendingCredit }
 
 /// A single tappable Home notice — Decision 12's hard cap of two applies
 /// to how many of these ever reach the UI at once; see
