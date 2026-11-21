@@ -8,6 +8,8 @@ import '../../../../core/money/money.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/theme/fulus_art.dart';
 import '../../../../core/utils/formatting.dart';
+import '../../../money/presentation/providers/money_providers.dart';
+import '../../../money/presentation/widgets/opening_float_sheet.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
@@ -37,14 +39,14 @@ FulusArt _artForMethod(String key) => switch (key) {
       _ => FulusArt.payment,
     };
 
-class PaymentScreen extends StatefulWidget {
+class PaymentScreen extends ConsumerStatefulWidget {
   const PaymentScreen({super.key});
 
   @override
-  State<PaymentScreen> createState() => _PaymentScreenState();
+  ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PaymentScreenState extends State<PaymentScreen> {
+class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   String _method = 'cash';
   final _amountController = TextEditingController();
   double? _amountSyncedForRemaining;
@@ -64,8 +66,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     _amountController.text = clamped.toStringAsFixed(2);
   }
 
+  Future<void> _openDrawerSession() async {
+    final opened = await showOpeningFloatSheet(context);
+    if (opened && mounted) ref.invalidate(activeMoneyDrawerSessionProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final drawerSession = ref.watch(activeMoneyDrawerSessionProvider);
     return BlocBuilder<CartCubit, CartState>(
       builder: (context, cartState) {
         if (cartState is! CartLoaded) {
@@ -154,6 +162,40 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                             ),
                           ),
+                        if (_method == 'cash' &&
+                            drawerSession.hasValue &&
+                            drawerSession.value == null) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          FulusCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'No cash drawer is open',
+                                  style: AppTypography.label.copyWith(
+                                    color: AppColors.textPrimaryOf(context),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  'This cash sale can still be recorded, but it won’t be included in a drawer count unless you open a session first.',
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textSecondaryOf(context),
+                                  ),
+                                ),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: _openDrawerSession,
+                                    icon: const Icon(Icons.point_of_sale),
+                                    label: const Text('Open drawer'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         if (!canComplete) ...[
                           const SizedBox(height: AppSpacing.lg),
                           FulusCard(

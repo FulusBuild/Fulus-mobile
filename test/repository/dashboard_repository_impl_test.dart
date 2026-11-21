@@ -10,7 +10,7 @@ import 'package:fulus_mobile/core/money/money.dart';
 /// **Phase 0 completion pass.** No test existed for this repository
 /// before this pass — it's included here specifically because this
 /// pass changed two previously-hardcoded values (dayStatus,
-/// unsyncedCount) to real queries, and "verify every fix" means this
+/// low-stock and pending-credit notices to real queries, and "verify every fix" means this
 /// file needs its first real test, not just the fix itself.
 void main() {
   late AppDatabase db;
@@ -139,7 +139,7 @@ void main() {
     });
   });
 
-  group('getSecondaryNotices — unsyncedCount', () {
+  group('getSecondaryNotices', () {
     test('low-stock projection is isolated to the requested location', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
         localId: 'p1', name: 'Product A', sku: 'SKU-A', costPrice: moneyFromMajor(10), sellingPrice: moneyFromMajor(20),
@@ -159,27 +159,5 @@ void main() {
       expect(low.single.value, 1);
     });
 
-    test('reflects the real number of items still in the sync queue', () async {
-      for (var i = 0; i < 3; i++) {
-        await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-              id: 'q$i',
-              entityType: 'product',
-              entityLocalId: 'p$i',
-              operation: 'create',
-              priority: 1,
-              enqueuedAt: DateTime.now(),
-            ));
-      }
-
-      final selection = await repository.getSecondaryNotices(locationId: locationId);
-
-      final unsynced = selection.shown.where((n) => n.type == SecondaryNoticeType.unsyncedItems);
-      expect(unsynced.single.value, 3);
-    });
-
-    test('an empty sync queue produces no unsynced notice at all', () async {
-      final selection = await repository.getSecondaryNotices(locationId: locationId);
-      expect(selection.shown.where((n) => n.type == SecondaryNoticeType.unsyncedItems), isEmpty);
-    });
   });
 }

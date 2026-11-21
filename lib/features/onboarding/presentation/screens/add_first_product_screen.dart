@@ -105,15 +105,15 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-              const OnboardingStepHeader(step: 3, total: 7, title: 'Add your first product'),
+              const OnboardingStepHeader(step: 3, total: 7, title: 'Add a product'),
                 Text(
-                  'Add your first product',
+                  'Set up your catalog',
                   style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  "Products are what you'll sell. Let's add your first one — it'll go "
-                  'straight into your real inventory.',
+                  'Add products now, or continue and manage your catalog from Stock '
+                  'whenever you are ready.',
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.xl),
@@ -124,7 +124,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                 FulusActionTile(
                   icon: FulusIcons.add,
                   label: 'Add a product',
-                  subtitle: 'Create your first real inventory item.',
+                  subtitle: 'Create an item in your catalog.',
                   trailing: _checking ? const FulusLoadingIndicator() : null,
                   onTap: _checking ? null : _openProductForm,
                 ),
@@ -132,8 +132,8 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                 FulusActionTile(
                   icon: FulusIcons.stock,
                   art: FulusArt.stock,
-                  label: "I'll add products later",
-                  subtitle: 'You can build your catalog from Stock anytime.',
+                  label: 'Continue without adding products',
+                  subtitle: 'You can manage your catalog from Stock anytime.',
                   onTap: _checking ? null : _skip,
                 ),
               ],

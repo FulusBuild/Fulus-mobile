@@ -93,7 +93,10 @@ enum Permission {
           Permission.viewReports,
         };
       case AuthRole.cashier:
-        return {Permission.manageStock};
+        // Cashiers can sell from the existing catalog. Manual stock changes
+        // remain an explicit owner grant so stock records have clear
+        // accountability; existing grants are not changed by this preset.
+        return {};
       case AuthRole.employee:
         // No preset fits — matches the old hard two-role model's
         // employee default (Stock + Sell only, everything else

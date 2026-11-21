@@ -34,6 +34,7 @@ class FulusStockMovementCanonicalReconciler {
 
     await _repository.reconcileServerState(
       serverId: _string(row['id']),
+      operationId: _nullableString(row['operation_id']),
       productServerId: _string(row['product_id']),
       locationServerId: _string(row['location_id']),
       toLocationServerId: _nullableString(row['to_location_id']),

@@ -20,6 +20,13 @@ void main() {
     );
   });
 
+  test('signed-in identities leave the signed-out welcome route', () {
+    expect(
+      redirectSignedInUserFromLogin(user: owner, matchedLocation: '/welcome'),
+      '/',
+    );
+  });
+
   test('signed-in identities may remain on other routes', () {
     expect(
       redirectSignedInUserFromLogin(user: owner, matchedLocation: '/'),

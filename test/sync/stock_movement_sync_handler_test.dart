@@ -186,7 +186,7 @@ void main() {
       final row = await stockMovementRepository.getStockMovementById(
         movement.localId,
       );
-      expect(row!.serverId, isNull);
+      expect(row!.serverId, 'server-movement-1');
       final stored = await (db.select(
         db.stockMovements,
       )..where((m) => m.localId.equals(movement.localId))).getSingle();

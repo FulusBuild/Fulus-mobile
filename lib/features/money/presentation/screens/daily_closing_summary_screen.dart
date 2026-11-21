@@ -23,8 +23,8 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
     try {
       await ref.read(exportServiceProvider).export(
             format: ExportFormat.pdf,
-            fileName: 'daily-closing-${summary.closedAt.millisecondsSinceEpoch}',
-            title: 'Daily closing summary',
+            fileName: 'drawer-session-${summary.closedAt.millisecondsSinceEpoch}',
+            title: 'Cash drawer session summary',
             subtitle: '${formatRelativeDay(summary.closedAt)} · ${formatTime(summary.closedAt)}',
             headers: const ['Item', 'Amount'],
             rows: [
@@ -32,7 +32,7 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
                 ['Sales — ${entry.key}', formatMoney(entry.value, symbol: currencySymbol)],
               ['Total sales', formatMoney(summary.totalSales, symbol: currencySymbol)],
               ['Expenses', formatMoney(summary.expensesTotal, symbol: currencySymbol)],
-              ['Net for the day', formatMoney(summary.netForDay, symbol: currencySymbol, showSign: true)],
+              ['Net for this drawer session', formatMoney(summary.netForDay, symbol: currencySymbol, showSign: true)],
               ['Expected cash', formatMoney(summary.expectedCash, symbol: currencySymbol)],
               ['Counted cash', formatMoney(summary.countedCash, symbol: currencySymbol)],
               ['Difference', formatMoney(summary.difference, symbol: currencySymbol, showSign: true)],
@@ -50,7 +50,7 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
     final matches = summary.difference == 0;
 
     return FulusScreen(
-      title: 'Day closed',
+      title: 'Drawer session closed',
       body: ListView(
         children: [
           Container(
@@ -73,7 +73,7 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text('Net for the day', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                Text('Net for this drawer session', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
               ],
             ),
           ),

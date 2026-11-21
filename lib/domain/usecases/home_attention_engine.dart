@@ -42,9 +42,7 @@ class HomeAttentionEngine {
       ));
     }
 
-    // The next operational action always beats a technical sync reminder.
-    // Sync is useful context, but it should not displace "Open shop" or
-    // "Start selling" from the three-item attention budget.
+    // The next operational action fills the final attention slot.
     switch (dayStatus) {
       case ShopDayStatus.notYetOpened:
         result.add(const HomeAttention(
@@ -66,15 +64,6 @@ class HomeAttentionEngine {
         break;
     }
 
-    final unsynced = _first(meaningful, SecondaryNoticeType.unsyncedItems);
-    if (unsynced != null) {
-      result.add(HomeAttention(
-        kind: HomeAttentionKind.unsyncedItems,
-        label: unsynced.value == 1 ? 'Sync 1 item' : 'Sync ${unsynced.value} items',
-        priority: 3,
-      ));
-    }
-
     result.sort((a, b) => a.priority.compareTo(b.priority));
     return result.take(3).toList(growable: false);
   }
@@ -90,7 +79,7 @@ class HomeAttentionEngine {
   }
 }
 
-enum HomeAttentionKind { lowStock, credit, openShop, startSelling, unsyncedItems }
+enum HomeAttentionKind { lowStock, credit, openShop, startSelling }
 
 class HomeAttention {
   const HomeAttention({

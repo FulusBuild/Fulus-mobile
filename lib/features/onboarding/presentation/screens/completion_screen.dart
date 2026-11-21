@@ -47,8 +47,7 @@ class CompletionScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Your business is set up, your first product is in inventory, and your first '
-              'sale has been recorded.',
+              'Your business is set up. Add products and record sales whenever you’re ready.',
               style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
             ),
             const SizedBox(height: AppSpacing.xl),

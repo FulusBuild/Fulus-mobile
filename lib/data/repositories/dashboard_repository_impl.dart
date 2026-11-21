@@ -162,17 +162,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
     final customers = await (_db.select(_db.customers)..where((c) => c.deletedAt.isNull())).get();
     final pendingCredit = customers.fold<Money>(zeroMoney, (s, c) => s + c.outstandingBalance);
 
-    // Real count now — SyncQueueItems is exactly "work not yet synced,"
-    // one row per queued create/update/delete (SyncQueue, sync_queue.dart),
-    // removed once it settles. The earlier placeholder's own comment
-    // was about a genuinely different, pre-offline-pivot queue that no
-    // longer exists in this schema; this one is current.
-    final unsyncedCount = (await _db.select(_db.syncQueueItems).get()).length;
-
     final candidates = [
       SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: lowStockCount),
       SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Pending credit', value: pendingCredit),
-      SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: unsyncedCount),
     ];
     return _engine.selectSecondaryNotices(candidates, max: max);
   }

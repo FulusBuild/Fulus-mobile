@@ -22,6 +22,7 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(_syncDetailStatusProvider);
+    final conflictsAsync = ref.watch(_unresolvedConflictsProvider);
     final connection = ref.watch(fulusConnectionStateProvider);
     final selectedBusinessId = connection.selectedBusinessId;
     final health = selectedBusinessId == null
@@ -51,6 +52,8 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                       statusAsync.when(
                         data: (status) => _StatusCard(
                           health: health,
+                          unresolvedConflictCount:
+                              conflictsAsync.value?.length ?? status.conflictCount,
                           status:
                               status.kind == SyncStatusKind.disabled ||
                                   connection.isSyncReady
@@ -287,15 +290,16 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
 }
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.status, required this.health});
+  const _StatusCard({required this.status, required this.health, required this.unresolvedConflictCount});
 
   final SyncStatus status;
   final SyncHealthSnapshot health;
+  final int unresolvedConflictCount;
 
   @override
   Widget build(BuildContext context) {
     final firstBackupNotRecorded = isWaitingForFirstBackup(health, status.kind);
-    final (icon, color, headline, body) = firstBackupNotRecorded
+    final (baseIcon, baseColor, baseHeadline, baseBody) = firstBackupNotRecorded
         ? (
             Icons.cloud_upload_outlined,
             AppColors.textSecondaryOf(context),
@@ -341,9 +345,16 @@ class _StatusCard extends StatelessWidget {
             ),
           };
 
-    final displayBody = status.conflictCount > 0
-        ? '${status.conflictCount} change${status.conflictCount == 1 ? '' : 's'} need review because another device changed the same data.'
-        : body;
+    final conflictCount = unresolvedConflictCount > status.conflictCount
+        ? unresolvedConflictCount
+        : status.conflictCount;
+    final hasConflicts = conflictCount > 0;
+    final icon = hasConflicts ? Icons.warning_amber_outlined : baseIcon;
+    final color = hasConflicts ? AppColors.warningOf(context) : baseColor;
+    final headline = hasConflicts ? 'Changes need review' : baseHeadline;
+    final displayBody = hasConflicts
+        ? '$conflictCount change${conflictCount == 1 ? '' : 's'} need review because another device changed the same data.'
+        : baseBody;
     return FulusCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,18 +367,20 @@ class _StatusCard extends StatelessWidget {
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: FulusArtIcon(
-              switch (status.kind) {
-                SyncStatusKind.disabled => FulusArt.cloudOff,
-                SyncStatusKind.cloudUnavailable => FulusArt.cloudOff,
-                SyncStatusKind.settled => FulusArt.cloudDone,
-                SyncStatusKind.pending => FulusArt.cloud,
-                SyncStatusKind.syncing => FulusArt.sync,
-                SyncStatusKind.attentionNeeded => FulusArt.cloudOff,
-              },
-              size: 48,
-              semanticLabel: headline,
-            ),
+            child: hasConflicts
+                ? Icon(icon, color: color, size: 40, semanticLabel: headline)
+                : FulusArtIcon(
+                    switch (status.kind) {
+                      SyncStatusKind.disabled => FulusArt.cloudOff,
+                      SyncStatusKind.cloudUnavailable => FulusArt.cloudOff,
+                      SyncStatusKind.settled => FulusArt.cloudDone,
+                      SyncStatusKind.pending => FulusArt.cloud,
+                      SyncStatusKind.syncing => FulusArt.sync,
+                      SyncStatusKind.attentionNeeded => FulusArt.cloudOff,
+                    },
+                    size: 48,
+                    semanticLabel: headline,
+                  ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

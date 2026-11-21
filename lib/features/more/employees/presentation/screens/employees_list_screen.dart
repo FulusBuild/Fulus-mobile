@@ -115,6 +115,8 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
   late final _phoneController = TextEditingController(text: widget.existing?.phone ?? '');
   late String _role = _initialRole(widget.existing?.role);
   bool _saving = false;
+  Employee? _savedPendingInvite;
+  bool _inviteAttempted = false;
 
   String _initialRole(String? value) {
     final normalized = value?.trim().toLowerCase();
@@ -147,7 +149,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
 
     setState(() => _saving = true);
     try {
-      final existing = widget.existing;
+      final existing = widget.existing ?? _savedPendingInvite;
       final businessId = existing == null
           ? ref.read(fulusConnectionStateProvider).selectedBusinessId
           : null;
@@ -159,7 +161,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
         fullName: name,
         role: _role,
         phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        email: existing?.email ?? email,
+        email: widget.existing?.email ?? email,
         authUserId: existing?.authUserId,
         department: existing?.department,
         position: existing?.position,
@@ -171,8 +173,9 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
       final saved = existing == null
           ? await repo.createEmployee(draft)
           : await repo.updateEmployee(existing.id, draft);
+      if (widget.existing == null) _savedPendingInvite = saved;
 
-      if (existing != null) {
+      if (widget.existing != null) {
         if (mounted) Navigator.of(context).pop();
         return;
       }
@@ -186,6 +189,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
         throw StateError('This location is still being backed up. Try again in a moment.');
       }
 
+      _inviteAttempted = true;
       final invite = await ref.read(fulusConnectionStateProvider).createStaffInvite(
             roleName: _cloudRole(saved.role),
             email: saved.email!,
@@ -223,12 +227,23 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     } on Failure catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        showFulusSnackbar(context, message: e.message);
+        final message = _savedPendingInvite != null && _inviteAttempted &&
+                e.message.toLowerCase().contains('unable to complete staff action')
+            ? 'The team member is saved on this device, but the invitation status is unclear. Check the team list before retrying.'
+            : e.message;
+        showFulusSnackbar(context, message: message);
       }
     } catch (_) {
       if (mounted) {
         setState(() => _saving = false);
-        showFulusSnackbar(context, message: "Couldn't finish adding this team member. Try again.");
+        showFulusSnackbar(
+          context,
+          message: _savedPendingInvite == null
+              ? "Couldn't finish adding this team member. Try again."
+              : _inviteAttempted
+                  ? 'The team member is saved on this device, but the invitation status is unclear. Check the team list before retrying.'
+                  : 'The team member is saved. Finish syncing the selected location, then retry setup.',
+        );
       }
     }
   }
@@ -340,10 +355,23 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
               keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: AppSpacing.lg),
+            if (_savedPendingInvite != null) ...[
+              Text(
+                _inviteAttempted
+                    ? 'This team member is saved locally. Check the team list before retrying the invitation.'
+                    : 'This team member is saved locally. Finish syncing the selected location to continue.',
+                style: AppTypography.caption.copyWith(color: AppColors.warningOf(context)),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
             SizedBox(
               width: double.infinity,
               child: FulusButton(
-                label: isNew ? 'Add & invite' : 'Save changes',
+                label: isNew
+                    ? (_savedPendingInvite == null
+                        ? 'Add & invite'
+                        : (_inviteAttempted ? 'Retry invitation' : 'Retry setup'))
+                    : 'Save changes',
                 loading: _saving,
                 onPressed: _saving ? null : _submit,
               ),

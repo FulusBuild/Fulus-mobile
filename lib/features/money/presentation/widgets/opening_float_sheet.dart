@@ -61,8 +61,13 @@ class _OpeningFloatFormState extends ConsumerState<_OpeningFloatForm> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'How much cash is in the drawer to start the day?',
+          'How much cash is in the drawer to start this session?',
           style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Cash activity is counted from the moment this drawer session opens.',
+          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
         ),
         const SizedBox(height: AppSpacing.md),
         FulusTextField(

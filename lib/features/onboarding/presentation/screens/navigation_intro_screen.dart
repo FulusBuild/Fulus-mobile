@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -39,10 +40,12 @@ class NavigationIntroScreen extends ConsumerWidget {
     ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.firstSale;
   }
 
-  Future<void> _skip(WidgetRef ref) async {
+  Future<void> _skip(BuildContext context, WidgetRef ref) async {
     final onboardingState = ref.read(onboardingStateProvider);
     await onboardingState.skipWalkthroughStep(OnboardingStep.navigationIntro);
-    await _continue(ref);
+    await onboardingState.advanceWalkthroughTo(OnboardingStep.completion);
+    ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.completion;
+    if (context.mounted) context.goNamed('home');
   }
 
   @override
@@ -74,7 +77,7 @@ class NavigationIntroScreen extends ConsumerWidget {
                   icon: Icons.skip_next_rounded,
                   label: 'Skip walkthrough',
                   subtitle: 'You can explore Fulus on your own.',
-                  onTap: () => _skip(ref),
+                  onTap: () => _skip(context, ref),
                 ),
               ],
             ),

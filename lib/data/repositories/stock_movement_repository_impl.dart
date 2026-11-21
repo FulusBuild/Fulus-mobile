@@ -204,7 +204,7 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
   }
 
   @override
-  Future<void> markSettled({required String localId, String? operationId}) async {
+  Future<void> markSettled({required String localId, String? operationId, String? serverId}) async {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
@@ -220,6 +220,7 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
       }
       await (_db.update(_db.stockMovements)..where((m) => m.localId.equals(localId))).write(
         StockMovementsCompanion(
+          serverId: serverId == null ? const Value.absent() : Value(serverId),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
           updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
         ),
@@ -230,6 +231,7 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
   @override
   Future<void> reconcileServerState({
     required String serverId,
+    String? operationId,
     required String productServerId,
     required String locationServerId,
     String? toLocationServerId,
@@ -260,9 +262,22 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
         toLocationLocalId = toLocation.localId;
       }
 
-      final existing = await (_db.select(_db.stockMovements)
+      var existing = await (_db.select(_db.stockMovements)
             ..where((m) => m.serverId.equals(serverId)))
           .getSingleOrNull();
+      // The command/change-feed carries the same idempotency operation id
+      // used by the outbox. Use it to attach the canonical identity to the
+      // optimistic local row if the change-feed beats the command response.
+      if (existing == null && operationId != null) {
+        final queued = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId) & q.entityType.equals('stock_movement')))
+            .getSingleOrNull();
+        if (queued != null) {
+          existing = await (_db.select(_db.stockMovements)
+                ..where((m) => m.localId.equals(queued.entityLocalId)))
+              .getSingleOrNull();
+        }
+      }
       final localId = existing?.localId ?? Ulid().toString();
       final values = StockMovementsCompanion(
         serverId: Value(serverId),

@@ -76,14 +76,12 @@ class DashboardEngine {
   /// alerts.
   ///
   /// Priority order (most to least urgent): low stock (blocks selling),
-  /// pending credit (money already owed needs chasing), unsynced items
-  /// (technical state, lowest urgency). Within the same type, higher
+  /// then pending customer credit. Within the same type, higher
   /// [SecondaryNotice.value] sorts first.
   SecondaryNoticeSelection selectSecondaryNotices(List<SecondaryNotice> candidates, {int max = 2}) {
     const priority = {
       SecondaryNoticeType.lowStock: 0,
       SecondaryNoticeType.pendingCredit: 1,
-      SecondaryNoticeType.unsyncedItems: 2,
     };
     final meaningful = candidates.where((c) => c.value != 0).toList()
       ..sort((a, b) {

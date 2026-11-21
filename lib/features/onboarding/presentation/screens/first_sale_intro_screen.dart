@@ -26,7 +26,7 @@ class FirstSaleIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-              const OnboardingStepHeader(step: 5, total: 7, title: 'Make your first sale'),
+              const OnboardingStepHeader(step: 5, total: 7, title: 'Make a sale'),
                 Center(
                   child: Container(
                     width: 96,
@@ -41,14 +41,14 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  "You've created your first product.",
+                  'Ready to record a sale?',
                   textAlign: TextAlign.center,
                   style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  "Now let's sell it. Head to Sell, add it to the cart, and take payment — "
-                  'exactly like a real sale, because it is one.',
+                  'Open Sell to review your catalog and add items to a cart. If you still '
+                  'need products, you can add them from Stock.',
                   textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
@@ -56,8 +56,8 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                 FulusActionTile(
                   icon: FulusIcons.sell,
                   art: FulusArt.sell,
-                  label: "Let's go",
-                  subtitle: 'Open Sell and make your first real sale.',
+                  label: 'Open Sell',
+                  subtitle: 'Review your products and start when you are ready.',
                   onTap: () {
                     ref.read(firstSaleIntroSeenProvider.notifier).state = true;
                     context.goNamed('sell');
