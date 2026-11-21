@@ -235,7 +235,10 @@ jobs:
       needs.test.result == 'success' &&
       (
         (
-          github.event_name == 'pull_request' &&
+          (
+            github.event_name == 'pull_request' ||
+            (github.event_name == 'push' && github.ref == 'refs/heads/main')
+          ) &&
           needs.change_scope.outputs.cloud_changed != 'true'
         ) ||
         (
