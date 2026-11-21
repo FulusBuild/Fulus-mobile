@@ -276,8 +276,19 @@ declare
   v_def text;
   v_old text;
   v_new text;
+  v_owner_function regprocedure;
 begin
-  v_def := pg_get_functiondef('public.build_fulus_restore_snapshot(uuid,uuid)'::regprocedure);
+  -- Production may expose a routing wrapper while the full owner snapshot
+  -- implementation lives in the *_full function. Fresh migration-chain
+  -- databases still define the original function directly, so support both.
+  v_owner_function := coalesce(
+    to_regprocedure('public.build_fulus_restore_snapshot_full(uuid,uuid)'),
+    to_regprocedure('public.build_fulus_restore_snapshot(uuid,uuid)')
+  );
+  if v_owner_function is null then
+    raise exception 'Owner restore snapshot function is missing';
+  end if;
+  v_def := pg_get_functiondef(v_owner_function);
   v_old := '''cash_drawer_shifts'', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.cash_drawer_shifts t where t.business_id = p_business_id), ''[]''::jsonb),';
   v_new := v_old || E'\n    ''supplier_ledger_entries'', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.supplier_ledger_entries t where t.business_id = p_business_id), ''[]''::jsonb),';
   if position(v_old in v_def) = 0 then raise exception 'Owner restore snapshot cash drawer section changed; patch supplier ledger export explicitly'; end if;
