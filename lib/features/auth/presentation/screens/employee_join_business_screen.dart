@@ -98,6 +98,11 @@ class _EmployeeJoinBusinessScreenState
       _status = 'Creating your Fulus login…';
     });
 
+    final connection = ref.read(fulusConnectionStateProvider);
+    // Own the whole auth-to-restore handoff before the first request can
+    // persist a new cloud session. Otherwise startup sync triggers can race
+    // the invite claim and begin restoring against a partially joined user.
+    connection.beginCloudOnboarding();
     try {
       try {
         await ref.read(fulusStaffAccessApiProvider).prepareInvitedAccount(
@@ -111,7 +116,7 @@ class _EmployeeJoinBusinessScreenState
         }
       }
 
-      setState(() => _status = 'Signing you in…');
+      if (mounted) setState(() => _status = 'Signing you in…');
       await ref.read(authApiProvider).connectServer(
             email: preview.email,
             password: password,
@@ -119,7 +124,9 @@ class _EmployeeJoinBusinessScreenState
             publishableKey: SupabaseConfig.publishableKey,
           );
 
-      setState(() => _status = 'Joining ' + preview.businessName + '…');
+      if (mounted) {
+        setState(() => _status = 'Joining ' + preview.businessName + '…');
+      }
       final claim = await ref.read(fulusStaffAccessApiProvider).claimInvite(
             token,
             fullName: preview.fullName.isEmpty ? null : preview.fullName,
@@ -156,6 +163,10 @@ class _EmployeeJoinBusinessScreenState
           _status = '';
         });
       }
+    } finally {
+      // EmployeeCloudSessionCoordinator holds a nested fence during restore;
+      // release this screen's outer fence only after the full join handoff.
+      connection.endCloudOnboarding();
     }
   }
 

@@ -13,18 +13,26 @@ class AuthApi {
   Future<void> setApprovalPin({required String pinHash, required String pinSalt}) async {
     try {
       await _client.dio.post('/api/auth/approval-pin', data: SetApprovalPinRequestDto(pinHash: pinHash, pinSalt: pinSalt).toJson());
-    } on DioException catch (e) { throw _client.mapError(e); }
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
   }
 
   Future<List<ApprovalHashEntryDto>> getApprovalHashes() async {
     try {
       final response = await _client.dio.get('/api/auth/approval-hashes');
       return ApprovalHashesResponseDto.fromJson(response.data as Map<String, dynamic>).hashes;
-    } on DioException catch (e) { throw _client.mapError(e); }
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
   }
 
   Future<ServerAuthSessionDto> connectServer({required String email, required String password, required String supabaseUrl, required String publishableKey}) async {
-    final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
+    final authClient = Dio(BaseOptions(
+      baseUrl: supabaseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
     try {
       final response = await authClient.post('/auth/v1/token?grant_type=password', data: {'email': email, 'password': password}, options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}));
       final session = ServerAuthSessionDto.fromJson(response.data as Map<String, dynamic>);
@@ -36,7 +44,11 @@ class AuthApi {
       );
       await _client.persistServerRefreshToken(session.refreshToken);
       return session;
-    } on DioException catch (e) { throw _client.mapError(e); }
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    } finally {
+      authClient.close(force: true);
+    }
   }
 
   Future<ServerSignUpResult> signUpServer({required String email, required String password, required String supabaseUrl, required String publishableKey}) async {

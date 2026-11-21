@@ -6,10 +6,9 @@ This handoff is for another Codex session continuing the physical-device UX/UI w
 
 - Repository: `FulusBuild/Fulus-mobile`.
 - Current local checkout: `C:\Users\Sanni\Documents\Codex\fulus-part-mn-audit`.
-- Current branch: `codex/recording-ux-followup`, based on `main` at merge commit `ce77e3c062c3c18376d42502863223b99188b533` (PR #238).
-- PR #238, “Fix physical device UX audit findings,” is merged. Its CI passed analysis, Flutter tests, live sync contract, and multi-device convergence; APK jobs were skipped.
-- PR #240, “Clarify onboarding for restored businesses,” is open at the original local base head `d3a12dfe`. Its recorded Fulus Mobile CI run 5108 and Vercel status succeeded for that commit. The new 2026-11-21 working-tree changes are not included in those remote checks.
-- UX follow-up commit `9ed0e3e3` is pushed to `codex/recording-ux-followup`; PR #240 is open against `main`. New-head CI was still pending at the latest check. Review `git status` before further work.
+- Current branch: `codex/employee-join-loading-fix`, based on `main` at merge commit `4935085423d5fd62c150fa01a98cc2cb80dff7b8` (PR #240).
+- PR #238, “Fix physical device UX audit findings,” and PR #240, “Polish Fulus onboarding and core UX,” are merged. PR #240's final head CI #5111 and migration-chain CI #885 passed; APK jobs were skipped.
+- The current follow-up adds UX-017: fence employee invitation auth/claim/restore against startup sync and bound password-auth network waiting. These edits are local and not yet committed. Review `git status` before staging.
 - Preserve the preexisting untracked `android/app/src/main/java/` and `android/local.properties`. Local build-runner `.g.dart` outputs are generated artifacts and should not be committed.
 
 ## User goal and workflow
@@ -34,7 +33,7 @@ The user wants a thorough UX/UI review of Fulus, including onboarding and real f
 
 ## Current follow-up changes
 
-The working tree now includes report layout improvements; neutral completion copy and a true walkthrough skip; least-privilege Cashier defaults for new invitations; retry-safe local employee identity and clearer invite failure feedback; a cash-without-drawer warning and drawer-session-accurate close labels; conflict-dominant sync status; and stock movement canonical identity reconciliation by server movement ID and outbox operation ID. A Supabase migration carries the stock operation ID in change-feed entries. The 2026-11-21 follow-up adds owner logout to a data-preserving welcome screen, period-correct Home sales labels, a polished sales hero, low-stock/customer-credit notices (technical sync state stays in More → Sync), responsive role-filtered Home shortcuts, and a permission-aware Stock navigation tab. Existing employee grants are unchanged. Inspect `git status` and the full diff before staging.
+The merged source includes report layout improvements; neutral completion copy and a true walkthrough skip; least-privilege Cashier defaults for new invitations; retry-safe local employee identity and clearer invite failure feedback; a cash-without-drawer warning and drawer-session-accurate close labels; conflict-dominant sync status; stock movement canonical identity reconciliation by server movement ID and outbox operation ID; owner logout to a data-preserving welcome screen; period-correct Home sales labels and a polished hero; low-stock/customer-credit Home notices (technical sync state stays in More → Sync); responsive role-filtered Home shortcuts; and a permission-aware Stock navigation tab. Existing employee grants are unchanged. Current uncommitted UX-017 fences the employee invitation flow and bounds auth waiting; physical join/login verification remains open.
 
 ## Verification already run on this follow-up
 
@@ -46,6 +45,6 @@ The working tree now includes report layout improvements; neutral completion cop
 
 ## Next actions
 
-1. Check PR #240's new-head CI and keep the PR open; do not merge unless the user asks.
-2. Ask the user to install a fresh APK and reconnect the TECNO KI5k to ADB for the onboarding, four-card Home, stock-history, cash-close, Reports, large-text, and sync-status recheck.
+1. Complete focused source review for UX-017; the user has requested fixes but has not asked for test execution in this follow-up.
+2. Ask the user to install a fresh APK and reconnect the TECNO KI5k to ADB for the onboarding, employee join/login, four-card Home, stock-history, cash-close, Reports, large-text, and sync-status recheck.
 3. Use a disposable QA business for conflict-resolution and staff-invite success-path testing. Keep production business data read-only.

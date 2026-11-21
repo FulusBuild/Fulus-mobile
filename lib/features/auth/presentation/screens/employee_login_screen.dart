@@ -96,7 +96,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         );
       }
 
-      setState(() => _status = 'Restoring your business…');
+      if (mounted) setState(() => _status = 'Restoring your business…');
       final employee =
           await ref.read(employeeCloudSessionCoordinatorProvider).establish(
                 claim: claim,
