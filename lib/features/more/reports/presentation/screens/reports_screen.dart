@@ -450,52 +450,38 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           Padding(
             padding: EdgeInsets.fromLTRB(
               fulusHorizontalInset(context),
-              AppSpacing.sm,
+              AppSpacing.md,
               fulusHorizontalInset(context),
-              AppSpacing.xs,
+              AppSpacing.sm,
             ),
-            child: GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 0,
-              mainAxisSpacing: 0,
-              childAspectRatio: 1.55,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                FulusFlatGridCell(
-                  icon: FulusIcons.salesReport,
-                  art: FulusArt.sell,
-                  label: 'Sales',
-                  iconColor: AppColors.sales,
-                  onTap: () => setState(() => _selectedReportIndex = 0),
+                Text(
+                  'REPORT TYPE',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                  ),
                 ),
-                FulusFlatGridCell(
-                  icon: FulusIcons.stockReport,
-                  art: FulusArt.stock,
-                  label: 'Stock',
-                  iconColor: AppColors.stock,
-                  onTap: () => setState(() => _selectedReportIndex = 1),
-                ),
-                FulusFlatGridCell(
-                  icon: FulusIcons.expenseReport,
-                  art: FulusArt.moneyOut,
-                  label: 'Expense',
-                  iconColor: AppColors.warning,
-                  onTap: () => setState(() => _selectedReportIndex = 3),
-                ),
-                FulusFlatGridCell(
-                  icon: FulusIcons.customerReport,
-                  art: FulusArt.customers,
-                  label: 'Customer',
-                  iconColor: AppColors.customers,
-                  onTap: () => setState(() => _selectedReportIndex = 2),
-                ),
-                FulusFlatGridCell(
-                  icon: FulusIcons.staff,
-                  art: FulusArt.staff,
-                  label: 'Team',
-                  iconColor: AppColors.reports,
-                  onTap: () => setState(() => _selectedReportIndex = 4),
+                const SizedBox(height: AppSpacing.xs),
+                FulusChipRow(
+                  children: [
+                    for (final entry in const [
+                      (0, 'Sales'),
+                      (1, 'Inventory'),
+                      (2, 'Customers'),
+                      (3, 'Finance'),
+                      (4, 'Team'),
+                    ])
+                      FulusChip(
+                        label: entry.$2,
+                        selected: _selectedReportIndex == entry.$1,
+                        onTap: () =>
+                            setState(() => _selectedReportIndex = entry.$1),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -503,47 +489,68 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           Padding(
             padding: EdgeInsets.fromLTRB(
               fulusHorizontalInset(context),
-              AppSpacing.xs,
-              fulusHorizontalInset(context),
               AppSpacing.sm,
+              fulusHorizontalInset(context),
+              AppSpacing.md,
             ),
-            child: FulusChipRow(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                FulusChip(
-                  label: 'Today',
-                  selected: _periodKind == ReportPeriodKind.today,
-                  onTap: () =>
-                      _onPeriodSelectionChanged({ReportPeriodKind.today}),
+                Text(
+                  'PERIOD',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                  ),
                 ),
-                FulusChip(
-                  label: 'Week',
-                  selected: _periodKind == ReportPeriodKind.thisWeek,
-                  onTap: () =>
-                      _onPeriodSelectionChanged({ReportPeriodKind.thisWeek}),
-                ),
-                FulusChip(
-                  label: 'Month',
-                  selected: _periodKind == ReportPeriodKind.thisMonth,
-                  onTap: () =>
-                      _onPeriodSelectionChanged({ReportPeriodKind.thisMonth}),
-                ),
-                FulusChip(
-                  label: _customRange == null
-                      ? 'Custom'
-                      : formatRelativeDay(_customRange!.start) +
-                            ' – ' +
-                            formatRelativeDay(_customRange!.end),
-                  selected: _periodKind == ReportPeriodKind.custom,
-                  onTap: () =>
-                      _onPeriodSelectionChanged({ReportPeriodKind.custom}),
+                const SizedBox(height: AppSpacing.xs),
+                FulusChipRow(
+                  children: [
+                    FulusChip(
+                      label: 'Today',
+                      selected: _periodKind == ReportPeriodKind.today,
+                      onTap: () =>
+                          _onPeriodSelectionChanged({ReportPeriodKind.today}),
+                    ),
+                    FulusChip(
+                      label: 'Week',
+                      selected: _periodKind == ReportPeriodKind.thisWeek,
+                      onTap: () => _onPeriodSelectionChanged({
+                        ReportPeriodKind.thisWeek,
+                      }),
+                    ),
+                    FulusChip(
+                      label: 'Month',
+                      selected: _periodKind == ReportPeriodKind.thisMonth,
+                      onTap: () => _onPeriodSelectionChanged({
+                        ReportPeriodKind.thisMonth,
+                      }),
+                    ),
+                    FulusChip(
+                      label: _customRange == null
+                          ? 'Custom'
+                          : formatRelativeDay(_customRange!.start) +
+                                ' – ' +
+                                formatRelativeDay(_customRange!.end),
+                      selected: _periodKind == ReportPeriodKind.custom,
+                      onTap: () =>
+                          _onPeriodSelectionChanged({ReportPeriodKind.custom}),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          _selectedReportContent(
-            currencySymbol: currencySymbol,
-            canViewMoney: canViewMoney,
-            canManageEmployees: canManageEmployees,
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: fulusHorizontalInset(context),
+            ),
+            child: _selectedReportContent(
+              currencySymbol: currencySymbol,
+              canViewMoney: canViewMoney,
+              canManageEmployees: canManageEmployees,
+            ),
           ),
         ],
       ),
@@ -577,23 +584,41 @@ class _ReportScaffold extends StatelessWidget {
         ...children,
         if (insights.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
-          Text(
-            'What this means',
-            style: AppTypography.heading.copyWith(
-              color: AppColors.textPrimaryOf(context),
+          FulusCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_outlined,
+                      size: AppIconSize.compact,
+                      color: AppColors.primaryOf(context),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'What this means',
+                      style: AppTypography.subheading.copyWith(
+                        color: AppColors.textPrimaryOf(context),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                for (var i = 0; i < insights.length; i++) ...[
+                  if (i > 0) const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    insights[i].text,
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          for (final insight in insights)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: Text(
-                '• ${insight.text}',
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textPrimaryOf(context),
-                ),
-              ),
-            ),
         ],
       ],
     );
@@ -608,57 +633,85 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: AppColors.mutedOf(context),
-              ),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 260;
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final labelText = Text(
+          label,
+          maxLines: compact || textScale > 1.25 ? 2 : 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.body.copyWith(
+            fontSize: compact ? 14 : 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondaryOf(context),
           ),
-          const SizedBox(width: AppSpacing.md),
-          Flexible(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: AppTypography.mono.copyWith(
-                fontSize: 25,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimaryOf(context),
-              ),
-            ),
+        );
+        final valueText = Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: compact ? TextAlign.left : TextAlign.right,
+          style: AppTypography.mono.copyWith(
+            fontSize: compact ? 19 : 21,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimaryOf(context),
           ),
-        ],
-      ),
-    );
+        );
+        final drilldown = onTap == null
+            ? const SizedBox.shrink()
+            : Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.xs),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: AppIconSize.compact,
+                  color: AppColors.textSecondaryOf(context),
+                ),
+              );
+        final content = Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    labelText,
+                    const SizedBox(height: AppSpacing.xs),
+                    Row(
+                      children: [
+                        Expanded(child: valueText),
+                        drilldown,
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: labelText),
+                    const SizedBox(width: AppSpacing.md),
+                    Flexible(child: valueText),
+                    drilldown,
+                  ],
+                ),
+        );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (onTap != null)
-          Material(
-            color: Colors.transparent,
-            child: InkWell(onTap: onTap, child: content),
-          )
-        else
-          content,
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: AppColors.borderOf(context).withValues(alpha: 0.55),
-        ),
-      ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (onTap != null)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(onTap: onTap, child: content),
+              )
+            else
+              content,
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: AppColors.borderOf(context).withValues(alpha: 0.55),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1297,6 +1350,10 @@ class _FinanceTab extends StatelessWidget {
         return _ReportScaffold(
           insights: r.insights,
           children: [
+            _ReportSectionHeading(
+              title: 'Profit and loss',
+              subtitle: 'For the selected period',
+            ),
             _StatCard(
               label: 'Revenue',
               value: formatMoney(r.totalRevenue, symbol: currencySymbol),
@@ -1334,11 +1391,9 @@ class _FinanceTab extends StatelessWidget {
               ),
             if (r.expenseBreakdown.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Expenses by category',
-                style: AppTypography.heading.copyWith(
-                  color: AppColors.textPrimaryOf(context),
-                ),
+              _ReportSectionHeading(
+                title: 'Expenses by category',
+                subtitle: 'Tap a category to view its transactions',
               ),
               for (final e in r.expenseBreakdown)
                 _StatCard(
@@ -1353,11 +1408,9 @@ class _FinanceTab extends StatelessWidget {
                 ),
             ],
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Cash flow',
-              style: AppTypography.heading.copyWith(
-                color: AppColors.textPrimaryOf(context),
-              ),
+            _ReportSectionHeading(
+              title: 'Cash flow',
+              subtitle: 'Actual money received and paid',
             ),
             FutureBuilder<CashFlowReport>(
               future: cashFlowFuture,
@@ -1376,6 +1429,13 @@ class _FinanceTab extends StatelessWidget {
                 final cf = snap.data!;
                 return Column(
                   children: [
+                    _StatCard(
+                      label: 'Net cash flow',
+                      value: formatMoney(
+                        cf.netCashFlow,
+                        symbol: currencySymbol,
+                      ),
+                    ),
                     _StatCard(
                       label: 'Money in',
                       value: formatMoney(cf.inflow, symbol: currencySymbol),
@@ -1421,13 +1481,6 @@ class _FinanceTab extends StatelessWidget {
                           symbol: currencySymbol,
                         ),
                       ),
-                    _StatCard(
-                      label: 'Net cash flow',
-                      value: formatMoney(
-                        cf.netCashFlow,
-                        symbol: currencySymbol,
-                      ),
-                    ),
                   ],
                 );
               },
@@ -1487,6 +1540,39 @@ class _EmployeesTab extends StatelessWidget {
             ),
             const FulusListDivider(indented: false),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportSectionHeading extends StatelessWidget {
+  const _ReportSectionHeading({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTypography.subheading.copyWith(
+              color: AppColors.textPrimaryOf(context),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            subtitle,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondaryOf(context),
+            ),
+          ),
         ],
       ),
     );
